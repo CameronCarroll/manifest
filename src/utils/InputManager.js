@@ -19,6 +19,12 @@ class InputManager {
     this.undoStack = [];
     this.redoStack = [];
     
+    // Create raycaster for picking
+    this.raycaster = new THREE.Raycaster();
+    this.mousePosition = new THREE.Vector2();
+    this.lastClickTime = 0;
+    this.doubleClickDelay = 300; // milliseconds
+    
     // Edge panning
     this.isEdgePanning = false;
     this.edgePanThreshold = 20; // Pixels from edge to trigger panning
@@ -400,6 +406,52 @@ class InputManager {
     this.sceneManager.renderer.domElement.addEventListener('contextmenu', (e) => {
       e.preventDefault();
     });
+  }
+
+  checkEdgePanning() {
+    // Check if mouse is near screen edges for camera panning
+    const edgeThreshold = this.edgePanThreshold;
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    
+    let panX = 0;
+    let panZ = 0;
+    
+    // Check each edge
+    if (this.mouseX < edgeThreshold) {
+      // Left edge
+      panX = -this.edgePanSpeed;
+    } else if (this.mouseX > screenWidth - edgeThreshold) {
+      // Right edge
+      panX = this.edgePanSpeed;
+    }
+    
+    if (this.mouseY < edgeThreshold) {
+      // Top edge
+      panZ = -this.edgePanSpeed;
+    } else if (this.mouseY > screenHeight - edgeThreshold) {
+      // Bottom edge
+      panZ = this.edgePanSpeed;
+    }
+    
+    // Update flag and camera position if panning
+    this.isEdgePanning = (panX !== 0 || panZ !== 0);
+    
+    if (this.isEdgePanning && this.sceneManager && this.sceneManager.camera) {
+      // Move camera
+      const camera = this.sceneManager.camera;
+      camera.position.x += panX * 0.1; // Scale by deltaTime if available
+      camera.position.z += panZ * 0.1;
+      
+      // Ensure camera stays within bounds
+      if (this.sceneManager.cameraBounds) {
+        const bounds = this.sceneManager.cameraBounds;
+        camera.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, camera.position.x));
+        camera.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, camera.position.z));
+      }
+    }
+    
+    return this.isEdgePanning;
   }
 }
 

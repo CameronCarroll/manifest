@@ -50,6 +50,17 @@ class MovementSystem {
           this.systems.combat.startAttack(entityId, targetEntityId);
           return;
         }
+        
+        // Check if target still exists
+        if (!this.entityManager.hasComponent(targetEntityId, 'position')) {
+          this.stopEntity(entityId);
+          return;
+        }
+        
+        // Update destination if target is moving
+        const targetPos = this.entityManager.getComponent(targetEntityId, 'position');
+        destination.x = targetPos.x;
+        destination.z = targetPos.z;
       }
       
       // Calculate direction and distance
@@ -62,6 +73,12 @@ class MovementSystem {
         positionComponent.x = destination.x;
         positionComponent.z = destination.z;
         this.stopEntity(entityId);
+        
+        // Auto-attack if entity reached a target
+        if (targetEntityId && this.systems && this.systems.combat) {
+          this.systems.combat.startAttack(entityId, targetEntityId);
+        }
+        
         return;
       }
       
@@ -75,7 +92,64 @@ class MovementSystem {
       
       // Update rotation to face movement direction
       positionComponent.rotation = Math.atan2(dx, dz);
+      
+      // Check for targets in range (auto-attack)
+      if (this.systems && this.systems.combat) {
+        // Find enemy entities near this entity
+        if (this.entityManager.hasComponent(entityId, 'faction')) {
+          const faction = this.entityManager.getComponent(entityId, 'faction');
+          const nearestTarget = this.findNearestEnemyInRange(entityId, faction.faction);
+          
+          // If found an enemy in range, stop to attack
+          if (nearestTarget && this.systems.combat.canAttack(entityId, nearestTarget, true)) {
+            this.stopEntity(entityId);
+            this.systems.combat.startAttack(entityId, nearestTarget);
+            return;
+          }
+        }
+      }
     });
+  }
+  
+  // Helper method to find nearest enemy in attack range
+  findNearestEnemyInRange(entityId, faction) {
+    if (!this.entityManager.hasComponent(entityId, 'position')) {
+      return null;
+    }
+    
+    const position = this.entityManager.getComponent(entityId, 'position');
+    let nearestTarget = null;
+    let nearestDistance = Infinity;
+    
+    // Check all entities with position, health, and faction components
+    this.entityManager.gameState.entities.forEach((entity, potentialTargetId) => {
+      if (potentialTargetId === entityId) return; // Skip self
+      
+      if (this.entityManager.hasComponent(potentialTargetId, 'position') &&
+          this.entityManager.hasComponent(potentialTargetId, 'health') &&
+          this.entityManager.hasComponent(potentialTargetId, 'faction')) {
+        
+        const targetFaction = this.entityManager.getComponent(potentialTargetId, 'faction');
+        
+        // Only target entities of different factions
+        if (targetFaction.faction !== faction) {
+          const targetPosition = this.entityManager.getComponent(potentialTargetId, 'position');
+          
+          // Calculate distance
+          const dx = targetPosition.x - position.x;
+          const dz = targetPosition.z - position.z;
+          const distance = Math.sqrt(dx * dx + dz * dz);
+          
+          // Check if this is the nearest target and in detection range
+          if (distance < nearestDistance && distance <= 10) { // 10 units detection range
+            nearestDistance = distance;
+            nearestTarget = potentialTargetId;
+          }
+        }
+      }
+    });
+    
+    return nearestTarget;
   }
 
   // For serialization

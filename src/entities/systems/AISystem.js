@@ -238,107 +238,47 @@ class AISystem {
         }
         break;
         
-      case this.AI_STATES.PURSUE:
-        // Make sure target still exists
-        if (!aiData.targetId || !this.entityManager.hasComponent(aiData.targetId, 'position')) {
-          aiData.state = this.AI_STATES.IDLE;
-          aiData.stateTime = 0;
-          aiData.targetId = null;
-          break;
-        }
-        
-        // Get the faction component to determine unit type
-        const factionComp = this.entityManager.getComponent(entityId, 'faction');
-        const unitType = factionComp ? factionComp.unitType : 'basic';
-        
-        // Different behavior based on unit type
-        let pursuitSpeed = 5;
-        let maintainDistance = 0;
-        
-        switch (unitType) {
-          case 'sniper':
-            pursuitSpeed = 3;
-            maintainDistance = 12; // Snipers stay far back
-            break;
-          case 'assault':
-            pursuitSpeed = 6;
-            maintainDistance = 0; // Assault units get close
-            break;
-          case 'support':
-            pursuitSpeed = 4;
-            maintainDistance = 8; // Support units stay at medium range
-            break;
-          case 'heavy':
-            pursuitSpeed = 3.5;
-            maintainDistance = 0; // Heavy units get close
-            break;
-          case 'specialist':
-            pursuitSpeed = 5;
-            maintainDistance = 5; // Specialists at medium-close range
-            break;
-        }
-        
-        // Check if target is in attack range
-        if (this.combatSystem.canAttack(entityId, aiData.targetId)) {
-          aiData.state = this.AI_STATES.ATTACK;
-          aiData.stateTime = 0;
-          this.movementSystem.stopEntity(entityId);
-          this.combatSystem.startAttack(entityId, aiData.targetId);
-        } else {
-          // Calculate pursuit position with formation spacing
-          const targetPosition = this.entityManager.getComponent(aiData.targetId, 'position');
-          
-          if (targetPosition) {
-            // If unit should maintain distance, calculate position
-            let pursuePosX = targetPosition.x;
-            let pursuePosZ = targetPosition.z;
-            
-            if (maintainDistance > 0) {
-              // Get current position
-              const currentPos = this.entityManager.getComponent(entityId, 'position');
-              
-              // Calculate direction vector from target to unit
-              const dx = currentPos.x - targetPosition.x;
-              const dz = currentPos.z - targetPosition.z;
-              const dist = Math.sqrt(dx * dx + dz * dz);
-              
-              if (dist > 0) {
-                // Normalize direction vector
-                const dirX = dx / dist;
-                const dirZ = dz / dist;
-                
-                // Calculate position at desired distance
-                pursuePosX = targetPosition.x + dirX * maintainDistance;
-                pursuePosZ = targetPosition.z + dirZ * maintainDistance;
-              }
-            }
-            
-            // Apply formation spacing
-            const pursuePosition = {
-              x: pursuePosX,
-              y: targetPosition.y,
-              z: pursuePosZ
-            };
-            
-            const formationPosition = this.calculateFormationPosition(entityId, pursuePosition);
-            
-            // Move toward target position
-            this.movementSystem.moveEntity(entityId, formationPosition, pursuitSpeed, aiData.targetId);
-          }
-          
-          // If pursuit takes too long, give up
-          if (aiData.stateTime > 15) {
-            aiData.state = this.AI_STATES.PATROL;
+        case this.AI_STATES.PURSUE:
+          // Make sure target still exists
+          if (!aiData.targetId || !this.entityManager.hasComponent(aiData.targetId, 'position')) {
+            aiData.state = this.AI_STATES.IDLE;
             aiData.stateTime = 0;
             aiData.targetId = null;
-            aiData.patrolPoint = this.getRandomPatrolPoint(entityId);
+            break;
+          }
+          
+          // Get the faction component to determine unit type
+          const factionComp = this.entityManager.getComponent(entityId, 'faction');
+          const unitType = factionComp ? factionComp.unitType : 'basic';
+          
+          // Check if target is in attack range
+          if (this.combatSystem.canAttack(entityId, aiData.targetId)) {
+            aiData.state = this.AI_STATES.ATTACK;
+            aiData.stateTime = 0;
+            this.movementSystem.stopEntity(entityId);
+            this.combatSystem.startAttack(entityId, aiData.targetId);
+          } else {
+            // Calculate pursuit position with formation spacing
+            const targetPosition = this.entityManager.getComponent(aiData.targetId, 'position');
             
-            if (aiData.patrolPoint) {
-              this.movementSystem.moveEntity(entityId, aiData.patrolPoint, 3);
+            if (targetPosition && this.movementSystem) {
+              // Move toward target position
+              this.movementSystem.moveEntity(entityId, targetPosition, 5, aiData.targetId);
+            }
+            
+            // If pursuit takes too long, give up
+            if (aiData.stateTime > 15) {
+              aiData.state = this.AI_STATES.PATROL;
+              aiData.stateTime = 0;
+              aiData.targetId = null;
+              aiData.patrolPoint = this.getRandomPatrolPoint(entityId);
+              
+              if (aiData.patrolPoint && this.movementSystem) {
+                this.movementSystem.moveEntity(entityId, aiData.patrolPoint, 3);
+              }
             }
           }
-        }
-        break;
+          break;
         
       case this.AI_STATES.ATTACK:
         // Make sure target still exists
@@ -639,6 +579,21 @@ class AISystem {
     });
     
     return bestTarget;
+  }
+  
+  // Get wave difficulty multiplier for spawn system
+  getWaveDifficultyMultiplier(waveNumber) {
+    // Base multiplier starts at 1.0 for wave 1
+    // Increase by 0.1 for each wave
+    const baseMultiplier = 1.0 + (waveNumber - 1) * 0.1;
+    
+    // Add random variation (±10%)
+    const randomVariation = 0.9 + Math.random() * 0.2;
+    
+    // Apply logarithmic scaling for later waves to prevent excessive difficulty
+    const scaledMultiplier = baseMultiplier * Math.log10(waveNumber + 9);
+    
+    return scaledMultiplier * randomVariation;
   }
 }
 

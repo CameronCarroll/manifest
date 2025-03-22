@@ -380,7 +380,15 @@ class SpawnSystem {
 
   getWaveDifficultyMultiplier(waveNumber) {
     // Base difficulty is 1.0, scaling up with each wave
-    return 1.0 + (waveNumber - 1) * 0.15; // 15% increase per wave
+    const baseMultiplier = 1.0 + (waveNumber - 1) * 0.15; // 15% increase per wave
+    
+    // Add non-linear scaling for later waves
+    const scaledMultiplier = baseMultiplier * Math.log10(waveNumber + 9) / Math.log10(10);
+    
+    // Add some randomness for variety (±10%)
+    const randomVariation = 0.9 + Math.random() * 0.2;
+    
+    return scaledMultiplier * randomVariation;
   }
   
   // Add method to analyze player positions

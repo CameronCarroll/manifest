@@ -239,30 +239,30 @@ describe('MovementSystem', () => {
 
   describe('serialization', () => {
     test('should serialize moving entities data', () => {
+      // Setup
       const entityId1 = 1;
       const entityId2 = 2;
       
-      // Setup: add entities to moving entities
-      entityManager.addComponent(entityId1, 'position', { x: 0, y: 0, z: 0 });
-      entityManager.addComponent(entityId2, 'position', { x: 5, y: 0, z: 5 });
-      
+      // Add entities to moving entities
       movementSystem.moveEntity(entityId1, { x: 10, y: 0, z: 0 }, 5);
       movementSystem.moveEntity(entityId2, { x: 15, y: 0, z: 15 }, 7);
       
       // Serialize
       const serialized = movementSystem.serialize();
       
-      // Verify serialized data
+      // Update the expected output to include targetEntityId
       expect(serialized).toEqual([
         [entityId1, {
           destination: { x: 10, y: 0, z: 0 },
           speed: 5,
-          path: []
+          path: [],
+          targetEntityId: null
         }],
         [entityId2, {
           destination: { x: 15, y: 0, z: 15 },
           speed: 7,
-          path: []
+          path: [],
+          targetEntityId: null
         }]
       ]);
     });
@@ -275,12 +275,14 @@ describe('MovementSystem', () => {
         [entityId1, {
           destination: { x: 10, y: 0, z: 0 },
           speed: 5,
-          path: []
+          path: [],
+          targetEntityId: null
         }],
         [entityId2, {
           destination: { x: 15, y: 0, z: 15 },
           speed: 7,
-          path: []
+          path: [],
+          targetEntityId: null
         }]
       ];
       
@@ -292,12 +294,14 @@ describe('MovementSystem', () => {
       expect(movementSystem.movingEntities.get(entityId1)).toEqual({
         destination: { x: 10, y: 0, z: 0 },
         speed: 5,
-        path: []
+        path: [],
+        targetEntityId: null
       });
       expect(movementSystem.movingEntities.get(entityId2)).toEqual({
         destination: { x: 15, y: 0, z: 15 },
         speed: 7,
-        path: []
+        path: [],
+        targetEntityId: null
       });
     });
   });
