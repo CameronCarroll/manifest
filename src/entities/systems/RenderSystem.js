@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import SelectionIndicator from '/src/utils/SelectionIndicator.js';
 
 class RenderSystem {
   constructor(entityManager, sceneManager, modelLoader) {
@@ -6,10 +7,14 @@ class RenderSystem {
     this.sceneManager = sceneManager;
     this.modelLoader = modelLoader;
     this.meshes = new Map(); // Maps entityId to THREE.Mesh
+    this.selectionIndicator = null;
   }
 
   initialize() {
-    // Initial setup if needed
+    const { scene } = this.sceneManager.getActiveScene();
+    if (scene) {
+      this.selectionIndicator = new SelectionIndicator(scene);
+    }
   }
 
   update(deltaTime) {
@@ -57,25 +62,57 @@ class RenderSystem {
 
   createMesh(entityId, renderComponent, scene) {
     // This would use the modelLoader to load the actual 3D model based on renderComponent.meshId
-    // For simplicity, we'll create a placeholder cube
+    // For simplicity, we'll create placeholder meshes
     let mesh;
     
-    // Placeholder - in a real implementation, you would load models based on meshId
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshPhongMaterial({ 
-      color: renderComponent.color,
-      opacity: renderComponent.opacity,
-      transparent: renderComponent.opacity < 1
-    });
-    mesh = new THREE.Mesh(geometry, material);
+    // Check if we're dealing with a unit or building based on meshId or other properties
+    if (renderComponent.meshId === 'unit') {
+      // Create a unit mesh (cylinder for now)
+      const geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 8);
+      const material = new THREE.MeshPhongMaterial({ 
+        color: renderComponent.color,
+        opacity: renderComponent.opacity,
+        transparent: renderComponent.opacity < 1
+      });
+      mesh = new THREE.Mesh(geometry, material);
+      
+      // Position the mesh so its bottom is at y=0
+      mesh.position.y = 0.5;
+    } else if (renderComponent.meshId === 'building') {
+      // Create a building mesh (box for now)
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const material = new THREE.MeshPhongMaterial({ 
+        color: renderComponent.color,
+        opacity: renderComponent.opacity,
+        transparent: renderComponent.opacity < 1
+      });
+      mesh = new THREE.Mesh(geometry, material);
+      
+      // Position the mesh so its bottom is at y=0
+      mesh.position.y = 0.5;
+    } else {
+      // Default shape
+      const geometry = new THREE.BoxGeometry(1, 1, 1);
+      const material = new THREE.MeshPhongMaterial({ 
+        color: renderComponent.color,
+        opacity: renderComponent.opacity,
+        transparent: renderComponent.opacity < 1
+      });
+      mesh = new THREE.Mesh(geometry, material);
+    }
+    
+    // Apply scale
     mesh.scale.set(
       renderComponent.scale.x,
       renderComponent.scale.y,
       renderComponent.scale.z
     );
     
+    // Store mesh and add to scene
     this.meshes.set(entityId, mesh);
     scene.add(mesh);
+    
+    return mesh;
   }
 
   removeMesh(entityId, scene) {
@@ -97,6 +134,13 @@ class RenderSystem {
     }
   }
 
+  // Update selection visualization
+  updateSelections(selectedEntities) {
+    if (this.selectionIndicator) {
+      this.selectionIndicator.updateSelectionRings(selectedEntities, this.entityManager);
+    }
+  }
+
   // Clean up resources when the system is shut down
   dispose() {
     const { scene } = this.sceneManager.getActiveScene();
@@ -108,6 +152,12 @@ class RenderSystem {
     });
     
     this.meshes.clear();
+    
+    // Dispose of selection indicator
+    if (this.selectionIndicator) {
+      this.selectionIndicator.dispose();
+      this.selectionIndicator = null;
+    }
   }
 }
 
