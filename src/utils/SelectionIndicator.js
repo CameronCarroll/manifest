@@ -62,7 +62,7 @@ class SelectionIndicator {
     const ring = this.selectionRings.get(entityId);
     if (ring) {
       this.scene.remove(ring);
-      if (ring.geometry) ring.geometry.dispose();
+      if (ring.geometry) {ring.geometry.dispose();}
       this.selectionRings.delete(entityId);
     }
   }
@@ -111,8 +111,8 @@ class SelectionIndicator {
   // Dispose resources when not needed
   dispose() {
     this.clearAllSelectionRings();
-    if (this.friendlySelectionMaterial) this.friendlySelectionMaterial.dispose();
-    if (this.enemySelectionMaterial) this.enemySelectionMaterial.dispose();
+    if (this.friendlySelectionMaterial) {this.friendlySelectionMaterial.dispose();}
+    if (this.enemySelectionMaterial) {this.enemySelectionMaterial.dispose();}
   }
 }
 

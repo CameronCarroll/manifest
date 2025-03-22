@@ -44,15 +44,15 @@ class Grid {
   neighbors(position) {
     const { x, y } = position;
     const results = [
-      { x: x + 1, y: y },
-      { x: x - 1, y: y },
-      { x: x, y: y + 1 },
-      { x: x, y: y - 1 },
-      // Optionally include diagonals
-      { x: x + 1, y: y + 1 },
-      { x: x + 1, y: y - 1 },
-      { x: x - 1, y: y + 1 },
-      { x: x - 1, y: y - 1 }
+      { x: x + 1, y: y },     // Right
+      { x: x - 1, y: y },     // Left
+      { x: x, y: y + 1 },     // Up
+      { x: x, y: y - 1 },     // Down
+      // Include diagonals
+      { x: x + 1, y: y + 1 }, // Top-right
+      { x: x + 1, y: y - 1 }, // Bottom-right
+      { x: x - 1, y: y + 1 }, // Top-left
+      { x: x - 1, y: y - 1 }  // Bottom-left
     ];
     
     // Filter out positions outside the grid or with obstacles

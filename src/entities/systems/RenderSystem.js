@@ -19,7 +19,7 @@ class RenderSystem {
 
   update(deltaTime) {
     const { scene } = this.sceneManager.getActiveScene();
-    if (!scene) return;
+    if (!scene) {return;}
 
     // Process entities with both position and render components
     this.entityManager.gameState.entities.forEach((entity, entityId) => {
@@ -122,7 +122,7 @@ class RenderSystem {
       this.meshes.delete(entityId);
       
       // Properly dispose of geometries and materials
-      if (mesh.geometry) mesh.geometry.dispose();
+      if (mesh.geometry) {mesh.geometry.dispose();}
       
       if (mesh.material) {
         if (Array.isArray(mesh.material)) {
@@ -144,7 +144,7 @@ class RenderSystem {
   // Clean up resources when the system is shut down
   dispose() {
     const { scene } = this.sceneManager.getActiveScene();
-    if (!scene) return;
+    if (!scene) {return;}
     
     // Remove all meshes and dispose of resources
     this.meshes.forEach((mesh, entityId) => {

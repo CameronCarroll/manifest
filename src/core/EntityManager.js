@@ -15,7 +15,7 @@ class EntityManager {
   }
 
   removeEntity(entityId) {
-    if (!this.gameState.entities.has(entityId)) return false;
+    if (!this.gameState.entities.has(entityId)) {return false;}
     
     // Remove all components for this entity
     for (const manager of this.componentManagers.values()) {
@@ -29,7 +29,7 @@ class EntityManager {
   }
 
   addComponent(entityId, componentType, componentData) {
-    if (!this.gameState.entities.has(entityId)) return false;
+    if (!this.gameState.entities.has(entityId)) {return false;}
     if (!this.componentManagers.has(componentType)) {
       console.error(`Component manager for ${componentType} not registered`);
       return false;
@@ -45,11 +45,11 @@ class EntityManager {
   }
 
   removeComponent(entityId, componentType) {
-    if (!this.gameState.entities.has(entityId)) return false;
-    if (!this.componentManagers.has(componentType)) return false;
+    if (!this.gameState.entities.has(entityId)) {return false;}
+    if (!this.componentManagers.has(componentType)) {return false;}
     
     const manager = this.componentManagers.get(componentType);
-    if (!manager.hasComponent(entityId)) return false;
+    if (!manager.hasComponent(entityId)) {return false;}
     
     manager.removeComponent(entityId);
     
@@ -60,16 +60,16 @@ class EntityManager {
   }
 
   getComponent(entityId, componentType) {
-    if (!this.gameState.entities.has(entityId)) return null;
-    if (!this.componentManagers.has(componentType)) return null;
+    if (!this.gameState.entities.has(entityId)) {return null;}
+    if (!this.componentManagers.has(componentType)) {return null;}
     
     const manager = this.componentManagers.get(componentType);
     return manager.getComponent(entityId);
   }
 
   hasComponent(entityId, componentType) {
-    if (!this.gameState.entities.has(entityId)) return false;
-    if (!this.componentManagers.has(componentType)) return false;
+    if (!this.gameState.entities.has(entityId)) {return false;}
+    if (!this.componentManagers.has(componentType)) {return false;}
     
     const manager = this.componentManagers.get(componentType);
     return manager.hasComponent(entityId);

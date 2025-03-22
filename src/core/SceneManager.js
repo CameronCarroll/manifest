@@ -53,7 +53,7 @@ class SceneManager {
   }
 
   onWindowResize() {
-    if (!this.camera) return;
+    if (!this.camera) {return;}
     
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
@@ -95,21 +95,21 @@ class SceneManager {
   }
 
   getActiveScene() {
-    if (!this.currentScene) return null;
+    if (!this.currentScene) {return null;}
     return this.scenes.get(this.currentScene);
   }
 
   updateCamera(deltaTime) {
-    if (!this.camera) return;
+    if (!this.camera) {return;}
 
     let moveX = 0;
     let moveZ = 0;
 
     // Handle WASD and arrow keys for camera movement
-    if (this.keys.ArrowUp || this.keys.w) moveZ -= 1;
-    if (this.keys.ArrowDown || this.keys.s) moveZ += 1;
-    if (this.keys.ArrowLeft || this.keys.a) moveX -= 1;
-    if (this.keys.ArrowRight || this.keys.d) moveX += 1;
+    if (this.keys.ArrowUp || this.keys.w) {moveZ -= 1;}
+    if (this.keys.ArrowDown || this.keys.s) {moveZ += 1;}
+    if (this.keys.ArrowLeft || this.keys.a) {moveX -= 1;}
+    if (this.keys.ArrowRight || this.keys.d) {moveX += 1;}
 
     // Normalize diagonal movement
     if (moveX !== 0 && moveZ !== 0) {
@@ -136,7 +136,7 @@ class SceneManager {
   }
 
   render(deltaTime) {
-    if (!this.currentScene) return;
+    if (!this.currentScene) {return;}
     
     // Update camera position based on input
     this.updateCamera(deltaTime);

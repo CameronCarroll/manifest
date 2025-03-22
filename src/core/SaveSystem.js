@@ -30,7 +30,7 @@ class SaveSystem {
   }
 
   async saveGame(gameState, saveName = 'autosave') {
-    if (!this.db) await this.initialize();
+    if (!this.db) {await this.initialize();}
 
     const saveData = {
       id: `${saveName}-${Date.now()}`,
@@ -54,7 +54,7 @@ class SaveSystem {
   }
 
   async loadGame(saveId) {
-    if (!this.db) await this.initialize();
+    if (!this.db) {await this.initialize();}
 
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([this.storeName], 'readonly');
@@ -77,7 +77,7 @@ class SaveSystem {
   }
 
   async getSaveList() {
-    if (!this.db) await this.initialize();
+    if (!this.db) {await this.initialize();}
 
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([this.storeName], 'readonly');
@@ -102,7 +102,7 @@ class SaveSystem {
   }
 
   async deleteSave(saveId) {
-    if (!this.db) await this.initialize();
+    if (!this.db) {await this.initialize();}
 
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([this.storeName], 'readwrite');

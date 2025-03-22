@@ -19,7 +19,7 @@ class GameLoop {
   }
 
   loop(timestamp) {
-    if (!this.running) return;
+    if (!this.running) {return;}
 
     const deltaTime = (timestamp - this.lastTimestamp) / 1000; // Convert to seconds
     this.lastTimestamp = timestamp;

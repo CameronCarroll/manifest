@@ -136,19 +136,19 @@ class InputManager {
   onKeyDown(event) {
     // Handle keyboard shortcuts
     switch (event.key) {
-      case 'z':
-        if (event.ctrlKey || event.metaKey) {
-          this.undo();
-        }
-        break;
-      case 'y':
-        if (event.ctrlKey || event.metaKey) {
-          this.redo();
-        }
-        break;
-      case 'Escape':
-        this.clearSelection();
-        break;
+    case 'z':
+      if (event.ctrlKey || event.metaKey) {
+        this.undo();
+      }
+      break;
+    case 'y':
+      if (event.ctrlKey || event.metaKey) {
+        this.redo();
+      }
+      break;
+    case 'Escape':
+      this.clearSelection();
+      break;
     }
   }
 
@@ -179,7 +179,7 @@ class InputManager {
   }
 
   completeSelection(event) {
-    if (!this.isSelecting) return;
+    if (!this.isSelecting) {return;}
     
     this.isSelecting = false;
     this.selectionBox.style.display = 'none';
@@ -204,7 +204,7 @@ class InputManager {
     const raycaster = this.getRaycaster();
     const activeScene = this.sceneManager.getActiveScene();
     
-    if (!activeScene) return;
+    if (!activeScene) {return;}
     
     const { scene } = activeScene;
     const intersects = raycaster.intersectObjects(scene.children, true);
@@ -287,12 +287,12 @@ class InputManager {
 
   handleCommand(event) {
     // Create and execute a command based on current selection and click location
-    if (this.selectedEntities.size === 0) return;
+    if (this.selectedEntities.size === 0) {return;}
     
     const raycaster = this.getRaycaster();
     const activeScene = this.sceneManager.getActiveScene();
     
-    if (!activeScene) return;
+    if (!activeScene) {return;}
     
     // Find the point on the ground plane where the user clicked
     const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -413,7 +413,7 @@ class InputManager {
   }
 
   undo() {
-    if (this.undoStack.length === 0) return false;
+    if (this.undoStack.length === 0) {return false;}
     
     const commands = this.undoStack.pop();
     
@@ -427,7 +427,7 @@ class InputManager {
   }
 
   redo() {
-    if (this.redoStack.length === 0) return false;
+    if (this.redoStack.length === 0) {return false;}
     
     const commands = this.redoStack.pop();
     
