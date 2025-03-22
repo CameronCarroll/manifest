@@ -151,26 +151,38 @@ class CombatSystem {
   }
 
   // Apply damage to a target
-  applyDamage(targetId, damageInfo) {
-    if (!this.entityManager.hasComponent(targetId, 'health')) {
-      return false;
-    }
-    
-    const healthComponent = this.entityManager.getComponent(targetId, 'health');
-    
-    // Apply damage
-    healthComponent.currentHealth -= damageInfo.damage;
-    
-    // Check if target is destroyed
-    if (healthComponent.currentHealth <= 0) {
-      healthComponent.currentHealth = 0;
-      // Could trigger death event or remove entity here
-      // this.entityManager.removeEntity(targetId);
-      return true; // Target destroyed
-    }
-    
-    return false; // Target still alive
+  // In src/entities/systems/CombatSystem.js
+applyDamage(targetId, damageInfo) {
+  if (!this.entityManager.hasComponent(targetId, 'health')) {
+    return false;
   }
+  
+  const healthComponent = this.entityManager.getComponent(targetId, 'health');
+  
+  // Apply damage
+  healthComponent.currentHealth -= damageInfo.damage;
+  
+  // Check if target is destroyed
+  if (healthComponent.currentHealth <= 0) {
+    healthComponent.currentHealth = 0;
+    
+    // Stop any ongoing attacks against this entity
+    this.attackingEntities.forEach((attackData, attackerId) => {
+      if (attackData.targetId === targetId) {
+        this.stopAttack(attackerId);
+      }
+    });
+    
+    // Remove the entity from the game
+    setTimeout(() => {
+      this.entityManager.removeEntity(targetId);
+    }, 0); // Use setTimeout to avoid issues during iteration
+    
+    return true; // Target destroyed
+  }
+  
+  return false; // Target still alive
+}
 
   update(deltaTime) {
     // Update cooldowns

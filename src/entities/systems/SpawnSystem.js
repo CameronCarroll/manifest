@@ -156,27 +156,72 @@ class SpawnSystem {
   createWave(config) {
     const waveId = this.nextWaveId++;
     
-    this.activeWaves.set(waveId, {
+    // Set up base wave configuration
+    const wave = {
       spawnPointIds: config.spawnPointIds || [],
       enemyTypes: config.enemyTypes || ['lightInfantry'],
       totalEnemies: config.totalEnemies || 5,
       spawnedEnemies: 0,
       spawnInterval: config.spawnInterval || 2,
       lastSpawnTime: 0,
-      active: true,
-      completed: false
-    });
+      active: config.active !== undefined ? config.active : true,
+      completed: false,
+      // Default enemy type distribution for balanced gameplay
+      enemyTypeDistribution: {
+        lightInfantry: 0.4,   // 40% light infantry
+        heavyInfantry: 0.3,   // 30% heavy infantry
+        sniperUnit: 0.15,     // 15% snipers
+        supportUnit: 0.1,     // 10% support
+        specialistUnit: 0.04, // 4% specialists
+        eliteUnit: 0.01       // 1% elite units
+      }
+    };
     
+    // Override with custom distribution if provided
+    if (config.enemyTypeDistribution) {
+      wave.enemyTypeDistribution = config.enemyTypeDistribution;
+    } else {
+      // Filter the distribution to only include enemy types available in this wave
+      const filteredDistribution = {};
+      let totalProbability = 0;
+      
+      // First pass: include only available types and sum their probabilities
+      for (const [enemyType, probability] of Object.entries(wave.enemyTypeDistribution)) {
+        if (wave.enemyTypes.includes(enemyType)) {
+          filteredDistribution[enemyType] = probability;
+          totalProbability += probability;
+        }
+      }
+      
+      // Second pass: normalize probabilities to sum to 1
+      if (totalProbability > 0) {
+        for (const enemyType in filteredDistribution) {
+          filteredDistribution[enemyType] /= totalProbability;
+        }
+        wave.enemyTypeDistribution = filteredDistribution;
+      } else {
+        // Fallback to equal distribution
+        const equalProbability = 1 / wave.enemyTypes.length;
+        wave.enemyTypes.forEach(type => {
+          wave.enemyTypeDistribution[type] = equalProbability;
+        });
+      }
+    }
+    
+    this.activeWaves.set(waveId, wave);
     return waveId;
   }
 
   // Spawn a single enemy of the specified type at the specified position
-  spawnEnemy(enemyType, position, aiSystem) {
+  spawnEnemy(enemyType, position, aiSystem, waveNumber = 1) {
     // Make sure the enemy type exists in templates
     if (!this.enemyTemplates[enemyType]) {
       console.error(`Enemy type ${enemyType} not found in templates`);
       return null;
     }
+    
+    // Get difficulty multiplier
+    const difficultyMultiplier = this.getWaveDifficultyMultiplier(waveNumber);
     
     // Create a new entity
     const entityId = this.entityManager.createEntity();
@@ -184,7 +229,7 @@ class SpawnSystem {
     // Get the template for this enemy type
     const template = this.enemyTemplates[enemyType];
     
-    // Add all components from the template
+    // Add all components from the template with difficulty scaling
     for (const [componentType, componentData] of Object.entries(template.components)) {
       // For position component, use the provided spawn position
       if (componentType === 'position') {
@@ -193,7 +238,22 @@ class SpawnSystem {
         positionData.y = position.y;
         positionData.z = position.z;
         this.entityManager.addComponent(entityId, componentType, positionData);
-      } else {
+      } 
+      // Scale health and damage for higher waves
+      else if (componentType === 'health') {
+        const scaledData = { ...componentData };
+        
+        // Scale health values
+        scaledData.maxHealth = Math.floor(scaledData.maxHealth * difficultyMultiplier);
+        scaledData.currentHealth = scaledData.maxHealth;
+        
+        // Scale armor but with diminishing returns
+        scaledData.armor = Math.floor(scaledData.armor * Math.sqrt(difficultyMultiplier));
+        
+        this.entityManager.addComponent(entityId, componentType, scaledData);
+      }
+      // Other combat-related scaling could go here
+      else {
         this.entityManager.addComponent(entityId, componentType, { ...componentData });
       }
     }
@@ -225,12 +285,30 @@ class SpawnSystem {
           const spawnPoint = this.spawnPoints.get(spawnPointId);
           
           if (spawnPoint && spawnPoint.active) {
-            // Choose a random enemy type from the wave's enemy types
-            const randomEnemyIndex = Math.floor(Math.random() * wave.enemyTypes.length);
-            const enemyType = wave.enemyTypes[randomEnemyIndex];
+            // Choose enemy type based on distribution if available
+            let selectedEnemyType;
             
-            // Spawn the enemy
-            this.spawnEnemy(enemyType, spawnPoint.position, aiSystem);
+            if (wave.enemyTypeDistribution) {
+              // Use probability distribution
+              const randomValue = Math.random();
+              let cumulativeProbability = 0;
+              selectedEnemyType = wave.enemyTypes[0]; // Default
+              
+              for (const [enemyType, probability] of Object.entries(wave.enemyTypeDistribution)) {
+                cumulativeProbability += probability;
+                if (randomValue < cumulativeProbability && wave.enemyTypes.includes(enemyType)) {
+                  selectedEnemyType = enemyType;
+                  break;
+                }
+              }
+            } else {
+              // Simple random selection
+              const randomEnemyIndex = Math.floor(Math.random() * wave.enemyTypes.length);
+              selectedEnemyType = wave.enemyTypes[randomEnemyIndex];
+            }
+            
+            // Spawn the enemy with difficulty scaling based on wave number
+            this.spawnEnemy(selectedEnemyType, spawnPoint.position, aiSystem, waveId);
             
             // Update spawn count
             wave.spawnedEnemies++;
@@ -246,6 +324,104 @@ class SpawnSystem {
         wave.completed = true;
       }
     });
+    
+    // Check for wave progression
+    this.checkWaveProgress();
+  }
+
+  checkWaveProgress() {
+    let activeEnemyCount = 0;
+    
+    // Count active enemy entities
+    this.entityManager.gameState.entities.forEach((entity, id) => {
+      if (this.entityManager.hasComponent(id, 'faction')) {
+        const faction = this.entityManager.getComponent(id, 'faction');
+        if (faction.faction === 'enemy') {
+          activeEnemyCount++;
+        }
+      }
+    });
+    
+    // Find current active wave and next pending wave
+    let currentWaveId = null;
+    let nextWaveId = null;
+    
+    this.activeWaves.forEach((wave, waveId) => {
+      if (wave.active && !wave.completed) {
+        currentWaveId = waveId;
+      } else if (!wave.active && !wave.completed && nextWaveId === null) {
+        nextWaveId = waveId;
+      }
+    });
+    
+    // If current wave is complete and all enemies are defeated
+    if (currentWaveId && this.activeWaves.get(currentWaveId).completed && activeEnemyCount === 0) {
+      // If there's a next wave, activate it
+      if (nextWaveId) {
+        const nextWave = this.activeWaves.get(nextWaveId);
+        nextWave.active = true;
+        
+        // Broadcast wave start event
+        if (this.entityManager.gameState.eventSystem) {
+          this.entityManager.gameState.eventSystem.emit('waveStart', { waveId: nextWaveId });
+        }
+        
+        console.log(`Wave ${nextWaveId} activated`);
+      } else {
+        // All waves completed
+        if (this.entityManager.gameState.eventSystem) {
+          this.entityManager.gameState.eventSystem.emit('allWavesCompleted');
+        }
+        
+        console.log('All waves completed!');
+      }
+    }
+  }
+
+  getWaveDifficultyMultiplier(waveNumber) {
+    // Base difficulty is 1.0, scaling up with each wave
+    return 1.0 + (waveNumber - 1) * 0.15; // 15% increase per wave
+  }
+  
+  // Add method to analyze player positions
+  analyzePlayerPositions(playerPositions) {
+    // Skip if no positions
+    if (!playerPositions || playerPositions.length === 0) {
+      return null;
+    }
+    
+    // Calculate average player position
+    let avgX = 0;
+    let avgZ = 0;
+    
+    playerPositions.forEach(pos => {
+      avgX += pos.x;
+      avgZ += pos.z;
+    });
+    
+    avgX /= playerPositions.length;
+    avgZ /= playerPositions.length;
+    
+    // Also calculate the variance to determine spread
+    let varianceX = 0;
+    let varianceZ = 0;
+    
+    playerPositions.forEach(pos => {
+      varianceX += Math.pow(pos.x - avgX, 2);
+      varianceZ += Math.pow(pos.z - avgZ, 2);
+    });
+    
+    varianceX /= playerPositions.length;
+    varianceZ /= playerPositions.length;
+    
+    // Calculate standard deviation as a measure of spread
+    const spreadX = Math.sqrt(varianceX);
+    const spreadZ = Math.sqrt(varianceZ);
+    
+    return {
+      center: { x: avgX, z: avgZ },
+      spread: { x: spreadX, z: spreadZ }
+    };
   }
 
   // For serialization

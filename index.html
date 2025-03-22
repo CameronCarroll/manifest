@@ -24,6 +24,7 @@
       color: white;
       text-shadow: 1px 1px 2px black;
       pointer-events: none;
+      z-index: 10;
     }
     #controls-help {
       position: absolute;
@@ -35,6 +36,7 @@
       padding: 10px;
       border-radius: 5px;
       font-size: 14px;
+      z-index: 10;
     }
     #wave-info {
       position: absolute;
@@ -45,15 +47,136 @@
       background-color: rgba(0, 0, 0, 0.5);
       padding: 10px;
       border-radius: 5px;
+      z-index: 10;
+    }
+    #resource-display {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      text-shadow: 1px 1px 2px black;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 10;
+    }
+    .resource-counter {
+      display: flex;
+      gap: 20px;
+    }
+    #production-display {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      color: white;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 10;
+      width: 250px;
+    }
+    .production-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+    .progress-bar {
+      width: 100px;
+      height: 15px;
+      background-color: #555;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background-color: #4CAF50;
+    }
+    #objectives-display {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 10;
+      max-width: 300px;
+    }
+    .objective-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    .objective-icon {
+      margin-right: 10px;
+      font-size: 20px;
+    }
+    .objective-progress {
+      width: 100px;
+      height: 8px;
+      background-color: #555;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-left: auto;
+    }
+    .objective-progress-fill {
+      height: 100%;
+      background-color: #4CAF50;
+    }
+    #action-buttons {
+      position: absolute;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+    .action-button {
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: 1px solid #4CAF50;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .action-button:hover {
+      background-color: rgba(0, 100, 0, 0.7);
+    }
+    #pause-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      color: white;
+      font-size: 24px;
+    }
+    #pause-overlay button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
   <div id="game-container"></div>
+  
   <div id="ui-overlay">
     <h2>Manifest - RTS Combat</h2>
     <div id="selection-info"></div>
   </div>
+  
   <div id="controls-help">
     <h3>Controls:</h3>
     <p>Left Click: Select unit</p>
@@ -64,11 +187,48 @@
     <p>S: Stop selected units</p>
     <p>Shift + A: Select all player units</p>
     <p>ESC: Clear selection</p>
+    <p>P: Pause/Resume game</p>
   </div>
+  
   <div id="wave-info">
     <h3>Wave Information</h3>
     <div id="current-wave">Current Wave: 1</div>
     <div id="enemies-remaining">Enemies Remaining: 10</div>
+  </div>
+  
+  <div id="resource-display">
+    <div class="resource-counter">
+      <div>Minerals: 250</div>
+      <div>Gas: 100</div>
+    </div>
+  </div>
+  
+  <div id="production-display"></div>
+  
+  <div id="objectives-display">
+    <h3>Objectives</h3>
+    <div class="objective-list">
+      <div class="objective-item">
+        <div class="objective-icon">●</div>
+        <div class="objective-text">Survive All Waves</div>
+        <div class="objective-progress">
+          <div class="objective-progress-fill" style="width: 33%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="action-buttons">
+    <button class="action-button" data-unit-type="worker">Build Worker (50)</button>
+    <button class="action-button" data-unit-type="marine">Train Marine (50)</button>
+    <button class="action-button" data-unit-type="tank">Build Tank (150/75)</button>
+    <button class="action-button" data-unit-type="medic">Train Medic (75/50)</button>
+  </div>
+  
+  <div id="pause-overlay">
+    <h2>Game Paused</h2>
+    <p>Press P or click below to resume</p>
+    <button id="resume-button">Resume Game</button>
   </div>
 
   <script type="importmap">
@@ -94,6 +254,16 @@
           
           // Set up UI update interval
           setInterval(updateUI, 500);
+          
+          // Set up pause button
+          const resumeButton = document.getElementById('resume-button');
+          if (resumeButton) {
+            resumeButton.addEventListener('click', () => {
+              if (window.game) {
+                window.game.togglePause();
+              }
+            });
+          }
         }
       }, 100);
     });
@@ -160,6 +330,32 @@
         
         currentWave.textContent = `Current Wave: ${activeWaveId}`;
         enemiesRemaining.textContent = `Enemies Remaining: ${remainingEnemies}`;
+      }
+      
+      // Update objectives
+      if (window.game.systems && window.game.systems.objectives) {
+        const objectivesStatus = window.game.systems.objectives.getObjectivesStatus();
+        const objectivesDisplay = document.getElementById('objectives-display');
+        
+        let objectivesHTML = '<h3>Objectives</h3><div class="objective-list">';
+        
+        objectivesStatus.objectives.forEach(objective => {
+          const progressWidth = Math.floor(objective.progress * 100);
+          const checkmark = objective.completed ? '✓' : '●';
+          
+          objectivesHTML += `
+            <div class="objective-item">
+              <div class="objective-icon">${checkmark}</div>
+              <div class="objective-text">${objective.title}</div>
+              <div class="objective-progress">
+                <div class="objective-progress-fill" style="width: ${progressWidth}%"></div>
+              </div>
+            </div>
+          `;
+        });
+        
+        objectivesHTML += '</div>';
+        objectivesDisplay.innerHTML = objectivesHTML;
       }
     }
   </script>

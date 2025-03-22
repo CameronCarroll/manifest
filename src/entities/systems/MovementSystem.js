@@ -1,6 +1,7 @@
 class MovementSystem {
-  constructor(entityManager) {
+  constructor(entityManager, systems = null) {
     this.entityManager = entityManager;
+    this.systems = systems;
     this.movingEntities = new Map(); // Maps entityId to movement data
   }
 
@@ -8,13 +9,14 @@ class MovementSystem {
     // Initialize system if needed
   }
 
-  moveEntity(entityId, destination, speed) {
+  moveEntity(entityId, destination, speed, targetEntityId = null) {
     // Add entity to moving entities list with destination
     if (this.entityManager.hasComponent(entityId, 'position')) {
       this.movingEntities.set(entityId, {
         destination: { ...destination },
         speed: speed || 5, // Default speed if not specified
-        path: [] // For pathfinding, if implemented
+        path: [], // For pathfinding, if implemented
+        targetEntityId // Store the target entity ID
       });
       return true;
     }
@@ -37,7 +39,18 @@ class MovementSystem {
         return;
       }
       
-      const { destination, speed } = movementData;
+      const { destination, speed, targetEntityId } = movementData;
+      
+      // Check if entity has target and is in range for attack
+      if (targetEntityId && this.systems && this.systems.combat) {
+        // Check if can attack
+        if (this.systems.combat.canAttack(entityId, targetEntityId, true)) {
+          // Stop moving and start attack
+          this.stopEntity(entityId);
+          this.systems.combat.startAttack(entityId, targetEntityId);
+          return;
+        }
+      }
       
       // Calculate direction and distance
       const dx = destination.x - positionComponent.x;

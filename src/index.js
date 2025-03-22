@@ -4,12 +4,16 @@ import GameState from './core/GameState.js';
 import SaveSystem from './core/SaveSystem.js';
 import SceneManager from './core/SceneManager.js';
 import EntityManager from './core/EntityManager.js';
+import ObjectivesSystem from './core/ObjectivesSystem.js';
+import ResourceSystem from './core/ResourceSystem.js';
+import ProductionSystem from './core/ProductionSystem.js';
 
 // Component Managers
 import PositionComponent from './entities/components/PositionComponent.js';
 import HealthComponent from './entities/components/HealthComponent.js';
 import RenderComponent from './entities/components/RenderComponent.js';
 import FactionComponent from './entities/components/FactionComponent.js';
+import ResourceComponent from './entities/components/ResourceComponent.js';
 
 // Systems
 import RenderSystem from './entities/systems/RenderSystem.js';
@@ -21,6 +25,7 @@ import SpawnSystem from './entities/systems/SpawnSystem.js';
 // Utilities
 import InputManager from './utils/InputManager.js';
 import { Grid, PathFinder } from './utils/pathfinding.js';
+import GameBalance from './utils/GameBalance.js';
 
 // Loaders
 import ModelLoader from './loaders/ModelLoader.js';
@@ -368,6 +373,56 @@ class Game {
     } catch (error) {
       console.error('Error in render method:', error);
     }
+  }
+
+  showGameOverScreen(playerWon) {
+    // Create or show game over UI
+    let gameOverDiv = document.getElementById('game-over');
+    
+    if (!gameOverDiv) {
+      gameOverDiv = document.createElement('div');
+      gameOverDiv.id = 'game-over';
+      gameOverDiv.style.position = 'absolute';
+      gameOverDiv.style.top = '0';
+      gameOverDiv.style.left = '0';
+      gameOverDiv.style.width = '100%';
+      gameOverDiv.style.height = '100%';
+      gameOverDiv.style.display = 'flex';
+      gameOverDiv.style.flexDirection = 'column';
+      gameOverDiv.style.justifyContent = 'center';
+      gameOverDiv.style.alignItems = 'center';
+      gameOverDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      gameOverDiv.style.color = 'white';
+      gameOverDiv.style.fontSize = '32px';
+      gameOverDiv.style.fontFamily = 'Arial, sans-serif';
+      gameOverDiv.style.zIndex = '1000';
+      document.body.appendChild(gameOverDiv);
+    }
+    
+    // Set content based on win/loss
+    if (playerWon) {
+      gameOverDiv.innerHTML = `
+        <h1 style="color: #4CAF50;">Victory!</h1>
+        <p>You have successfully defeated all enemy waves.</p>
+        <button id="restart-button" style="padding: 10px 20px; margin-top: 20px; font-size: 20px; cursor: pointer;">Play Again</button>
+      `;
+    } else {
+      gameOverDiv.innerHTML = `
+        <h1 style="color: #f44336;">Defeat</h1>
+        <p>Your base has been destroyed. Better luck next time!</p>
+        <button id="restart-button" style="padding: 10px 20px; margin-top: 20px; font-size: 20px; cursor: pointer;">Try Again</button>
+      `;
+    }
+    
+    // Add event listener to restart button
+    setTimeout(() => {
+      const restartButton = document.getElementById('restart-button');
+      if (restartButton) {
+        restartButton.addEventListener('click', () => {
+          location.reload(); // Simple reload for now
+        });
+      }
+    }, 0);
   }
 
   start() {

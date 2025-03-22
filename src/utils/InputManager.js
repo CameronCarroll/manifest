@@ -6,28 +6,33 @@ class InputManager {
     this.sceneManager = sceneManager;
     this.systems = systems;
     
-    this.mousePosition = new THREE.Vector2();
-    this.raycaster = new THREE.Raycaster();
-    this.selectedEntities = new Set();
+    this.mouseX = 0;
+    this.mouseY = 0;
+    this.normalizedMouseX = 0;
+    this.normalizedMouseY = 0;
+    this.isMouseDown = false;
     this.isSelecting = false;
-    this.selectionStart = new THREE.Vector2();
-    this.selectionEnd = new THREE.Vector2();
+    this.selectionStart = { x: 0, y: 0 };
+    this.selectionEnd = { x: 0, y: 0 };
+    this.selectedEntities = new Set();
+    this.commandHistory = [];
+    this.undoStack = [];
+    this.redoStack = [];
     
-    // For double click detection
-    this.lastClickTime = 0;
-    this.doubleClickDelay = 300; // ms
+    // Edge panning
+    this.isEdgePanning = false;
+    this.edgePanThreshold = 20; // Pixels from edge to trigger panning
+    this.edgePanSpeed = 20; // Movement speed when edge panning
     
     // Bind event handlers
     this.onMouseDown = this.onMouseDown.bind(this);
     this.onMouseMove = this.onMouseMove.bind(this);
     this.onMouseUp = this.onMouseUp.bind(this);
     this.onKeyDown = this.onKeyDown.bind(this);
+    this.checkEdgePanning = this.checkEdgePanning.bind(this);
     
-    // Add event listeners
-    window.addEventListener('mousedown', this.onMouseDown);
-    window.addEventListener('mousemove', this.onMouseMove);
-    window.addEventListener('mouseup', this.onMouseUp);
-    window.addEventListener('keydown', this.onKeyDown);
+    // Initialize event listeners
+    this.setupEventListeners();
   }
   
   onMouseDown(event) {
@@ -373,6 +378,28 @@ class InputManager {
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('keydown', this.onKeyDown);
+  }
+
+  setupEventListeners() {
+    // Add event listeners for mouse and keyboard
+    window.addEventListener('mousedown', this.onMouseDown);
+    window.addEventListener('mousemove', this.onMouseMove);
+    window.addEventListener('mouseup', this.onMouseUp);
+    window.addEventListener('keydown', this.onKeyDown);
+    
+    // Create selection box element and add to document
+    this.selectionBox = document.createElement('div');
+    this.selectionBox.style.position = 'absolute';
+    this.selectionBox.style.border = '1px solid #39ff14';
+    this.selectionBox.style.backgroundColor = 'rgba(57, 255, 20, 0.1)';
+    this.selectionBox.style.pointerEvents = 'none';
+    this.selectionBox.style.display = 'none';
+    document.body.appendChild(this.selectionBox);
+    
+    // Add context menu prevention
+    this.sceneManager.renderer.domElement.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
   }
 }
 
