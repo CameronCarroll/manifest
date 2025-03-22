@@ -1,455 +1,378 @@
 import * as THREE from 'three';
 
-// Command Pattern implementation
-class Command {
-  constructor() {}
-  execute() {}
-  undo() {}
-}
-
-class MoveCommand extends Command {
-  constructor(entityId, destination, movementSystem) {
-    super();
-    this.entityId = entityId;
-    this.destination = destination;
-    this.movementSystem = movementSystem;
-    this.previousPosition = null;
-  }
-
-  execute() {
-    const entityManager = this.movementSystem.entityManager;
-    const positionComponent = entityManager.getComponent(this.entityId, 'position');
-    
-    if (positionComponent) {
-      this.previousPosition = { ...positionComponent };
-      this.movementSystem.moveEntity(this.entityId, this.destination);
-      return true;
-    }
-    return false;
-  }
-
-  undo() {
-    if (this.previousPosition) {
-      const entityManager = this.movementSystem.entityManager;
-      const positionComponent = entityManager.getComponent(this.entityId, 'position');
-      
-      if (positionComponent) {
-        this.movementSystem.stopEntity(this.entityId);
-        Object.assign(positionComponent, this.previousPosition);
-        return true;
-      }
-    }
-    return false;
-  }
-}
-
 class InputManager {
   constructor(entityManager, sceneManager, systems) {
     this.entityManager = entityManager;
     this.sceneManager = sceneManager;
     this.systems = systems;
+    
+    this.mousePosition = new THREE.Vector2();
+    this.raycaster = new THREE.Raycaster();
     this.selectedEntities = new Set();
-    this.commandHistory = [];
-    this.undoStack = [];
-    this.redoStack = [];
-    this.maxHistorySize = 50;
-    
-    // Mouse position tracking
-    this.mouseX = 0;
-    this.mouseY = 0;
-    this.isMouseDown = false;
-    this.selectionStart = { x: 0, y: 0 };
-    this.selectionEnd = { x: 0, y: 0 };
     this.isSelecting = false;
+    this.selectionStart = new THREE.Vector2();
+    this.selectionEnd = new THREE.Vector2();
     
-    // Screen edge panning
-    this.edgePanThreshold = 20; // Pixels from edge to start panning
-    this.edgePanSpeed = 15; // Speed of edge panning
-    this.isEdgePanning = false;
+    // For double click detection
+    this.lastClickTime = 0;
+    this.doubleClickDelay = 300; // ms
     
-    // Selection box visuals
-    this.selectionBox = document.createElement('div');
-    this.selectionBox.style.position = 'absolute';
-    this.selectionBox.style.border = '1px solid #39ff14';
-    this.selectionBox.style.backgroundColor = 'rgba(57, 255, 20, 0.1)';
-    this.selectionBox.style.pointerEvents = 'none';
-    this.selectionBox.style.display = 'none';
-    document.body.appendChild(this.selectionBox);
+    // Bind event handlers
+    this.onMouseDown = this.onMouseDown.bind(this);
+    this.onMouseMove = this.onMouseMove.bind(this);
+    this.onMouseUp = this.onMouseUp.bind(this);
+    this.onKeyDown = this.onKeyDown.bind(this);
     
-    this.setupEventListeners();
+    // Add event listeners
+    window.addEventListener('mousedown', this.onMouseDown);
+    window.addEventListener('mousemove', this.onMouseMove);
+    window.addEventListener('mouseup', this.onMouseUp);
+    window.addEventListener('keydown', this.onKeyDown);
   }
-
-  setupEventListeners() {
-    const canvas = this.sceneManager.renderer.domElement;
+  
+  onMouseDown(event) {
+    // Get normalized device coordinates
+    this.updateMousePosition(event);
     
-    // Mouse movement
-    canvas.addEventListener('mousemove', this.onMouseMove.bind(this));
+    // Check for double click
+    const now = Date.now();
+    const isDoubleClick = (now - this.lastClickTime) < this.doubleClickDelay;
+    this.lastClickTime = now;
     
-    // Mouse clicks
-    canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
-    canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
+    // Right click - issue move/attack command
+    if (event.button === 2) {
+      event.preventDefault();
+      
+      // Cast ray to find intersected objects
+      const intersect = this.castRay();
+      
+      if (intersect) {
+        // Check if we clicked on an entity
+        const clickedEntityId = this.getEntityAtPosition(intersect.point);
+        
+        // If we clicked on an enemy entity, issue attack command
+        if (clickedEntityId && this.isEnemyEntity(clickedEntityId)) {
+          this.issueAttackCommand(clickedEntityId);
+        } else {
+          // Otherwise issue move command to the clicked position
+          this.issueMoveCommand(intersect.point);
+        }
+      }
+      
+      return;
+    }
     
-    // Prevent context menu on right-click
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-    
-    // Keyboard inputs
-    window.addEventListener('keydown', this.onKeyDown.bind(this));
+    // Left click - selection
+    if (event.button === 0) {
+      // Start selection
+      this.isSelecting = true;
+      this.selectionStart.copy(this.mousePosition);
+      this.selectionEnd.copy(this.mousePosition);
+      
+      // If not holding shift, clear previous selection
+      if (!event.shiftKey) {
+        this.clearSelection();
+      }
+      
+      // If it's a double click, select all units of the same type
+      if (isDoubleClick) {
+        const intersect = this.castRay();
+        if (intersect) {
+          const clickedEntityId = this.getEntityAtPosition(intersect.point);
+          if (clickedEntityId) {
+            this.selectAllUnitsOfSameType(clickedEntityId);
+          }
+        }
+      }
+    }
   }
-
+  
   onMouseMove(event) {
-    // Track mouse position for various interactions
-    this.mouseX = event.clientX;
-    this.mouseY = event.clientY;
-    
-    // Normalized mouse position for raycasting
-    this.normalizedMouseX = (event.clientX / window.innerWidth) * 2 - 1;
-    this.normalizedMouseY = -(event.clientY / window.innerHeight) * 2 + 1;
-    
-    // Check for edge panning
-    this.checkEdgePanning();
+    this.updateMousePosition(event);
     
     // Update selection box if selecting
     if (this.isSelecting) {
-      this.updateSelectionBox(event);
+      this.selectionEnd.copy(this.mousePosition);
+      // Could draw selection box here
     }
   }
-
-  onMouseDown(event) {
-    this.isMouseDown = true;
-    
-    // Start selection or command
-    if (event.button === 0) { // Left click
-      this.startSelection(event);
-    } else if (event.button === 2) { // Right click
-      this.handleCommand(event);
-    }
-  }
-
+  
   onMouseUp(event) {
-    this.isMouseDown = false;
-    
-    if (event.button === 0) { // Left click
-      this.completeSelection(event);
+    if (event.button === 0 && this.isSelecting) {
+      // Finish selection
+      this.isSelecting = false;
+      
+      // If selection area is very small, treat as a single click
+      const selectionWidth = Math.abs(this.selectionEnd.x - this.selectionStart.x);
+      const selectionHeight = Math.abs(this.selectionEnd.y - this.selectionStart.y);
+      
+      if (selectionWidth < 0.01 && selectionHeight < 0.01) {
+        // Single click selection
+        const intersect = this.castRay();
+        if (intersect) {
+          const clickedEntityId = this.getEntityAtPosition(intersect.point);
+          if (clickedEntityId) {
+            this.toggleEntitySelection(clickedEntityId);
+          }
+        }
+      } else {
+        // Box selection
+        this.selectEntitiesInBox(this.selectionStart, this.selectionEnd);
+      }
+      
+      // Update selection visualization
+      if (this.systems.render) {
+        this.systems.render.updateSelections(Array.from(this.selectedEntities));
+      }
     }
   }
-
+  
   onKeyDown(event) {
     // Handle keyboard shortcuts
     switch (event.key) {
-    case 'z':
-      if (event.ctrlKey || event.metaKey) {
-        this.undo();
-      }
-      break;
-    case 'y':
-      if (event.ctrlKey || event.metaKey) {
-        this.redo();
-      }
-      break;
-    case 'Escape':
-      this.clearSelection();
-      break;
-    }
-  }
-
-  startSelection(event) {
-    this.selectionStart = { x: event.clientX, y: event.clientY };
-    this.selectionEnd = { x: event.clientX, y: event.clientY };
-    this.isSelecting = true;
-    
-    // Show and position selection box
-    this.selectionBox.style.display = 'block';
-    this.updateSelectionBox(event);
-  }
-
-  updateSelectionBox(event) {
-    this.selectionEnd = { x: event.clientX, y: event.clientY };
-    
-    // Calculate box position and dimensions
-    const left = Math.min(this.selectionStart.x, this.selectionEnd.x);
-    const top = Math.min(this.selectionStart.y, this.selectionEnd.y);
-    const width = Math.abs(this.selectionEnd.x - this.selectionStart.x);
-    const height = Math.abs(this.selectionEnd.y - this.selectionStart.y);
-    
-    // Apply to DOM element
-    this.selectionBox.style.left = `${left}px`;
-    this.selectionBox.style.top = `${top}px`;
-    this.selectionBox.style.width = `${width}px`;
-    this.selectionBox.style.height = `${height}px`;
-  }
-
-  completeSelection(event) {
-    if (!this.isSelecting) {return;}
-    
-    this.isSelecting = false;
-    this.selectionBox.style.display = 'none';
-    
-    // Check if it was a small movement (click) or a drag (box selection)
-    const dragDistance = Math.sqrt(
-      Math.pow(this.selectionStart.x - this.selectionEnd.x, 2) + 
-      Math.pow(this.selectionStart.y - this.selectionEnd.y, 2)
-    );
-    
-    if (dragDistance < 5) {
-      // Single click selection
-      this.handleSingleSelection(event);
-    } else {
-      // Box selection
-      this.handleBoxSelection();
-    }
-  }
-
-  handleSingleSelection(event) {
-    // Raycasting for single entity selection
-    const raycaster = this.getRaycaster();
-    const activeScene = this.sceneManager.getActiveScene();
-    
-    if (!activeScene) {return;}
-    
-    const { scene } = activeScene;
-    const intersects = raycaster.intersectObjects(scene.children, true);
-    
-    if (intersects.length > 0) {
-      // Find the entity ID associated with the mesh
-      const entityId = this.findEntityIdFromMesh(intersects[0].object);
-      
-      if (entityId !== null) {
-        // Check if Shift key is pressed for multi-selection
-        if (!event.shiftKey) {
-          this.clearSelection();
-        }
-        
-        this.selectedEntities.add(entityId);
-        this.highlightSelectedEntity(entityId);
-        console.log(`Selected entity: ${entityId}`);
-      } else if (!event.shiftKey) {
+      case 'Escape':
+        // Clear selection
         this.clearSelection();
-      }
-    } else if (!event.shiftKey) {
-      this.clearSelection();
-    }
-  }
-
-  handleBoxSelection() {
-    // Convert selection box to normalized device coordinates
-    const left = Math.min(this.selectionStart.x, this.selectionEnd.x);
-    const right = Math.max(this.selectionStart.x, this.selectionEnd.x);
-    const top = Math.min(this.selectionStart.y, this.selectionEnd.y);
-    const bottom = Math.max(this.selectionStart.y, this.selectionEnd.y);
-    
-    const normalized = {
-      left: (left / window.innerWidth) * 2 - 1,
-      right: (right / window.innerWidth) * 2 - 1,
-      top: -(top / window.innerHeight) * 2 + 1,
-      bottom: -(bottom / window.innerHeight) * 2 + 1
-    };
-    
-    // Get all entities with position and render components
-    const selectableEntities = [];
-    this.entityManager.gameState.entities.forEach((entity, entityId) => {
-      if (this.entityManager.hasComponent(entityId, 'position') && 
-          this.entityManager.hasComponent(entityId, 'render')) {
-        selectableEntities.push(entityId);
-      }
-    });
-    
-    // Clear previous selection unless shift is pressed
-    if (!event.shiftKey) {
-      this.clearSelection();
-    }
-    
-    // Check each entity if it's inside the selection box
-    const camera = this.sceneManager.camera;
-    for (const entityId of selectableEntities) {
-      const position = this.entityManager.getComponent(entityId, 'position');
-      
-      // Convert world position to screen position
-      const worldPos = new THREE.Vector3(position.x, position.y, position.z);
-      const screenPos = worldPos.project(camera);
-      
-      // Check if the entity is inside the selection box
-      if (screenPos.x >= normalized.left && screenPos.x <= normalized.right &&
-          screenPos.y >= normalized.bottom && screenPos.y <= normalized.top) {
-        this.selectedEntities.add(entityId);
-        this.highlightSelectedEntity(entityId);
-      }
-    }
-    
-    console.log(`Selected ${this.selectedEntities.size} entities`);
-  }
-
-  highlightSelectedEntity(entityId) {
-    // Update selection indicators
-    if (this.systems.render) {
-      this.systems.render.updateSelections(this.selectedEntities);
-    }
-  }
-
-  handleCommand(event) {
-    // Create and execute a command based on current selection and click location
-    if (this.selectedEntities.size === 0) {return;}
-    
-    const raycaster = this.getRaycaster();
-    const activeScene = this.sceneManager.getActiveScene();
-    
-    if (!activeScene) {return;}
-    
-    // Find the point on the ground plane where the user clicked
-    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const mouse = new THREE.Vector2(this.normalizedMouseX, this.normalizedMouseY);
-    const destination = new THREE.Vector3();
-    
-    raycaster.setFromCamera(mouse, activeScene.camera);
-    raycaster.ray.intersectPlane(groundPlane, destination);
-    
-    // Create and execute move commands for all selected entities
-    const movementSystem = this.systems.movement;
-    
-    if (movementSystem) {
-      const commands = [];
-      
-      for (const entityId of this.selectedEntities) {
-        const command = new MoveCommand(entityId, destination, movementSystem);
-        if (command.execute()) {
-          commands.push(command);
+        if (this.systems.render) {
+          this.systems.render.updateSelections([]);
         }
-      }
-      
-      if (commands.length > 0) {
-        this.executeCommands(commands);
-      }
-    }
-  }
-
-  checkEdgePanning() {
-    // Check if mouse is near screen edge for camera panning
-    this.isEdgePanning = false;
-    const panDirection = { x: 0, z: 0 };
-    
-    if (this.mouseX < this.edgePanThreshold) {
-      panDirection.x = -1; // Pan left
-      this.isEdgePanning = true;
-    } else if (this.mouseX > window.innerWidth - this.edgePanThreshold) {
-      panDirection.x = 1; // Pan right
-      this.isEdgePanning = true;
-    }
-    
-    if (this.mouseY < this.edgePanThreshold) {
-      panDirection.z = -1; // Pan up
-      this.isEdgePanning = true;
-    } else if (this.mouseY > window.innerHeight - this.edgePanThreshold) {
-      panDirection.z = 1; // Pan down
-      this.isEdgePanning = true;
-    }
-    
-    // Normalize diagonal panning
-    if (panDirection.x !== 0 && panDirection.z !== 0) {
-      const length = Math.sqrt(panDirection.x * panDirection.x + panDirection.z * panDirection.z);
-      panDirection.x /= length;
-      panDirection.z /= length;
-    }
-    
-    if (this.isEdgePanning) {
-      // Apply edge panning to camera
-      const camera = this.sceneManager.camera;
-      if (camera) {
-        const cameraBounds = this.sceneManager.cameraBounds;
+        break;
         
-        camera.position.x += panDirection.x * this.edgePanSpeed * 0.1;
-        camera.position.z += panDirection.z * this.edgePanSpeed * 0.1;
-        
-        // Apply bounds
-        camera.position.x = Math.max(cameraBounds.minX, Math.min(cameraBounds.maxX, camera.position.x));
-        camera.position.z = Math.max(cameraBounds.minZ, Math.min(cameraBounds.maxZ, camera.position.z));
-      }
-    }
-  }
-
-  getRaycaster() {
-    if (!this._raycaster) {
-      this._raycaster = new THREE.Raycaster();
-    }
-    
-    const mouse = new THREE.Vector2(this.normalizedMouseX, this.normalizedMouseY);
-    this._raycaster.setFromCamera(mouse, this.sceneManager.camera);
-    
-    return this._raycaster;
-  }
-
-  findEntityIdFromMesh(mesh) {
-    // Find entity ID from mesh
-    const renderSystem = this.systems.render;
-    
-    if (renderSystem) {
-      for (const [entityId, entityMesh] of renderSystem.meshes.entries()) {
-        if (mesh === entityMesh || mesh.isDescendantOf(entityMesh)) {
-          return entityId;
+      case 'a':
+        // If holding shift, select all player units
+        if (event.shiftKey) {
+          this.selectAllPlayerUnits();
         }
+        break;
+        
+      case 's':
+        // Stop selected units
+        this.stopSelectedUnits();
+        break;
+        
+      // Add more keyboard shortcuts as needed
+    }
+  }
+  
+  updateMousePosition(event) {
+    // Calculate mouse position in normalized device coordinates (-1 to +1)
+    this.mousePosition.x = (event.clientX / window.innerWidth) * 2 - 1;
+    this.mousePosition.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  }
+  
+  castRay() {
+    const { camera } = this.sceneManager.getActiveScene();
+    if (!camera) return null;
+    
+    // Update the picking ray with the camera and mouse position
+    this.raycaster.setFromCamera(this.mousePosition, camera);
+    
+    // Calculate objects intersecting the picking ray
+    const intersects = this.raycaster.intersectObjects(this.sceneManager.getActiveScene().scene.children, true);
+    
+    // Filter out non-mesh objects and return the first valid intersection
+    for (const intersect of intersects) {
+      // Skip selection indicator objects
+      if (intersect.object.userData.isSelectionIndicator) continue;
+      
+      // Skip objects that aren't the ground or entities
+      if (intersect.object.userData.isGround || intersect.object.userData.entityId) {
+        return intersect;
       }
     }
     
     return null;
   }
-
-  clearSelection() {
-    this.selectedEntities.clear();
+  
+  getEntityAtPosition(position) {
+    // Find the entity closest to the given position
+    let closestEntityId = null;
+    let closestDistance = 2; // Maximum distance to consider (adjust as needed)
     
-    // Update visual selection indicators
-    if (this.systems.render) {
-      this.systems.render.updateSelections(this.selectedEntities);
-    }
-    
-    console.log('Selection cleared');
-  }
-
-  executeCommands(commands) {
-    this.undoStack.push(commands);
-    this.redoStack = [];
-    
-    // Limit history size
-    if (this.undoStack.length > this.maxHistorySize) {
-      this.undoStack.shift();
-    }
-  }
-
-  undo() {
-    if (this.undoStack.length === 0) {return false;}
-    
-    const commands = this.undoStack.pop();
-    
-    // Undo commands in reverse order
-    for (let i = commands.length - 1; i >= 0; i--) {
-      commands[i].undo();
-    }
-    
-    this.redoStack.push(commands);
-    return true;
-  }
-
-  redo() {
-    if (this.redoStack.length === 0) {return false;}
-    
-    const commands = this.redoStack.pop();
-    
-    // Redo commands in original order
-    for (let i = 0; i < commands.length; i++) {
-      commands[i].execute();
-    }
-    
-    this.undoStack.push(commands);
-    return true;
-  }
-
-  // Add helper method for THREE.js
-  isDescendantOf(child, parent) {
-    let current = child;
-    while (current !== null && current !== undefined) {
-      if (current === parent) {
-        return true;
+    this.entityManager.gameState.entities.forEach((entity, entityId) => {
+      if (this.entityManager.hasComponent(entityId, 'position') &&
+          this.entityManager.hasComponent(entityId, 'render')) {
+        const posComponent = this.entityManager.getComponent(entityId, 'position');
+        
+        // Calculate distance to entity
+        const dx = posComponent.x - position.x;
+        const dz = posComponent.z - position.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
+        
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestEntityId = entityId;
+        }
       }
-      current = current.parent;
+    });
+    
+    return closestEntityId;
+  }
+  
+  isEnemyEntity(entityId) {
+    // Check if the entity is an enemy
+    if (this.entityManager.hasComponent(entityId, 'faction')) {
+      const factionComponent = this.entityManager.getComponent(entityId, 'faction');
+      return factionComponent.faction === 'enemy';
     }
     return false;
+  }
+  
+  isPlayerEntity(entityId) {
+    // Check if the entity is a player unit
+    if (this.entityManager.hasComponent(entityId, 'faction')) {
+      const factionComponent = this.entityManager.getComponent(entityId, 'faction');
+      return factionComponent.faction === 'player';
+    }
+    return false;
+  }
+  
+  toggleEntitySelection(entityId) {
+    // Only select player entities
+    if (!this.isPlayerEntity(entityId)) return;
+    
+    if (this.selectedEntities.has(entityId)) {
+      this.selectedEntities.delete(entityId);
+    } else {
+      this.selectedEntities.add(entityId);
+    }
+  }
+  
+  clearSelection() {
+    this.selectedEntities.clear();
+  }
+  
+  selectEntitiesInBox(start, end) {
+    // Convert normalized device coordinates to screen coordinates
+    const screenStart = new THREE.Vector2(
+      (start.x + 1) / 2 * window.innerWidth,
+      (-start.y + 1) / 2 * window.innerHeight
+    );
+    const screenEnd = new THREE.Vector2(
+      (end.x + 1) / 2 * window.innerWidth,
+      (-end.y + 1) / 2 * window.innerHeight
+    );
+    
+    // Ensure start is the top-left and end is the bottom-right
+    const minX = Math.min(screenStart.x, screenEnd.x);
+    const maxX = Math.max(screenStart.x, screenEnd.x);
+    const minY = Math.min(screenStart.y, screenEnd.y);
+    const maxY = Math.max(screenStart.y, screenEnd.y);
+    
+    // Check each entity to see if it's in the selection box
+    this.entityManager.gameState.entities.forEach((entity, entityId) => {
+      // Only select player entities with position and render components
+      if (this.isPlayerEntity(entityId) &&
+          this.entityManager.hasComponent(entityId, 'position') &&
+          this.entityManager.hasComponent(entityId, 'render')) {
+        
+        const posComponent = this.entityManager.getComponent(entityId, 'position');
+        
+        // Project 3D position to screen coordinates
+        const { camera } = this.sceneManager.getActiveScene();
+        if (!camera) return;
+        
+        const position = new THREE.Vector3(posComponent.x, posComponent.y, posComponent.z);
+        const screenPosition = position.project(camera);
+        
+        const screenX = (screenPosition.x + 1) / 2 * window.innerWidth;
+        const screenY = (-screenPosition.y + 1) / 2 * window.innerHeight;
+        
+        // Check if the entity is within the selection box
+        if (screenX >= minX && screenX <= maxX && screenY >= minY && screenY <= maxY) {
+          this.selectedEntities.add(entityId);
+        }
+      }
+    });
+  }
+  
+  selectAllUnitsOfSameType(entityId) {
+    // Only proceed if the entity is a player unit
+    if (!this.isPlayerEntity(entityId)) return;
+    
+    // Get the unit type
+    const factionComponent = this.entityManager.getComponent(entityId, 'faction');
+    const unitType = factionComponent.unitType;
+    
+    // Select all player units of the same type
+    this.entityManager.gameState.entities.forEach((entity, id) => {
+      if (this.isPlayerEntity(id) &&
+          this.entityManager.hasComponent(id, 'faction')) {
+        const otherFactionComponent = this.entityManager.getComponent(id, 'faction');
+        if (otherFactionComponent.unitType === unitType) {
+          this.selectedEntities.add(id);
+        }
+      }
+    });
+  }
+  
+  selectAllPlayerUnits() {
+    // Select all player units
+    this.entityManager.gameState.entities.forEach((entity, id) => {
+      if (this.isPlayerEntity(id)) {
+        this.selectedEntities.add(id);
+      }
+    });
+    
+    // Update selection visualization
+    if (this.systems.render) {
+      this.systems.render.updateSelections(Array.from(this.selectedEntities));
+    }
+  }
+  
+  issueMoveCommand(position) {
+    // Issue move command to all selected entities
+    for (const entityId of this.selectedEntities) {
+      if (this.entityManager.hasComponent(entityId, 'position')) {
+        // If we have a combat system, stop any attacks
+        if (this.systems.combat) {
+          this.systems.combat.stopAttack(entityId);
+        }
+        
+        // Move the entity
+        this.systems.movement.moveEntity(entityId, position, 5);
+      }
+    }
+  }
+  
+  issueAttackCommand(targetEntityId) {
+    // Issue attack command to all selected entities
+    for (const entityId of this.selectedEntities) {
+      if (this.systems.combat && 
+          this.entityManager.hasComponent(entityId, 'position') &&
+          this.entityManager.hasComponent(entityId, 'faction')) {
+        
+        // Start attack
+        this.systems.combat.startAttack(entityId, targetEntityId);
+        
+        // If target is not in range, move toward it
+        if (!this.systems.combat.canAttack(entityId, targetEntityId)) {
+          const targetPosition = this.entityManager.getComponent(targetEntityId, 'position');
+          this.systems.movement.moveEntity(entityId, targetPosition, 5);
+        }
+      }
+    }
+  }
+  
+  stopSelectedUnits() {
+    // Stop all selected entities from moving and attacking
+    for (const entityId of this.selectedEntities) {
+      if (this.systems.movement) {
+        this.systems.movement.stopEntity(entityId);
+      }
+      
+      if (this.systems.combat) {
+        this.systems.combat.stopAttack(entityId);
+      }
+    }
+  }
+  
+  dispose() {
+    // Remove event listeners
+    window.removeEventListener('mousedown', this.onMouseDown);
+    window.removeEventListener('mousemove', this.onMouseMove);
+    window.removeEventListener('mouseup', this.onMouseUp);
+    window.removeEventListener('keydown', this.onKeyDown);
   }
 }
 

@@ -9,10 +9,14 @@ import EntityManager from './core/EntityManager.js';
 import PositionComponent from './entities/components/PositionComponent.js';
 import HealthComponent from './entities/components/HealthComponent.js';
 import RenderComponent from './entities/components/RenderComponent.js';
+import FactionComponent from './entities/components/FactionComponent.js';
 
 // Systems
 import RenderSystem from './entities/systems/RenderSystem.js';
 import MovementSystem from './entities/systems/MovementSystem.js';
+import CombatSystem from './entities/systems/CombatSystem.js';
+import AISystem from './entities/systems/AISystem.js';
+import SpawnSystem from './entities/systems/SpawnSystem.js';
 
 // Utilities
 import InputManager from './utils/InputManager.js';
@@ -61,10 +65,12 @@ class Game {
     const positionManager = new PositionComponent();
     const healthManager = new HealthComponent();
     const renderManager = new RenderComponent();
+    const factionManager = new FactionComponent();
     
     this.entityManager.registerComponentManager('position', positionManager);
     this.entityManager.registerComponentManager('health', healthManager);
     this.entityManager.registerComponentManager('render', renderManager);
+    this.entityManager.registerComponentManager('faction', factionManager);
   }
 
   createSystems() {
@@ -72,6 +78,9 @@ class Game {
     // Create systems but don't initialize them
     this.systems.render = new RenderSystem(this.entityManager, this.sceneManager, this.modelLoader);
     this.systems.movement = new MovementSystem(this.entityManager);
+    this.systems.combat = new CombatSystem(this.entityManager);
+    this.systems.ai = new AISystem(this.entityManager, this.systems.combat, this.systems.movement);
+    this.systems.spawn = new SpawnSystem(this.entityManager);
   }
 
   // This is now a separate method called after the main scene is created and set as active
@@ -164,6 +173,9 @@ class Game {
     // Create test entities
     this.createTestEntities();
     
+    // Create enemy spawn points and initial wave
+    this.createEnemySpawnPoints();
+    
     console.log('Main scene creation completed');
   }
 
@@ -236,6 +248,12 @@ class Game {
         scale: { x: 1, y: 1, z: 1 },
         color: 0x0000ff
       });
+      this.entityManager.addComponent(unitEntity, 'faction', {
+        faction: 'player',
+        unitType: 'assault',
+        attackType: 'ranged',
+        damageType: 'normal'
+      });
     }
     
     // Create a few test buildings
@@ -256,7 +274,64 @@ class Game {
         scale: { x: 2, y: 2, z: 2 },
         color: 0xff0000
       });
+      this.entityManager.addComponent(buildingEntity, 'faction', {
+        faction: 'player',
+        unitType: 'building',
+        attackType: 'none',
+        damageType: 'none'
+      });
     }
+  }
+
+  createEnemySpawnPoints() {
+    console.log('Creating enemy spawn points');
+    
+    // Create spawn points at the edges of the map
+    const spawnPoints = [];
+    
+    // North edge
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: 0, y: 0, z: -90 }));
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: 50, y: 0, z: -90 }));
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: -50, y: 0, z: -90 }));
+    
+    // South edge
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: 0, y: 0, z: 90 }));
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: 50, y: 0, z: 90 }));
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: -50, y: 0, z: 90 }));
+    
+    // East edge
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: 90, y: 0, z: 0 }));
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: 90, y: 0, z: 50 }));
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: 90, y: 0, z: -50 }));
+    
+    // West edge
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: -90, y: 0, z: 0 }));
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: -90, y: 0, z: 50 }));
+    spawnPoints.push(this.systems.spawn.createSpawnPoint({ x: -90, y: 0, z: -50 }));
+    
+    // Create initial wave
+    this.systems.spawn.createWave({
+      spawnPointIds: spawnPoints,
+      enemyTypes: ['lightInfantry', 'heavyInfantry'],
+      totalEnemies: 10,
+      spawnInterval: 3
+    });
+    
+    // Create a more difficult second wave
+    this.systems.spawn.createWave({
+      spawnPointIds: spawnPoints,
+      enemyTypes: ['lightInfantry', 'heavyInfantry', 'sniperUnit', 'supportUnit'],
+      totalEnemies: 15,
+      spawnInterval: 2
+    });
+    
+    // Create a final wave with elite units
+    this.systems.spawn.createWave({
+      spawnPointIds: spawnPoints,
+      enemyTypes: ['heavyInfantry', 'sniperUnit', 'supportUnit', 'specialistUnit', 'eliteUnit'],
+      totalEnemies: 20,
+      spawnInterval: 2
+    });
   }
 
   update(deltaTime) {
@@ -267,7 +342,12 @@ class Game {
     for (const [name, system] of Object.entries(this.systems)) {
       if (typeof system.update === 'function') {
         try {
-          system.update(deltaTime);
+          // Special case for spawn system which needs AI system reference
+          if (name === 'spawn') {
+            system.update(deltaTime, this.systems.ai);
+          } else {
+            system.update(deltaTime);
+          }
         } catch (error) {
           console.error(`Error updating system ${name}:`, error);
         }
