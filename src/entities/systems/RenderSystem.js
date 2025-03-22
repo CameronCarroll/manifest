@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import SelectionIndicator from '/src/utils/SelectionIndicator.js';
+import SelectionIndicator from '../../utils/SelectionIndicator.js';
 
-class RenderSystem {
+export default class RenderSystem {
   constructor(entityManager, sceneManager, modelLoader) {
     this.entityManager = entityManager;
     this.sceneManager = sceneManager;

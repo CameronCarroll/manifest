@@ -1,19 +1,30 @@
 class CombatSystem {
-  constructor(entityManager) {
+  constructor(entityManager, movementSystem = null) {
     this.entityManager = entityManager;
     this.attackingEntities = new Map(); // Maps entityId to attack data
     this.attackCooldowns = new Map(); // Maps entityId to cooldown time
     this.DEFAULT_ATTACK_RANGE = 5;
     this.DEFAULT_ATTACK_COOLDOWN = 1; // 1 second between attacks
+    this.movementSystem = movementSystem;
   }
 
   initialize() {
     // Initialize system if needed
   }
+  
+  // Set movement system reference
+  setMovementSystem(movementSystem) {
+    this.movementSystem = movementSystem;
+  }
 
   // Start an attack from one entity to another
   startAttack(attackerId, targetId) {
-    if (!this.canAttack(attackerId, targetId)) {
+    // Check components - we need position on both, and health on target
+    if (!this.entityManager.hasComponent(attackerId, 'position') ||
+        !this.entityManager.hasComponent(attackerId, 'faction') ||
+        !this.entityManager.hasComponent(targetId, 'position') ||
+        !this.entityManager.hasComponent(targetId, 'faction') ||
+        !this.entityManager.hasComponent(targetId, 'health')) {
       return false;
     }
 
@@ -32,6 +43,14 @@ class CombatSystem {
       damageType: attackerFaction.damageType || 'normal'
     });
 
+    // Check if in range, if not and we have movement system, move toward target
+    if (!this.canAttack(attackerId, targetId, true) && this.movementSystem) {
+      const targetPos = this.entityManager.getComponent(targetId, 'position');
+      if (targetPos) {
+        this.movementSystem.moveEntity(attackerId, targetPos, 5);
+      }
+    }
+
     return true;
   }
 
@@ -41,7 +60,7 @@ class CombatSystem {
   }
 
   // Check if an entity can attack another
-  canAttack(attackerId, targetId) {
+  canAttack(attackerId, targetId, ignoreCooldown = false) {
     // Check if attacker and target exist and have required components
     if (!this.entityManager.hasComponent(attackerId, 'position') ||
         !this.entityManager.hasComponent(attackerId, 'faction') ||
@@ -51,8 +70,8 @@ class CombatSystem {
       return false;
     }
 
-    // Check if attacker is on cooldown
-    if (this.attackCooldowns.has(attackerId)) {
+    // Check if attacker is on cooldown (unless we're ignoring cooldown)
+    if (!ignoreCooldown && this.attackCooldowns.has(attackerId)) {
       return false;
     }
 
@@ -180,8 +199,12 @@ class CombatSystem {
       if (!this.canAttack(attackerId, targetId)) {
         // If attacker is not on cooldown, it means target is out of range
         if (!this.attackCooldowns.has(attackerId)) {
-          // Could trigger movement to get in range here
-          // this.systems.movement.moveEntity(attackerId, targetPos, speed);
+          // Move toward target to get in range
+          const targetPos = this.entityManager.getComponent(targetId, 'position');
+          if (targetPos && this.movementSystem) {
+            // Move entity toward target
+            this.movementSystem.moveEntity(attackerId, targetPos, 5);
+          }
         }
         return;
       }
