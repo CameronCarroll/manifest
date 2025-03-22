@@ -8,14 +8,17 @@ class FactionComponent {
     };
   }
 
-  addComponent(entityId, data) {
-    this.components.set(entityId, {
+  addComponent(entityId, data = {}) {
+    const component = {
       faction: data.faction || this.FACTIONS.PLAYER, // Default to player faction
       visibility: data.visibility !== undefined ? data.visibility : true, // Default to visible (for fog of war)
       unitType: data.unitType || 'basic', // Unit type (assault, support, sniper, etc.)
       attackType: data.attackType || 'ranged', // Attack type (ranged, melee)
       damageType: data.damageType || 'normal' // Damage type for resistances/vulnerabilities
-    });
+    };
+    
+    this.components.set(entityId, component);
+    return component;
   }
 
   removeComponent(entityId) {
@@ -36,8 +39,11 @@ class FactionComponent {
   }
 
   // For deserialization
-  setAllComponents(components) {
-    this.components = new Map(components);
+  setAllComponents(componentsData) {
+    this.components.clear();
+    for (const [entityId, data] of componentsData) {
+      this.components.set(entityId, data);
+    }
   }
 }
 

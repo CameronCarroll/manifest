@@ -275,7 +275,7 @@ describe('SelectionIndicator', () => {
       // Mock position component
       const newPosition = { x: 30, y: 0, z: 15 };
       mockEntityManager.getComponent.mockImplementation((id, component) => {
-        if (component === 'position') return newPosition;
+        if (component === 'position') {return newPosition;}
         return null;
       });
       
@@ -336,8 +336,8 @@ describe('SelectionIndicator', () => {
       
       // Mock both position and render components
       mockEntityManager.getComponent.mockImplementation((id, component) => {
-        if (component === 'position') return { x: 10, y: 0, z: 20 };
-        if (component === 'render') return { scale: { x: 3, y: 2, z: 4 } };
+        if (component === 'position') {return { x: 10, y: 0, z: 20 };}
+        if (component === 'render') {return { scale: { x: 3, y: 2, z: 4 } };}
         return null;
       });
       

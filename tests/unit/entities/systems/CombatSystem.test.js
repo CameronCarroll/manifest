@@ -1,4 +1,4 @@
-import CombatSystem from '../../../src/entities/systems/CombatSystem.js';
+import CombatSystem from '../../../../src/entities/systems/CombatSystem.js';
 
 describe('CombatSystem', () => {
   let combatSystem;
@@ -76,7 +76,7 @@ describe('CombatSystem', () => {
       mockEntityManager.getComponent.mockImplementation((entityId, componentType) => {
         if (componentType === 'faction') {
           return entityId === 1 ? { faction: 'player', attackType: 'ranged', damageType: 'normal' } 
-                               : { faction: 'enemy' };
+            : { faction: 'enemy' };
         }
       });
       
@@ -150,9 +150,9 @@ describe('CombatSystem', () => {
       // Mock the getComponent method to return different unit types
       mockEntityManager.getComponent.mockImplementation((entityId, componentType) => {
         if (componentType === 'faction') {
-          if (entityId === 1) return { unitType: 'assault' };
-          if (entityId === 2) return { unitType: 'sniper' };
-          if (entityId === 3) return { unitType: 'support' };
+          if (entityId === 1) {return { unitType: 'assault' };}
+          if (entityId === 2) {return { unitType: 'sniper' };}
+          if (entityId === 3) {return { unitType: 'support' };}
           return { unitType: 'unknown' };
         }
         if (componentType === 'health') {
@@ -177,8 +177,8 @@ describe('CombatSystem', () => {
     test('should apply critical hits', () => {
       // Mock getComponent
       mockEntityManager.getComponent.mockImplementation((entityId, componentType) => {
-        if (componentType === 'faction') return { unitType: 'assault' };
-        if (componentType === 'health') return { armor: 0 };
+        if (componentType === 'faction') {return { unitType: 'assault' };}
+        if (componentType === 'health') {return { armor: 0 };}
       });
       
       // Mock random to force a critical hit
@@ -200,8 +200,8 @@ describe('CombatSystem', () => {
     test('should apply armor reduction', () => {
       // Mock getComponent
       mockEntityManager.getComponent.mockImplementation((entityId, componentType) => {
-        if (componentType === 'faction') return { unitType: 'assault' };
-        if (componentType === 'health') return { armor: 5 };
+        if (componentType === 'faction') {return { unitType: 'assault' };}
+        if (componentType === 'health') {return { armor: 5 };}
       });
       
       // Control random
@@ -216,8 +216,8 @@ describe('CombatSystem', () => {
     test('should enforce minimum damage of 1', () => {
       // Mock getComponent with high armor
       mockEntityManager.getComponent.mockImplementation((entityId, componentType) => {
-        if (componentType === 'faction') return { unitType: 'support' };
-        if (componentType === 'health') return { armor: 20 }; // Higher than support's base damage
+        if (componentType === 'faction') {return { unitType: 'support' };}
+        if (componentType === 'health') {return { armor: 20 };} // Higher than support's base damage
       });
       
       // Control random
@@ -314,7 +314,7 @@ describe('CombatSystem', () => {
       // Mock entity manager
       mockEntityManager.hasComponent.mockReturnValue(true);
       mockEntityManager.getComponent.mockImplementation((entityId, componentType) => {
-        if (componentType === 'faction') return { unitType: 'assault' };
+        if (componentType === 'faction') {return { unitType: 'assault' };}
         return {}; // Default for other components
       });
       
@@ -343,7 +343,7 @@ describe('CombatSystem', () => {
       // Mock entity manager
       mockEntityManager.hasComponent.mockReturnValue(true);
       mockEntityManager.getComponent.mockImplementation((entityId, componentType) => {
-        if (componentType === 'faction') return { unitType: 'assault' };
+        if (componentType === 'faction') {return { unitType: 'assault' };}
         return {}; // Default for other components
       });
       

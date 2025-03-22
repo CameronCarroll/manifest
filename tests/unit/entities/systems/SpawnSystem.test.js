@@ -1,4 +1,4 @@
-import SpawnSystem from '../../../src/entities/systems/SpawnSystem.js';
+import SpawnSystem from '../../../../src/entities/systems/SpawnSystem.js';
 
 describe('SpawnSystem', () => {
   let spawnSystem;

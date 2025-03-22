@@ -1,4 +1,4 @@
-import AISystem from '../../../src/entities/systems/AISystem.js';
+import AISystem from '../../../../src/entities/systems/AISystem.js';
 
 describe('AISystem', () => {
   let aiSystem;
@@ -126,16 +126,16 @@ describe('AISystem', () => {
       
       mockEntityManager.getComponent.mockImplementation((entityId, componentType) => {
         if (componentType === 'position') {
-          if (entityId === 1) return { x: 0, y: 0, z: 0 };
-          if (entityId === 2) return { x: 10, y: 0, z: 0 }; // 10 units away
-          if (entityId === 3) return { x: 5, y: 0, z: 0 };  // 5 units away
-          if (entityId === 4) return { x: 2, y: 0, z: 0 };  // 2 units away but same faction
+          if (entityId === 1) {return { x: 0, y: 0, z: 0 };}
+          if (entityId === 2) {return { x: 10, y: 0, z: 0 };} // 10 units away
+          if (entityId === 3) {return { x: 5, y: 0, z: 0 };}  // 5 units away
+          if (entityId === 4) {return { x: 2, y: 0, z: 0 };}  // 2 units away but same faction
         }
         if (componentType === 'faction') {
-          if (entityId === 1) return { faction: 'enemy' };
-          if (entityId === 2) return { faction: 'player' };
-          if (entityId === 3) return { faction: 'player' };
-          if (entityId === 4) return { faction: 'enemy' }; // Same faction as entity 1
+          if (entityId === 1) {return { faction: 'enemy' };}
+          if (entityId === 2) {return { faction: 'player' };}
+          if (entityId === 3) {return { faction: 'player' };}
+          if (entityId === 4) {return { faction: 'enemy' };} // Same faction as entity 1
         }
         return null;
       });

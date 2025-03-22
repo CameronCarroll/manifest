@@ -1,4 +1,4 @@
-import FactionComponent from '../../../src/entities/components/FactionComponent.js';
+import FactionComponent from '../../../../src/entities/components/FactionComponent.js';
 
 describe('FactionComponent', () => {
   let factionComponent;

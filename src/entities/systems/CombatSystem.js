@@ -99,14 +99,14 @@ class CombatSystem {
     
     // Unit type specific ranges for ranged attacks
     switch (unitType) {
-      case 'sniper':
-        return 15;
-      case 'assault':
-        return 7;
-      case 'support':
-        return 10;
-      default:
-        return this.DEFAULT_ATTACK_RANGE;
+    case 'sniper':
+      return 15;
+    case 'assault':
+      return 7;
+    case 'support':
+      return 10;
+    default:
+      return this.DEFAULT_ATTACK_RANGE;
     }
   }
 
@@ -117,17 +117,17 @@ class CombatSystem {
     let baseDamage = 10; // Default damage
     
     switch (attackerFaction.unitType) {
-      case 'assault':
-        baseDamage = 15;
-        break;
-      case 'sniper':
-        baseDamage = 25;
-        break;
-      case 'support':
-        baseDamage = 5;
-        break;
-      default:
-        baseDamage = 10;
+    case 'assault':
+      baseDamage = 15;
+      break;
+    case 'sniper':
+      baseDamage = 25;
+      break;
+    case 'support':
+      baseDamage = 5;
+      break;
+    default:
+      baseDamage = 10;
     }
     
     // Apply critical hit chance (20% chance for 50% more damage)
@@ -142,7 +142,7 @@ class CombatSystem {
     
     // Apply armor reduction
     let finalDamage = baseDamage - targetHealth.armor;
-    if (finalDamage < 1) finalDamage = 1; // Minimum damage of 1
+    if (finalDamage < 1) {finalDamage = 1;} // Minimum damage of 1
     
     return {
       damage: finalDamage,
@@ -205,12 +205,12 @@ class CombatSystem {
       }
       
       // Check if target is in range
-      if (!this.canAttack(attackerId, targetId)) {
+      if (!this.canAttack(attackerId, targetId, true)) {  // Pass true to ignore cooldown check
         // If attacker is not on cooldown, it means target is out of range
         if (!this.attackCooldowns.has(attackerId)) {
-          // Move toward target to get in range
+          // Move toward target to get in range if movementSystem exists
           const targetPos = this.entityManager.getComponent(targetId, 'position');
-          if (targetPos && this.movementSystem) {
+          if (targetPos && this.movementSystem && typeof this.movementSystem.moveEntity === 'function') {
             // Move entity toward target
             this.movementSystem.moveEntity(attackerId, targetPos, 5);
           }
@@ -237,15 +237,15 @@ class CombatSystem {
         
         // Different unit types have different attack speeds
         switch (attackerFaction.unitType) {
-          case 'assault':
-            cooldown = 0.8;
-            break;
-          case 'sniper':
-            cooldown = 2.0;
-            break;
-          case 'support':
-            cooldown = 1.5;
-            break;
+        case 'assault':
+          cooldown = 0.8;
+          break;
+        case 'sniper':
+          cooldown = 2.0;
+          break;
+        case 'support':
+          cooldown = 1.5;
+          break;
         }
         
         this.attackCooldowns.set(attackerId, cooldown);

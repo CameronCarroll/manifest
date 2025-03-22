@@ -123,7 +123,7 @@ class MovementSystem {
     
     // Check all entities with position, health, and faction components
     this.entityManager.gameState.entities.forEach((entity, potentialTargetId) => {
-      if (potentialTargetId === entityId) return; // Skip self
+      if (potentialTargetId === entityId) {return;} // Skip self
       
       if (this.entityManager.hasComponent(potentialTargetId, 'position') &&
           this.entityManager.hasComponent(potentialTargetId, 'health') &&

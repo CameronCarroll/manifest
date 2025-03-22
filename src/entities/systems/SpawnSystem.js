@@ -269,7 +269,7 @@ class SpawnSystem {
   update(deltaTime, aiSystem) {
     // Process all active waves
     this.activeWaves.forEach((wave, waveId) => {
-      if (!wave.active || wave.completed) return;
+      if (!wave.active || wave.completed) {return;}
       
       wave.lastSpawnTime += deltaTime;
       

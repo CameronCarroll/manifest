@@ -45,26 +45,26 @@ class AISystem {
     let aggressiveness = 0.5;
     
     switch (factionComponent.unitType) {
-      case 'assault':
-        patrolRadius = 15;
-        aggressiveness = 0.8;
-        break;
-      case 'sniper':
-        patrolRadius = 20;
-        aggressiveness = 0.3;
-        break;
-      case 'support':
-        patrolRadius = 8;
-        aggressiveness = 0.2;
-        break;
-      case 'heavy':
-        patrolRadius = 12;
-        aggressiveness = 0.7;
-        break;
-      case 'specialist':
-        patrolRadius = 18;
-        aggressiveness = 0.6;
-        break;
+    case 'assault':
+      patrolRadius = 15;
+      aggressiveness = 0.8;
+      break;
+    case 'sniper':
+      patrolRadius = 20;
+      aggressiveness = 0.3;
+      break;
+    case 'support':
+      patrolRadius = 8;
+      aggressiveness = 0.2;
+      break;
+    case 'heavy':
+      patrolRadius = 12;
+      aggressiveness = 0.7;
+      break;
+    case 'specialist':
+      patrolRadius = 18;
+      aggressiveness = 0.6;
+      break;
     }
     
     // Get starting position for patrol
@@ -103,6 +103,11 @@ class AISystem {
       return null;
     }
     
+    // Check if gameState exists
+    if (!this.entityManager.gameState || !this.entityManager.gameState.entities) {
+      return null;
+    }
+    
     const position = this.entityManager.getComponent(entityId, 'position');
     const faction = this.entityManager.getComponent(entityId, 'faction');
     
@@ -111,7 +116,7 @@ class AISystem {
     
     // Check all entities with position, health, and faction components
     this.entityManager.gameState.entities.forEach((entity, potentialTargetId) => {
-      if (potentialTargetId === entityId) return; // Skip self
+      if (potentialTargetId === entityId) {return;} // Skip self
       
       if (this.entityManager.hasComponent(potentialTargetId, 'position') &&
           this.entityManager.hasComponent(potentialTargetId, 'health') &&
@@ -143,7 +148,7 @@ class AISystem {
   // Generate a random patrol point around the start position
   getRandomPatrolPoint(entityId) {
     const aiData = this.aiControlledEntities.get(entityId);
-    if (!aiData) return null;
+    if (!aiData) {return null;}
     
     const angle = Math.random() * Math.PI * 2;
     const distance = Math.random() * aiData.patrolRadius;
@@ -168,14 +173,14 @@ class AISystem {
   // Update AI state for an entity
   updateEntityState(entityId, deltaTime) {
     const aiData = this.aiControlledEntities.get(entityId);
-    if (!aiData) return;
+    if (!aiData) {return;}
     
     // Update state time
     aiData.stateTime += deltaTime;
     aiData.lastDecisionTime += deltaTime;
     
     // Only make decisions periodically to avoid jitter
-    if (aiData.lastDecisionTime < 0.5) return;
+    if (aiData.lastDecisionTime < 0.5) {return;}
     
     // Reset decision timer
     aiData.lastDecisionTime = 0;
@@ -188,192 +193,224 @@ class AISystem {
       // Get safe retreat position
       const safeRetreatPosition = this.calculateSafeRetreatPosition(entityId);
       
-      // Move back to start position with increased speed
-      this.movementSystem.moveEntity(entityId, safeRetreatPosition, 8); // Faster retreat speed
+      // Make sure movement system exists
+      if (this.movementSystem && typeof this.movementSystem.moveEntity === 'function') {
+        // Move back to start position with increased speed
+        this.movementSystem.moveEntity(entityId, safeRetreatPosition, 8); // Faster retreat speed
+      }
       return;
     }
     
     // Enhanced state machine logic
     switch (aiData.state) {
-      case this.AI_STATES.IDLE:
-        // In idle state, check for targets and occasionally start patrolling
-        const target = this.findNearestTarget(entityId);
-        if (target) {
-          aiData.targetId = target;
-          aiData.state = this.AI_STATES.PURSUE;
+    case this.AI_STATES.IDLE:
+      // In idle state, check for targets and occasionally start patrolling
+      const target = this.findNearestTarget(entityId);
+      if (target) {
+        aiData.targetId = target;
+        aiData.state = this.AI_STATES.PURSUE;
+        aiData.stateTime = 0;
+      } else if (aiData.stateTime > 3 + Math.random() * 2) {
+        aiData.state = this.AI_STATES.PATROL;
+        aiData.stateTime = 0;
+        aiData.patrolPoint = this.getRandomPatrolPoint(entityId);
+          
+        if (aiData.patrolPoint && this.movementSystem && typeof this.movementSystem.moveEntity === 'function') {
+          this.movementSystem.moveEntity(entityId, aiData.patrolPoint, 3);
+        }
+      }
+      break;
+        
+    case this.AI_STATES.PATROL:
+      // Check if we've reached patrol point or found a target
+      const position = this.entityManager.getComponent(entityId, 'position');
+      if (aiData.patrolPoint) {
+        const dx = aiData.patrolPoint.x - position.x;
+        const dz = aiData.patrolPoint.z - position.z;
+        const distanceToPatrolPoint = Math.sqrt(dx * dx + dz * dz);
+          
+        if (distanceToPatrolPoint < 1 || aiData.stateTime > 10) {
+          // Either reached point or took too long, go back to idle
+          aiData.state = this.AI_STATES.IDLE;
           aiData.stateTime = 0;
-        } else if (aiData.stateTime > 3 + Math.random() * 2) {
+          if (this.movementSystem && typeof this.movementSystem.stopEntity === 'function') {
+            this.movementSystem.stopEntity(entityId);
+          }
+        }
+      }
+        
+      // Check for targets while patrolling
+      const patrolTarget = this.findNearestTarget(entityId);
+      if (patrolTarget) {
+        aiData.targetId = patrolTarget;
+        aiData.state = this.AI_STATES.PURSUE;
+        aiData.stateTime = 0;
+      }
+      break;
+        
+    case this.AI_STATES.PURSUE:
+      // Make sure target still exists
+      if (!aiData.targetId || !this.entityManager.hasComponent(aiData.targetId, 'position')) {
+        aiData.state = this.AI_STATES.IDLE;
+        aiData.stateTime = 0;
+        aiData.targetId = null;
+        break;
+      }
+          
+      // Get the faction component to determine unit type
+      const factionComp = this.entityManager.getComponent(entityId, 'faction');
+      const unitType = factionComp ? factionComp.unitType : 'basic';
+          
+      // Check if combat system exists and target is in attack range
+      if (this.combatSystem && typeof this.combatSystem.canAttack === 'function' && 
+          this.combatSystem.canAttack(entityId, aiData.targetId)) {
+        aiData.state = this.AI_STATES.ATTACK;
+        aiData.stateTime = 0;
+        if (this.movementSystem && typeof this.movementSystem.stopEntity === 'function') {
+          this.movementSystem.stopEntity(entityId);
+        }
+        if (this.combatSystem && typeof this.combatSystem.startAttack === 'function') {
+          this.combatSystem.startAttack(entityId, aiData.targetId);
+        }
+      } else {
+        // Calculate pursuit position with formation spacing
+        const targetPosition = this.entityManager.getComponent(aiData.targetId, 'position');
+            
+        if (targetPosition && this.movementSystem && typeof this.movementSystem.moveEntity === 'function') {
+          // Move toward target position
+          this.movementSystem.moveEntity(entityId, targetPosition, 5, aiData.targetId);
+        }
+            
+        // If pursuit takes too long, give up
+        if (aiData.stateTime > 15) {
           aiData.state = this.AI_STATES.PATROL;
           aiData.stateTime = 0;
+          aiData.targetId = null;
           aiData.patrolPoint = this.getRandomPatrolPoint(entityId);
-          
-          if (aiData.patrolPoint) {
+              
+          if (aiData.patrolPoint && this.movementSystem && typeof this.movementSystem.moveEntity === 'function') {
             this.movementSystem.moveEntity(entityId, aiData.patrolPoint, 3);
           }
         }
-        break;
+      }
+      break;
         
-      case this.AI_STATES.PATROL:
-        // Check if we've reached patrol point or found a target
-        const position = this.entityManager.getComponent(entityId, 'position');
-        if (aiData.patrolPoint) {
-          const dx = aiData.patrolPoint.x - position.x;
-          const dz = aiData.patrolPoint.z - position.z;
-          const distanceToPatrolPoint = Math.sqrt(dx * dx + dz * dz);
-          
-          if (distanceToPatrolPoint < 1 || aiData.stateTime > 10) {
-            // Either reached point or took too long, go back to idle
-            aiData.state = this.AI_STATES.IDLE;
-            aiData.stateTime = 0;
-            this.movementSystem.stopEntity(entityId);
-          }
-        }
-        
-        // Check for targets while patrolling
-        const patrolTarget = this.findNearestTarget(entityId);
-        if (patrolTarget) {
-          aiData.targetId = patrolTarget;
-          aiData.state = this.AI_STATES.PURSUE;
-          aiData.stateTime = 0;
-        }
-        break;
-        
-        case this.AI_STATES.PURSUE:
-          // Make sure target still exists
-          if (!aiData.targetId || !this.entityManager.hasComponent(aiData.targetId, 'position')) {
-            aiData.state = this.AI_STATES.IDLE;
-            aiData.stateTime = 0;
-            aiData.targetId = null;
-            break;
-          }
-          
-          // Get the faction component to determine unit type
-          const factionComp = this.entityManager.getComponent(entityId, 'faction');
-          const unitType = factionComp ? factionComp.unitType : 'basic';
-          
-          // Check if target is in attack range
-          if (this.combatSystem.canAttack(entityId, aiData.targetId)) {
-            aiData.state = this.AI_STATES.ATTACK;
-            aiData.stateTime = 0;
-            this.movementSystem.stopEntity(entityId);
-            this.combatSystem.startAttack(entityId, aiData.targetId);
-          } else {
-            // Calculate pursuit position with formation spacing
-            const targetPosition = this.entityManager.getComponent(aiData.targetId, 'position');
-            
-            if (targetPosition && this.movementSystem) {
-              // Move toward target position
-              this.movementSystem.moveEntity(entityId, targetPosition, 5, aiData.targetId);
-            }
-            
-            // If pursuit takes too long, give up
-            if (aiData.stateTime > 15) {
-              aiData.state = this.AI_STATES.PATROL;
-              aiData.stateTime = 0;
-              aiData.targetId = null;
-              aiData.patrolPoint = this.getRandomPatrolPoint(entityId);
-              
-              if (aiData.patrolPoint && this.movementSystem) {
-                this.movementSystem.moveEntity(entityId, aiData.patrolPoint, 3);
-              }
-            }
-          }
-          break;
-        
-      case this.AI_STATES.ATTACK:
-        // Make sure target still exists
-        if (!aiData.targetId || !this.entityManager.hasComponent(aiData.targetId, 'position') ||
+    case this.AI_STATES.ATTACK:
+      // Make sure target still exists
+      if (!aiData.targetId || !this.entityManager.hasComponent(aiData.targetId, 'position') ||
             !this.entityManager.hasComponent(aiData.targetId, 'health')) {
-          aiData.state = this.AI_STATES.IDLE;
-          aiData.stateTime = 0;
-          aiData.targetId = null;
-          this.combatSystem.stopAttack(entityId);
-          break;
-        }
-        
-        // Check if target is still in range
-        if (!this.combatSystem.canAttack(entityId, aiData.targetId)) {
-          aiData.state = this.AI_STATES.PURSUE;
-          aiData.stateTime = 0;
-          this.combatSystem.stopAttack(entityId);
-        }
-        
-        // Check if target is dead
-        const targetHealth = this.entityManager.getComponent(aiData.targetId, 'health');
-        if (targetHealth.currentHealth <= 0) {
-          aiData.state = this.AI_STATES.IDLE;
-          aiData.stateTime = 0;
-          aiData.targetId = null;
+        aiData.state = this.AI_STATES.IDLE;
+        aiData.stateTime = 0;
+        aiData.targetId = null;
+        if (this.combatSystem && typeof this.combatSystem.stopAttack === 'function') {
           this.combatSystem.stopAttack(entityId);
         }
         break;
+      }
         
-      case this.AI_STATES.RETREAT:
-        // Check if we've reached the retreat point (start position)
-        const retreatPosition = this.entityManager.getComponent(entityId, 'position');
+      // Check if combat system exists and target is still in range
+      if (this.combatSystem && typeof this.combatSystem.canAttack === 'function' && 
+          !this.combatSystem.canAttack(entityId, aiData.targetId)) {
+        aiData.state = this.AI_STATES.PURSUE;
+        aiData.stateTime = 0;
+        if (this.combatSystem && typeof this.combatSystem.stopAttack === 'function') {
+          this.combatSystem.stopAttack(entityId);
+        }
+      }
         
-        // Calculate distance to the safe retreat position
-        const safePosition = this.calculateSafeRetreatPosition(entityId);
-        const dx = safePosition.x - retreatPosition.x;
-        const dz = safePosition.z - retreatPosition.z;
-        const distanceToRetreat = Math.sqrt(dx * dx + dz * dz);
+      // Check if target is dead
+      const targetHealth = this.entityManager.getComponent(aiData.targetId, 'health');
+      if (targetHealth && targetHealth.currentHealth <= 0) {
+        aiData.state = this.AI_STATES.IDLE;
+        aiData.stateTime = 0;
+        aiData.targetId = null;
+        if (this.combatSystem && typeof this.combatSystem.stopAttack === 'function') {
+          this.combatSystem.stopAttack(entityId);
+        }
+      }
+      break;
         
-        // If close to the retreat point, or have been retreating too long
-        if (distanceToRetreat < 1 || aiData.stateTime > 10) {
-          // Either reached safe point or took too long
-          aiData.state = this.AI_STATES.IDLE;
-          aiData.stateTime = 0;
+    case this.AI_STATES.RETREAT:
+      // Check if we've reached the retreat point (start position)
+      const retreatPosition = this.entityManager.getComponent(entityId, 'position');
+        
+      // Calculate distance to the safe retreat position
+      const safePosition = this.calculateSafeRetreatPosition(entityId);
+      const dx = safePosition.x - retreatPosition.x;
+      const dz = safePosition.z - retreatPosition.z;
+      const distanceToRetreat = Math.sqrt(dx * dx + dz * dz);
+        
+      // If close to the retreat point, or have been retreating too long
+      if (distanceToRetreat < 1 || aiData.stateTime > 10) {
+        // Either reached safe point or took too long
+        aiData.state = this.AI_STATES.IDLE;
+        aiData.stateTime = 0;
+        if (this.movementSystem && typeof this.movementSystem.stopEntity === 'function') {
           this.movementSystem.stopEntity(entityId);
+        }
           
-          // Regenerate some health if we have a health component
-          if (this.entityManager.hasComponent(entityId, 'health')) {
-            const health = this.entityManager.getComponent(entityId, 'health');
-            health.currentHealth = Math.min(health.maxHealth, health.currentHealth + health.maxHealth * 0.3);
-          }
-        } else if (aiData.stateTime % 2 < 0.1) {
-          // Periodically update retreat path to avoid players
-          const newSafePosition = this.calculateSafeRetreatPosition(entityId);
+        // Regenerate some health if we have a health component
+        if (this.entityManager.hasComponent(entityId, 'health')) {
+          const health = this.entityManager.getComponent(entityId, 'health');
+          health.currentHealth = Math.min(health.maxHealth, health.currentHealth + health.maxHealth * 0.3);
+        }
+      } else if (aiData.stateTime % 2 < 0.1) {
+        // Periodically update retreat path to avoid players
+        const newSafePosition = this.calculateSafeRetreatPosition(entityId);
+        if (this.movementSystem && typeof this.movementSystem.moveEntity === 'function') {
           this.movementSystem.moveEntity(entityId, newSafePosition, 8);
         }
-        break;
+      }
+      break;
         
-      case this.AI_STATES.SUPPORT:
-        // Support behavior for support units
-        if (!aiData.targetId || !this.entityManager.hasComponent(aiData.targetId, 'position')) {
-          // Find friendly unit to support
-          const friendlyUnit = this.findFriendlyToSupport(entityId);
-          if (friendlyUnit) {
-            aiData.targetId = friendlyUnit;
+    case this.AI_STATES.SUPPORT:
+      // Support behavior for support units
+      if (!aiData.targetId || !this.entityManager.hasComponent(aiData.targetId, 'position')) {
+        // Find friendly unit to support
+        const friendlyUnit = this.findFriendlyToSupport(entityId);
+        if (friendlyUnit) {
+          aiData.targetId = friendlyUnit;
             
-            // Move to support position
-            const friendlyPos = this.entityManager.getComponent(friendlyUnit, 'position');
+          // Move to support position
+          const friendlyPos = this.entityManager.getComponent(friendlyUnit, 'position');
+          if (friendlyPos) {
             const supportPos = {
               x: friendlyPos.x + (Math.random() * 4 - 2), // Random offset 
               y: friendlyPos.y,
               z: friendlyPos.z + (Math.random() * 4 - 2)  // Random offset
             };
-            
-            this.movementSystem.moveEntity(entityId, supportPos, 4);
-          } else {
-            // No one to support, go back to idle
-            aiData.state = this.AI_STATES.IDLE;
-            aiData.stateTime = 0;
+              
+            if (this.movementSystem && typeof this.movementSystem.moveEntity === 'function') {
+              this.movementSystem.moveEntity(entityId, supportPos, 4);
+            }
           }
+        } else {
+          // No one to support, go back to idle
+          aiData.state = this.AI_STATES.IDLE;
+          aiData.stateTime = 0;
         }
-        break;
+      }
+      break;
     }
   }
 
   update(deltaTime) {
     // Update all AI-controlled entities
+    const entitiesToRemove = [];
+    
     this.aiControlledEntities.forEach((aiData, entityId) => {
       // Skip if entity no longer exists
       if (!this.entityManager.hasComponent(entityId, 'position')) {
-        this.unregisterEntity(entityId);
+        entitiesToRemove.push(entityId);
         return;
       }
       
       this.updateEntityState(entityId, deltaTime);
+    });
+    
+    // Remove entities that no longer exist
+    entitiesToRemove.forEach(entityId => {
+      this.unregisterEntity(entityId);
     });
   }
 
@@ -390,7 +427,7 @@ class AISystem {
   calculateFormationPosition(entityId, basePosition) {
     // Get count of nearby friendly units
     const position = this.entityManager.getComponent(entityId, 'position');
-    if (!position) return basePosition;
+    if (!position) {return basePosition;}
     
     let nearbyCount = 0;
     let offsetX = 0;
@@ -446,6 +483,11 @@ class AISystem {
     
     if (!position || !aiData) {
       return aiData ? aiData.startPosition : { x: 0, y: 0, z: 0 };
+    }
+    
+    // Check if gameState exists
+    if (!this.entityManager.gameState || !this.entityManager.gameState.entities) {
+      return aiData.startPosition;
     }
     
     // Find player units
@@ -526,6 +568,11 @@ class AISystem {
       return null;
     }
     
+    // Check if gameState exists
+    if (!this.entityManager.gameState || !this.entityManager.gameState.entities) {
+      return null;
+    }
+    
     const position = this.entityManager.getComponent(entityId, 'position');
     const faction = this.entityManager.getComponent(entityId, 'faction');
     
@@ -534,7 +581,7 @@ class AISystem {
     
     // Check all entities with position, health, and faction components
     this.entityManager.gameState.entities.forEach((entity, potentialTargetId) => {
-      if (potentialTargetId === entityId) return; // Skip self
+      if (potentialTargetId === entityId) {return;} // Skip self
       
       if (this.entityManager.hasComponent(potentialTargetId, 'position') &&
           this.entityManager.hasComponent(potentialTargetId, 'health') &&
@@ -558,7 +605,8 @@ class AISystem {
           // 3. Not too far away
           
           // Check if unit is in combat
-          const inCombat = this.combatSystem.attackingEntities.has(potentialTargetId);
+          const inCombat = this.combatSystem && this.combatSystem.attackingEntities && 
+                          this.combatSystem.attackingEntities.has(potentialTargetId);
           
           // Calculate health percentage
           const healthPercentage = targetHealth.currentHealth / targetHealth.maxHealth;

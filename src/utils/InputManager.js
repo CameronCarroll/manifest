@@ -15,7 +15,7 @@ class InputManager {
     this.selectionStart = { x: 0, y: 0 };
     this.selectionEnd = { x: 0, y: 0 };
     this.selectedEntities = new Set();
-    this.commandHistory = [];
+    this.commandHistory = [];  // This is in the original source but seems unused
     this.undoStack = [];
     this.redoStack = [];
     
@@ -29,6 +29,15 @@ class InputManager {
     this.isEdgePanning = false;
     this.edgePanThreshold = 20; // Pixels from edge to trigger panning
     this.edgePanSpeed = 20; // Movement speed when edge panning
+    
+    // Create selection box element - THIS IS THE MISSING PART
+    this.selectionBox = document.createElement('div');
+    this.selectionBox.style.position = 'absolute';
+    this.selectionBox.style.border = '1px solid #39ff14';
+    this.selectionBox.style.backgroundColor = 'rgba(57, 255, 20, 0.1)';
+    this.selectionBox.style.pointerEvents = 'none';
+    this.selectionBox.style.display = 'none';
+    document.body.appendChild(this.selectionBox);
     
     // Bind event handlers
     this.onMouseDown = this.onMouseDown.bind(this);
@@ -99,13 +108,21 @@ class InputManager {
   }
   
   onMouseMove(event) {
-    this.updateMousePosition(event);
+    // Set raw mouse coordinates
+    this.mouseX = event.clientX;
+    this.mouseY = event.clientY;
+    
+    // Also update the normalized coordinates
+    this.normalizedMouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    this.normalizedMouseY = -(event.clientY / window.innerHeight) * 2 + 1;
     
     // Update selection box if selecting
     if (this.isSelecting) {
-      this.selectionEnd.copy(this.mousePosition);
-      // Could draw selection box here
+      this.updateSelectionBox(event);
     }
+    
+    // Check for edge panning
+    this.checkEdgePanning();
   }
   
   onMouseUp(event) {
@@ -141,25 +158,25 @@ class InputManager {
   onKeyDown(event) {
     // Handle keyboard shortcuts
     switch (event.key) {
-      case 'Escape':
-        // Clear selection
-        this.clearSelection();
-        if (this.systems.render) {
-          this.systems.render.updateSelections([]);
-        }
-        break;
+    case 'Escape':
+      // Clear selection
+      this.clearSelection();
+      if (this.systems.render) {
+        this.systems.render.updateSelections([]);
+      }
+      break;
         
-      case 'a':
-        // If holding shift, select all player units
-        if (event.shiftKey) {
-          this.selectAllPlayerUnits();
-        }
-        break;
+    case 'a':
+      // If holding shift, select all player units
+      if (event.shiftKey) {
+        this.selectAllPlayerUnits();
+      }
+      break;
         
-      case 's':
-        // Stop selected units
-        this.stopSelectedUnits();
-        break;
+    case 's':
+      // Stop selected units
+      this.stopSelectedUnits();
+      break;
         
       // Add more keyboard shortcuts as needed
     }
@@ -173,7 +190,7 @@ class InputManager {
   
   castRay() {
     const { camera } = this.sceneManager.getActiveScene();
-    if (!camera) return null;
+    if (!camera) {return null;}
     
     // Update the picking ray with the camera and mouse position
     this.raycaster.setFromCamera(this.mousePosition, camera);
@@ -184,7 +201,7 @@ class InputManager {
     // Filter out non-mesh objects and return the first valid intersection
     for (const intersect of intersects) {
       // Skip selection indicator objects
-      if (intersect.object.userData.isSelectionIndicator) continue;
+      if (intersect.object.userData.isSelectionIndicator) {continue;}
       
       // Skip objects that aren't the ground or entities
       if (intersect.object.userData.isGround || intersect.object.userData.entityId) {
@@ -240,7 +257,7 @@ class InputManager {
   
   toggleEntitySelection(entityId) {
     // Only select player entities
-    if (!this.isPlayerEntity(entityId)) return;
+    if (!this.isPlayerEntity(entityId)) {return;}
     
     if (this.selectedEntities.has(entityId)) {
       this.selectedEntities.delete(entityId);
@@ -281,7 +298,7 @@ class InputManager {
         
         // Project 3D position to screen coordinates
         const { camera } = this.sceneManager.getActiveScene();
-        if (!camera) return;
+        if (!camera) {return;}
         
         const position = new THREE.Vector3(posComponent.x, posComponent.y, posComponent.z);
         const screenPosition = position.project(camera);
@@ -299,7 +316,7 @@ class InputManager {
   
   selectAllUnitsOfSameType(entityId) {
     // Only proceed if the entity is a player unit
-    if (!this.isPlayerEntity(entityId)) return;
+    if (!this.isPlayerEntity(entityId)) {return;}
     
     // Get the unit type
     const factionComponent = this.entityManager.getComponent(entityId, 'faction');
@@ -452,6 +469,176 @@ class InputManager {
     }
     
     return this.isEdgePanning;
+  }
+
+  // Handle selection methods
+  startSelection(event) {
+    this.isSelecting = true;
+    this.selectionStart = { x: event.clientX, y: event.clientY };
+    this.selectionEnd = { x: event.clientX, y: event.clientY };
+    this.selectionBox.style.display = 'block';
+  }
+
+  updateSelectionBox(event) {
+    this.selectionEnd = { x: event.clientX, y: event.clientY };
+  
+    // Calculate the selection box dimensions
+    const left = Math.min(this.selectionStart.x, this.selectionEnd.x);
+    const top = Math.min(this.selectionStart.y, this.selectionEnd.y);
+    const width = Math.abs(this.selectionEnd.x - this.selectionStart.x);
+    const height = Math.abs(this.selectionEnd.y - this.selectionStart.y);
+  
+    // Update the selection box style
+    this.selectionBox.style.left = `${left}px`;
+    this.selectionBox.style.top = `${top}px`;
+    this.selectionBox.style.width = `${width}px`;
+    this.selectionBox.style.height = `${height}px`;
+  }
+
+  completeSelection(event) {
+    this.isSelecting = false;
+    this.selectionBox.style.display = 'none';
+  
+    // If selection area is very small, treat as a single click
+    const selectionWidth = Math.abs(this.selectionEnd.x - this.selectionStart.x);
+    const selectionHeight = Math.abs(this.selectionEnd.y - this.selectionStart.y);
+  
+    if (selectionWidth < 5 && selectionHeight < 5) {
+      this.handleSingleSelection(event);
+    } else {
+      this.handleBoxSelection(event);
+    }
+  }
+
+  handleSingleSelection(event) {
+  // Handle a single-click selection
+    const intersect = this.castRay();
+    if (intersect) {
+      const entityId = this.getEntityAtPosition(intersect.point);
+      if (entityId) {
+        this.toggleEntitySelection(entityId);
+      }
+    }
+  }
+
+  handleBoxSelection(event) {
+  // Handle a box/drag selection
+  // Use the selection box dimensions to find entities
+    const selectedEntities = this.getEntitiesInSelectionBox();
+  
+    // Add all entities in the box to the selection
+    for (const entityId of selectedEntities) {
+      this.selectedEntities.add(entityId);
+    }
+  }
+
+  // Command handling methods
+  handleCommand(event) {
+  // Handle a right-click command
+    const intersect = this.castRay();
+    if (intersect) {
+      const targetEntityId = this.getEntityAtPosition(intersect.point);
+    
+      if (targetEntityId && this.isEnemyEntity(targetEntityId)) {
+      // Attack command
+        const commands = Array.from(this.selectedEntities).map(entityId => 
+          new AttackCommand(entityId, targetEntityId, this.systems.combat)
+        );
+        this.executeCommands(commands);
+      } else {
+      // Move command
+        const commands = Array.from(this.selectedEntities).map(entityId => 
+          new MoveCommand(entityId, intersect.point, this.systems.movement)
+        );
+        this.executeCommands(commands);
+      }
+    }
+  }
+
+  executeCommands(commands) {
+  // Execute and store commands for undo
+    for (const command of commands) {
+      command.execute();
+    }
+  
+    // Add to undo stack
+    this.undoStack.push(commands);
+  
+    // Clear redo stack
+    this.redoStack = [];
+  }
+
+  // Undo/Redo methods
+  undo() {
+    if (this.undoStack.length === 0) {return false;}
+  
+    // Get the last commands
+    const commands = this.undoStack.pop();
+  
+    // Undo each command in reverse order
+    for (let i = commands.length - 1; i >= 0; i--) {
+      commands[i].undo();
+    }
+  
+    // Add to redo stack
+    this.redoStack.push(commands);
+  
+    return true;
+  }
+
+  redo() {
+    if (this.redoStack.length === 0) {return false;}
+  
+    // Get the last undone commands
+    const commands = this.redoStack.pop();
+  
+    // Redo each command
+    for (const command of commands) {
+      command.execute();
+    }
+  
+    // Add back to undo stack
+    this.undoStack.push(commands);
+  
+    return true;
+  }
+
+  // Fix clearSelection to update the render system
+  clearSelection() {
+    this.selectedEntities.clear();
+  
+    // Update selection visualization
+    if (this.systems.render) {
+      this.systems.render.updateSelections(this.selectedEntities);
+    }
+  }
+
+  // Utility methods
+  getRaycaster() {
+    if (!this._raycaster) {
+      this._raycaster = new THREE.Raycaster();
+    }
+  
+    const { camera } = this.sceneManager.getActiveScene();
+    if (camera) {
+      this._raycaster.setFromCamera({ 
+        x: this.normalizedMouseX, 
+        y: this.normalizedMouseY 
+      }, camera);
+    }
+  
+    return this._raycaster;
+  }
+
+  findEntityIdFromMesh(mesh) {
+  // Find entity ID from a mesh
+    for (const [entityId, entityMesh] of this.systems.render.meshes.entries()) {
+      if (entityMesh === mesh || (mesh.isDescendantOf && mesh.isDescendantOf(entityMesh))) {
+        return entityId;
+      }
+    }
+  
+    return null;
   }
 }
 
