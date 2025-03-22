@@ -1,0 +1,18 @@
+{
+  "name": "rts-game",
+  "version": "1.0.0",
+  "description": "A single-player real-time strategy game with save functionality",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
