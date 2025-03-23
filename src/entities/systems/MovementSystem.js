@@ -9,7 +9,7 @@ class MovementSystem {
     // Initialize system if needed
   }
 
-  moveEntity(entityId, destination, speed, targetEntityId = null, attackMove = false) {
+  moveEntity(entityId, destination, speed, targetEntityId = null, attackMove = false, formationOffset = null) {
     // Add entity to moving entities list with destination
     if (this.entityManager.hasComponent(entityId, 'position')) {
       this.movingEntities.set(entityId, {
@@ -17,7 +17,8 @@ class MovementSystem {
         speed: speed || 5, // Default speed if not specified
         path: [], // For pathfinding, if implemented
         targetEntityId, // Store the target entity ID
-        attackMove: attackMove || false // Store the attack-move flag
+        attackMove: attackMove || false, // Store the attack-move flag
+        formationOffset // Store the formation offset for memory
       });
       return true;
     }
@@ -107,9 +108,30 @@ class MovementSystem {
       const moveDistance = speed * deltaTime;
       const moveRatio = moveDistance / distance;
     
-      // Calculate new position
-      const newX = positionComponent.x + dx * moveRatio;
-      const newZ = positionComponent.z + dz * moveRatio;
+      // Calculate separation force from nearby entities
+      const separation = 1.5; // Desired separation distance
+      const separationForce = { x: 0, z: 0 };
+      
+      // Calculate separation force from nearby entities
+      this.entityManager.gameState.entities.forEach((otherEntity, otherId) => {
+        if (entityId !== otherId && this.entityManager.hasComponent(otherId, 'position')) {
+          const otherPos = this.entityManager.getComponent(otherId, 'position');
+          const dx = positionComponent.x - otherPos.x;
+          const dz = positionComponent.z - otherPos.z;
+          const distance = Math.sqrt(dx * dx + dz * dz);
+          
+          // Apply inverse-square repulsion within separation distance
+          if (distance < separation && distance > 0) {
+            const force = (separation / distance - 1) * 0.1;
+            separationForce.x += dx / distance * force;
+            separationForce.z += dz / distance * force;
+          }
+        }
+      });
+      
+      // Calculate new position with separation forces applied
+      const newX = positionComponent.x + dx * moveRatio + separationForce.x;
+      const newZ = positionComponent.z + dz * moveRatio + separationForce.z;
     
       // Check for collisions if we have a collision system
       if (this.systems && this.systems.collision) {

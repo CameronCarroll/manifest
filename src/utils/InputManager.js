@@ -535,22 +535,108 @@ class InputManager {
       position
     );
     
-    // Assign each unit its formation position
-    let index = 0;
+    // Progressive assignment - units that are already close to their assigned positions
+    // can be given priority to take those positions
+    const entityPositions = [];
+    const assignments = new Map();
+    
+    // Gather current positions of all selected entities
     for (const entityId of this.selectedEntities) {
+      if (this.entityManager.hasComponent(entityId, 'position')) {
+        const currentPos = this.entityManager.getComponent(entityId, 'position');
+        entityPositions.push({
+          entityId,
+          position: currentPos,
+          // Get unit type priority for sorting
+          priority: this.getUnitTypePriority(entityId)
+        });
+      }
+    }
+    
+    // First, assign positions to units based on their current proximity
+    for (const entity of entityPositions) {
+      // Find best position for this unit
+      let bestPosition = null;
+      let bestDistance = Infinity;
+      
+      for (let i = 0; i < formationPositions.length; i++) {
+        const formationPos = formationPositions[i];
+        if (!assignments.has(i)) { // If position not yet assigned
+          const dx = formationPos.x - entity.position.x;
+          const dz = formationPos.z - entity.position.z;
+          const distance = Math.sqrt(dx * dx + dz * dz);
+          
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestPosition = i;
+          }
+        }
+      }
+      
+      // Assign this position
+      if (bestPosition !== null) {
+        assignments.set(bestPosition, entity.entityId);
+      }
+    }
+    
+    // Now ensure all units are assigned a position, prioritizing unit types for any remaining positions
+    const sortedEntities = [...this.selectedEntities].sort((a, b) => {
+      return this.getUnitTypePriority(a) - this.getUnitTypePriority(b);
+    });
+    
+    // For any units not yet assigned, give them remaining positions
+    for (const entityId of sortedEntities) {
+      // Skip already assigned units
+      if (Array.from(assignments.values()).includes(entityId)) {
+        continue;
+      }
+      
+      // Find first available position
+      for (let i = 0; i < formationPositions.length; i++) {
+        if (!assignments.has(i)) {
+          assignments.set(i, entityId);
+          break;
+        }
+      }
+    }
+    
+    // Issue move commands based on assignments
+    for (const [positionIndex, entityId] of assignments.entries()) {
       if (this.entityManager.hasComponent(entityId, 'position')) {
         // If we have a combat system, stop any attacks
         if (this.systems.combat) {
           this.systems.combat.stopAttack(entityId);
         }
   
-        // Move the entity to its formation position
-        if (index < formationPositions.length) {
-          this.systems.movement.moveEntity(entityId, formationPositions[index], 5);
-          index++;
-        }
+        // Get the assigned formation position
+        const formationPos = formationPositions[positionIndex];
+        
+        // Calculate formation offset for memory
+        const formationOffset = {
+          x: formationPos.x - position.x,
+          z: formationPos.z - position.z
+        };
+        
+        // Move entity with formation offset for memory
+        this.systems.movement.moveEntity(entityId, formationPos, 5, null, false, formationOffset);
       }
     }
+  }
+  
+  // Helper method to get unit type priority for sorting
+  getUnitTypePriority(entityId) {
+    if (this.entityManager.hasComponent(entityId, 'faction')) {
+      const faction = this.entityManager.getComponent(entityId, 'faction');
+      const typePriority = {
+        'tank': 0,
+        'assault': 1, 
+        'sniper': 2,
+        'support': 3
+      };
+      
+      return typePriority[faction?.unitType] || 999;
+    }
+    return 999;
   }
 
   // Calculate formation positions for a group of units
@@ -563,6 +649,25 @@ class InputManager {
       positions.push({ ...centerPosition });
       return positions;
     }
+    
+    // Sort entities by type for positioning preference
+    const sortedEntities = [...selectedEntities].sort((a, b) => {
+      const factionA = this.entityManager.getComponent(a, 'faction');
+      const factionB = this.entityManager.getComponent(b, 'faction');
+      
+      // Define unit type priority (lower number = closer to front)
+      const typePriority = {
+        'tank': 0,
+        'assault': 1, 
+        'sniper': 2,
+        'support': 3
+      };
+      
+      const priorityA = typePriority[factionA?.unitType] || 999;
+      const priorityB = typePriority[factionB?.unitType] || 999;
+      
+      return priorityA - priorityB;
+    });
   
     // Small formations (2-4 units) - simple pattern
     if (unitCount <= 4) {
@@ -600,7 +705,7 @@ class InputManager {
     // Then add positions in concentric rings
     let remaining = unitCount - 1;
     for (let ring = 1; ring <= ringCount && remaining > 0; ring++) {
-    // Calculate how many units fit in this ring
+      // Calculate how many units fit in this ring
       const unitsInRing = Math.min(Math.floor(2 * Math.PI * ring), remaining);
     
       // Add units evenly spaced around the ring
@@ -1137,17 +1242,98 @@ class InputManager {
 
   // Issue attack-move command
   issueAttackMoveCommand(position) {
-  // Issue attack-move command to all selected entities
+    // Skip if no units selected
+    if (this.selectedEntities.size === 0) {return;}
+    
+    // Calculate formation positions based on number of selected units
+    const formationPositions = this.calculateFormationPositions(
+      Array.from(this.selectedEntities), 
+      position
+    );
+    
+    // Use same progressive assignment logic as in issueMoveCommand
+    const entityPositions = [];
+    const assignments = new Map();
+    
+    // Gather current positions of all selected entities
     for (const entityId of this.selectedEntities) {
       if (this.entityManager.hasComponent(entityId, 'position')) {
-      // If we have a combat system, stop any attacks
+        const currentPos = this.entityManager.getComponent(entityId, 'position');
+        entityPositions.push({
+          entityId,
+          position: currentPos,
+          priority: this.getUnitTypePriority(entityId)
+        });
+      }
+    }
+    
+    // First, assign positions to units based on their current proximity
+    for (const entity of entityPositions) {
+      // Find best position for this unit
+      let bestPosition = null;
+      let bestDistance = Infinity;
+      
+      for (let i = 0; i < formationPositions.length; i++) {
+        const formationPos = formationPositions[i];
+        if (!assignments.has(i)) { // If position not yet assigned
+          const dx = formationPos.x - entity.position.x;
+          const dz = formationPos.z - entity.position.z;
+          const distance = Math.sqrt(dx * dx + dz * dz);
+          
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestPosition = i;
+          }
+        }
+      }
+      
+      // Assign this position
+      if (bestPosition !== null) {
+        assignments.set(bestPosition, entity.entityId);
+      }
+    }
+    
+    // Now ensure all units are assigned a position, prioritizing unit types for any remaining positions
+    const sortedEntities = [...this.selectedEntities].sort((a, b) => {
+      return this.getUnitTypePriority(a) - this.getUnitTypePriority(b);
+    });
+    
+    // For any units not yet assigned, give them remaining positions
+    for (const entityId of sortedEntities) {
+      // Skip already assigned units
+      if (Array.from(assignments.values()).includes(entityId)) {
+        continue;
+      }
+      
+      // Find first available position
+      for (let i = 0; i < formationPositions.length; i++) {
+        if (!assignments.has(i)) {
+          assignments.set(i, entityId);
+          break;
+        }
+      }
+    }
+    
+    // Issue attack-move commands based on assignments
+    for (const [positionIndex, entityId] of assignments.entries()) {
+      if (this.entityManager.hasComponent(entityId, 'position')) {
+        // If we have a combat system, stop any attacks
         if (this.systems.combat) {
           this.systems.combat.stopAttack(entityId);
         }
-      
+  
+        // Get the assigned formation position
+        const formationPos = formationPositions[positionIndex];
+        
+        // Calculate formation offset for memory
+        const formationOffset = {
+          x: formationPos.x - position.x,
+          z: formationPos.z - position.z
+        };
+        
         // Move the entity with attack-move flag
         if (this.systems.movement) {
-          this.systems.movement.moveEntity(entityId, position, 5, null, true); // Last param is attackMove flag
+          this.systems.movement.moveEntity(entityId, formationPos, 5, null, true, formationOffset); // Include attackMove flag and formation offset
         }
       }
     }
