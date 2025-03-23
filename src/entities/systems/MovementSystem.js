@@ -12,6 +12,15 @@ class MovementSystem {
   moveEntity(entityId, destination, speed, targetEntityId = null, attackMove = false, formationOffset = null) {
     // Add entity to moving entities list with destination
     if (this.entityManager.hasComponent(entityId, 'position')) {
+      // Check if the entity is a building - buildings should be stationary
+      if (this.entityManager.hasComponent(entityId, 'faction')) {
+        const factionComponent = this.entityManager.getComponent(entityId, 'faction');
+        if (factionComponent.unitType === 'building') {
+          // Don't move buildings
+          return false;
+        }
+      }
+      
       this.movingEntities.set(entityId, {
         destination: { ...destination },
         speed: speed || 5, // Default speed if not specified
@@ -113,21 +122,24 @@ class MovementSystem {
       const separationForce = { x: 0, z: 0 };
       
       // Calculate separation force from nearby entities
-      this.entityManager.gameState.entities.forEach((otherEntity, otherId) => {
-        if (entityId !== otherId && this.entityManager.hasComponent(otherId, 'position')) {
-          const otherPos = this.entityManager.getComponent(otherId, 'position');
-          const dx = positionComponent.x - otherPos.x;
-          const dz = positionComponent.z - otherPos.z;
-          const distance = Math.sqrt(dx * dx + dz * dz);
-          
-          // Apply inverse-square repulsion within separation distance
-          if (distance < separation && distance > 0) {
-            const force = (separation / distance - 1) * 0.1;
-            separationForce.x += dx / distance * force;
-            separationForce.z += dz / distance * force;
+      // Handle case for tests which might not have gameState.entities
+      if (this.entityManager.gameState && this.entityManager.gameState.entities) {
+        this.entityManager.gameState.entities.forEach((otherEntity, otherId) => {
+          if (entityId !== otherId && this.entityManager.hasComponent(otherId, 'position')) {
+            const otherPos = this.entityManager.getComponent(otherId, 'position');
+            const dx = positionComponent.x - otherPos.x;
+            const dz = positionComponent.z - otherPos.z;
+            const distance = Math.sqrt(dx * dx + dz * dz);
+            
+            // Apply inverse-square repulsion within separation distance
+            if (distance < separation && distance > 0) {
+              const force = (separation / distance - 1) * 0.1;
+              separationForce.x += dx / distance * force;
+              separationForce.z += dz / distance * force;
+            }
           }
-        }
-      });
+        });
+      }
       
       // Calculate new position with separation forces applied
       const newX = positionComponent.x + dx * moveRatio + separationForce.x;
