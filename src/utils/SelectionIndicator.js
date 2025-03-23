@@ -216,7 +216,7 @@ class SelectionIndicator {
     
     // Update each indicator
     targetIndicators.forEach(indicator => {
-      if (!indicator.userData.creationTime) return;
+      if (!indicator.userData.creationTime) {return;}
       
       const age = now - indicator.userData.creationTime;
       

@@ -12,13 +12,13 @@ export default class RenderSystem {
   }
 
   // In src/entities/systems/RenderSystem.js
-initialize() {
-  const { scene } = this.sceneManager.getActiveScene();
-  if (scene) {
+  initialize() {
+    const { scene } = this.sceneManager.getActiveScene();
+    if (scene) {
     // Pass the entire systems context
-    this.selectionIndicator = new SelectionIndicator(scene, this.systems);
+      this.selectionIndicator = new SelectionIndicator(scene, this.systems);
+    }
   }
-}
 
   update(deltaTime) {
     const { scene } = this.sceneManager.getActiveScene();

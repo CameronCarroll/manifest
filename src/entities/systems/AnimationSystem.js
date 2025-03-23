@@ -191,41 +191,54 @@ class AnimationSystem {
     // Determine projectile appearance based on unit type
     let projectileColor;
     let projectileSize = 0.15;
+    let projectileSpeed = 15;
+    const hasTrail = true;
     
     switch(unitType) {
     case 'assault':
-      projectileColor = 0xFF0000; // Red
+      projectileColor = 0xFF3366; // Red energy bolt
+      projectileSize = 0.18;
+      projectileSpeed = 18;
       break;
     case 'sniper':
-      projectileColor = 0x0088FF; // Blue
+      projectileColor = 0x33CCFF; // Blue beam
       projectileSize = 0.1; // Smaller, faster projectile
+      projectileSpeed = 25; // Sniper shots are faster
       break;
     case 'support':
-      projectileColor = 0x00FF00; // Green
+      projectileColor = 0x33FF66; // Green healing bolt
       projectileSize = 0.2; // Larger healing projectile
+      projectileSpeed = 12;
+      break;
+    case 'tank':
+      projectileColor = 0x9933FF; // Purple heavy bolt
+      projectileSize = 0.25; // Larger explosive projectile
+      projectileSpeed = 14;
       break;
     default:
-      projectileColor = 0x00FFFF; // Cyan default
+      projectileColor = 0x3366FF; // Blue default
     }
     
-    // Create projectile geometry
-    const projectileGeometry = new THREE.SphereGeometry(projectileSize, 8, 8);
-    const projectileMaterial = new THREE.MeshBasicMaterial({
-      color: projectileColor,
-      transparent: true,
-      opacity: 0.8,
-      emissive: projectileColor,
-      emissiveIntensity: 0.5
-    });
-    
-    const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
-    
-    // Set initial position at attacker
-    projectile.position.set(
+    // Create projectile group to hold all elements
+    const projectileGroup = new THREE.Group();
+    projectileGroup.position.set(
       attackerPos.x, 
       attackerPos.y + 1.2, // At weapon height
       attackerPos.z
     );
+    
+    // Main projectile geometry
+    const projectileGeometry = new THREE.SphereGeometry(projectileSize, 8, 8);
+    const projectileMaterial = new THREE.MeshBasicMaterial({
+      color: projectileColor,
+      transparent: true,
+      opacity: 0.9,
+      emissive: projectileColor,
+      emissiveIntensity: 0.8
+    });
+    
+    const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+    projectileGroup.add(projectile);
     
     // Calculate direction to target
     const direction = new THREE.Vector3(
@@ -234,12 +247,58 @@ class AnimationSystem {
       targetPos.z - attackerPos.z
     ).normalize();
     
+    // Look at target
+    projectileGroup.lookAt(targetPos.x, attackerPos.y + 1.2, targetPos.z);
+    
+    // For snipers, add elongated beam effect
+    if (unitType === 'sniper') {
+      const beamGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.5, 8);
+      const beamMaterial = new THREE.MeshBasicMaterial({
+        color: projectileColor,
+        transparent: true,
+        opacity: 0.7
+      });
+      
+      const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+      beam.rotation.x = Math.PI / 2;
+      beam.position.z = -0.3; // Position behind the projectile
+      projectile.add(beam);
+    }
+    
+    // Add projectile trail if enabled
+    if (hasTrail) {
+      const trailCount = 5;
+      for (let i = 0; i < trailCount; i++) {
+        const trailScale = 1 - (i / trailCount) * 0.5;
+        const trailOpacity = 0.4 * (1 - i / trailCount);
+        
+        const trailGeometry = new THREE.SphereGeometry(projectileSize * trailScale, 8, 8);
+        const trailMaterial = new THREE.MeshBasicMaterial({
+          color: projectileColor,
+          transparent: true,
+          opacity: trailOpacity
+        });
+        
+        const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+        trail.position.z = -(i+1) * 0.1; // Position behind main projectile
+        trail.userData = {
+          index: i
+        };
+        
+        projectile.add(trail);
+      }
+    }
+    
+    // Add point light for glow effect
+    const light = new THREE.PointLight(projectileColor, 1, 3);
+    projectileGroup.add(light);
+    
     // Add data for animation
-    projectile.userData = {
+    projectileGroup.userData = {
       startPos: new THREE.Vector3(attackerPos.x, attackerPos.y + 1.2, attackerPos.z),
       targetPos: new THREE.Vector3(targetPos.x, targetPos.y + 0.6, targetPos.z),
       direction: direction,
-      speed: unitType === 'sniper' ? 25 : 15, // Sniper shots are faster
+      speed: projectileSpeed,
       distanceTraveled: 0,
       maxDistance: new THREE.Vector3(
         targetPos.x - attackerPos.x,
@@ -248,46 +307,21 @@ class AnimationSystem {
       ).length(),
       attackerId: attackerId,
       targetId: targetId,
-      unitType: unitType
+      unitType: unitType,
+      isProjectile: true, // Mark as projectile for scene traversal
+      creationTime: Date.now()
     };
     
-    // Add projectile trail
-    const trailCount = 5;
-    for (let i = 0; i < trailCount; i++) {
-      const trailScale = 1 - (i / trailCount) * 0.5;
-      const trailOpacity = 0.4 * (1 - i / trailCount);
-      
-      const trailGeometry = new THREE.SphereGeometry(projectileSize * trailScale, 8, 8);
-      const trailMaterial = new THREE.MeshBasicMaterial({
-        color: projectileColor,
-        transparent: true,
-        opacity: trailOpacity
-      });
-      
-      const trail = new THREE.Mesh(trailGeometry, trailMaterial);
-      trail.position.copy(projectile.position);
-      trail.userData = {
-        offset: i * 0.1, // Spacing between trail elements
-        index: i
-      };
-      
-      projectile.add(trail);
-    }
-    
-    // Add point light
-    const light = new THREE.PointLight(projectileColor, 1, 3);
-    projectile.add(light);
-    
     // Add to scene
-    scene.add(projectile);
+    scene.add(projectileGroup);
     
     // Store reference in animating entities
     const animData = this.animatingEntities.get(attackerId);
     if (animData) {
-      animData.projectile = projectile;
+      animData.projectile = projectileGroup;
     }
     
-    return projectile;
+    return projectileGroup;
   }
   
   // Create a weapon mesh based on unit type
@@ -583,31 +617,23 @@ class AnimationSystem {
     // Calculate current distance traveled
     projectile.userData.distanceTraveled += moveDistance;
     
-    // Update trail particles
-    projectile.children.forEach(child => {
-      if (child.userData && child.userData.offset !== undefined) {
-        const trailIndex = child.userData.index;
-        const trailOffset = child.userData.offset;
-        
-        // Calculate position along trail
-        const trailX = projectile.position.x - direction.x * trailOffset * trailIndex;
-        const trailZ = projectile.position.z - direction.z * trailOffset * trailIndex;
-        
-        child.position.set(
-          trailX - projectile.position.x,
-          0,
-          trailZ - projectile.position.z
-        );
-      }
-    });
+    // Add some visual effects during flight
+    const rotationSpeed = projectile.userData.unitType === 'sniper' ? 0 : Math.PI * 2;
+    projectile.rotation.z += rotationSpeed * deltaTime;
+    
+    // For certain projectiles, add pulsing effects
+    if (projectile.userData.unitType === 'support' || projectile.userData.unitType === 'tank') {
+      const pulseFreq = projectile.userData.unitType === 'support' ? 8 : 5;
+      const pulseAmount = Math.sin(projectile.userData.distanceTraveled * pulseFreq) * 0.1 + 1;
+      projectile.scale.set(pulseAmount, pulseAmount, pulseAmount);
+    }
     
     // Check if projectile reached target
     if (projectile.userData.distanceTraveled >= projectile.userData.maxDistance) {
       // Create impact effect at target location
-      this.createDamageEffect(
+      this.createImpactEffect(
         projectile.userData.targetId, 
-        projectile.userData.unitType,
-        true // This is actual damage, show effects
+        projectile.userData.unitType
       );
       
       // Remove projectile
@@ -738,6 +764,127 @@ class AnimationSystem {
       animData.state = this.STATES.ATTACK_RECOVERY;
       animData.stateTime = 0;
     }
+  }
+
+  // New method to create impact effects when projectiles hit
+  createImpactEffect(targetId, attackerUnitType) {
+    const targetMesh = this.systems.render?.meshes.get(targetId);
+    if (!targetMesh) {
+      return;
+    }
+  
+    // Get the scene for adding effects
+    const { scene } = this.systems.sceneManager?.getActiveScene() || {};
+    if (!scene) {
+      return;
+    }
+  
+    // Get target position
+    const targetPos = this.entityManager.getComponent(targetId, 'position');
+    if (!targetPos) {
+      return;
+    }
+  
+    // Determine impact color based on unit type
+    const impactColor = this.getUnitTypeColor(attackerUnitType);
+  
+    // Create impact flash
+    const flashGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+    const flashMaterial = new THREE.MeshBasicMaterial({
+      color: impactColor,
+      transparent: true,
+      opacity: 0.7,
+      side: THREE.DoubleSide
+    });
+  
+    const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+    flash.position.set(targetPos.x, targetPos.y + 0.5, targetPos.z);
+  
+    // Store data for animation
+    flash.userData = {
+      creationTime: Date.now(),
+      duration: 300, // ms
+      type: 'impactEffect'
+    };
+  
+    // Add to scene
+    scene.add(flash);
+  
+    // Cache for cleanup
+    if (!this.effectsCache.has(targetId)) {
+      this.effectsCache.set(targetId, []);
+    }
+    this.effectsCache.get(targetId).push(flash);
+  
+    // Create particle burst
+    const particleCount = 8;
+    const particleGeometry = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+    const particleMaterial = new THREE.MeshBasicMaterial({
+      color: impactColor,
+      transparent: true,
+      opacity: 0.9
+    });
+  
+    for (let i = 0; i < particleCount; i++) {
+      const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+    
+      // Position at impact point
+      particle.position.set(
+        targetPos.x,
+        targetPos.y + 0.5,
+        targetPos.z
+      );
+    
+      // Calculate random direction
+      const angle = Math.random() * Math.PI * 2;
+      const elevation = Math.random() * Math.PI;
+      const speed = 2 + Math.random() * 3;
+    
+      // Store velocity for animation
+      particle.userData = {
+        velocity: new THREE.Vector3(
+          Math.sin(angle) * Math.sin(elevation) * speed,
+          Math.cos(elevation) * speed,
+          Math.cos(angle) * Math.sin(elevation) * speed
+        ),
+        gravity: 5,
+        creationTime: Date.now(),
+        duration: 500 + Math.random() * 300, // ms
+        type: 'impactEffect'
+      };
+    
+      // Add to scene
+      scene.add(particle);
+      this.effectsCache.get(targetId).push(particle);
+    }
+  
+    // Create ring effect
+    const ringGeometry = new THREE.RingGeometry(0.1, 0.3, 16);
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: impactColor,
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide
+    });
+  
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.position.set(targetPos.x, targetPos.y + 0.1, targetPos.z);
+    ring.rotation.x = -Math.PI / 2; // Lay flat
+  
+    // Store data for expansion animation
+    ring.userData = {
+      creationTime: Date.now(),
+      duration: 600, // ms
+      type: 'impactEffect',
+      expansionRate: 3
+    };
+  
+    // Add to scene
+    scene.add(ring);
+    this.effectsCache.get(targetId).push(ring);
+  
+  // Add impact sound if available
+  // For future implementation
   }
   
   // Update recovery phase
@@ -928,67 +1075,65 @@ class AnimationSystem {
   updateEffects() {
     const now = Date.now();
     
+    // Get active scene
+    const { scene } = this.systems.sceneManager?.getActiveScene() || {};
+    if (!scene) {return;}
+    
+    // Update cached effects
     this.effectsCache.forEach((effects, targetId) => {
-      const targetMesh = this.systems.render?.meshes.get(targetId);
-      if (!targetMesh) {
-        // Target no longer exists, clean up all effects
-        effects.forEach(effect => this.disposeObject(effect));
-        this.effectsCache.delete(targetId);
-        return;
-      }
-      
-      // Check each effect's lifetime
       const expiredEffects = [];
       
       effects.forEach(effect => {
-        const age = now - effect.userData.creationTime;
+        if (!effect.userData || !effect.userData.creationTime) {return;}
         
-        if (age >= effect.userData.duration) {
-          // Effect has expired
+        const age = now - effect.userData.creationTime;
+        const lifeProgress = age / effect.userData.duration;
+        
+        // Check if effect has expired
+        if (lifeProgress >= 1.0) {
           expiredEffects.push(effect);
-        } else {
-          // Animate the effect based on its age
-          const lifeProgress = age / effect.userData.duration;
-          
-          // Fade out
-          if (effect.material) {
-            if (Array.isArray(effect.material)) {
-              effect.material.forEach(mat => {
-                if (mat.transparent) {
-                  mat.opacity = 1.0 - lifeProgress;
-                }
-              });
-            } else if (effect.material.transparent) {
-              effect.material.opacity = 1.0 - lifeProgress;
-            }
-          }
-          
-          // If it's a flash, expand it
+          return;
+        }
+        
+        // Specific animations based on effect type
+        if (effect.userData.type === 'impactEffect') {
+          // Handle impact flash
           if (effect.geometry instanceof THREE.SphereGeometry && effect.userData.duration <= 300) {
-            const scale = 1.0 + lifeProgress;
+            const scale = 1.0 + lifeProgress * 2;
             effect.scale.set(scale, scale, scale);
+            effect.material.opacity = 0.7 * (1.0 - lifeProgress);
           }
           
-          // If it's a spark, update position based on velocity
-          if (effect.geometry instanceof THREE.BoxGeometry && effect.userData.velocity) {
-            effect.position.x += effect.userData.velocity.x * 0.01;
-            effect.position.y += effect.userData.velocity.y * 0.01;
-            effect.position.z += effect.userData.velocity.z * 0.01;
+          // Handle impact particles
+          if (effect.geometry instanceof THREE.BoxGeometry) {
+            // Update position based on velocity
+            effect.position.x += effect.userData.velocity.x * 0.016; // Assume ~60fps
+            effect.position.y += effect.userData.velocity.y * 0.016;
+            effect.position.z += effect.userData.velocity.z * 0.016;
             
-            // Add gravity
-            effect.userData.velocity.y -= 0.05;
+            // Apply gravity
+            effect.userData.velocity.y -= effect.userData.gravity * 0.016;
+            
+            // Fade out
+            effect.material.opacity = 0.9 * (1.0 - lifeProgress);
+            
+            // Add rotation for effect
+            effect.rotation.x += 0.1;
+            effect.rotation.y += 0.1;
           }
           
-          // If it's a sigil, rotate it
-          if (effect.geometry instanceof THREE.CircleGeometry) {
-            effect.rotation.z += 0.05;
+          // Handle expanding ring
+          if (effect.geometry instanceof THREE.RingGeometry) {
+            const scale = 1.0 + lifeProgress * effect.userData.expansionRate;
+            effect.scale.set(scale, scale, scale);
+            effect.material.opacity = 0.8 * (1.0 - lifeProgress);
           }
         }
       });
       
       // Remove expired effects
       expiredEffects.forEach(effect => {
-        targetMesh.remove(effect);
+        scene.remove(effect);
         this.disposeObject(effect);
         const index = effects.indexOf(effect);
         if (index !== -1) {
@@ -999,6 +1144,13 @@ class AnimationSystem {
       // Remove entry if all effects are gone
       if (effects.length === 0) {
         this.effectsCache.delete(targetId);
+      }
+    });
+    
+    // Look for standalone projectiles in scene and update them
+    scene.traverse(object => {
+      if (object.userData && object.userData.isProjectile) {
+        this.updateProjectile(object, 0.016); // Assume ~60fps
       }
     });
   }

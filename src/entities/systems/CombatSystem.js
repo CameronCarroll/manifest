@@ -305,10 +305,27 @@ class CombatSystem {
         // Apply damage to target
         const targetDestroyed = this.applyDamage(targetId, damageInfo);
   
-        // Trigger animation using the animation system
+        // Trigger animation
         if (this.animationSystem && typeof this.animationSystem.startAttackAnimation === 'function') {
-          this.animationSystem.startAttackAnimation(attackerId, targetId);
+          const attackerFaction = this.entityManager.getComponent(attackerId, 'faction');
+          const isRanged = attackerFaction && attackerFaction.attackType === 'ranged';
+          
+          // For ranged units, create projectile immediately without waiting for animation phases
+          if (isRanged) {
+            this.animationSystem.createProjectileEffect(
+              attackerId, 
+              targetId, 
+              attackerFaction.unitType || 'basic', 
+              false // Show visual effects
+            );
+          } else {
+            // For melee units, use the standard animation system
+            this.animationSystem.startAttackAnimation(attackerId, targetId);
+          }
         }
+        
+        // Set cooldown for next attack
+        // ...
         
         // Set cooldown for next attack
         const attackerFaction = this.entityManager.getComponent(attackerId, 'faction');
