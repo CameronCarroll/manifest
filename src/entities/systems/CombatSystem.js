@@ -33,6 +33,9 @@ class CombatSystem {
     this.DEFAULT_ATTACK_RANGE = ATTACK_RANGES.DEFAULT;
     this.DEFAULT_ATTACK_COOLDOWN = ATTACK_COOLDOWNS.DEFAULT;
     this.movementSystem = movementSystem;
+    
+    // For damage feedback
+    this.damageEvents = [];
   }
 
   initialize() {
@@ -80,7 +83,8 @@ class CombatSystem {
     this.attackingEntities.set(attackerId, {
       targetId: targetId,
       attackType: attackerFaction.attackType || 'ranged',
-      damageType: attackerFaction.damageType || 'normal'
+      damageType: attackerFaction.damageType || 'normal',
+      lastDamageTime: 0 // Track when damage was last applied
     });
   
     return true;
@@ -195,9 +199,24 @@ class CombatSystem {
     }
     
     const healthComponent = this.entityManager.getComponent(targetId, 'health');
+    const oldHealth = healthComponent.currentHealth;
     
     // Apply damage
     healthComponent.currentHealth -= damageInfo.damage;
+    
+    // Create damage event for visualization
+    if (this.entityManager.hasComponent(targetId, 'position')) {
+      const position = this.entityManager.getComponent(targetId, 'position');
+      
+      this.damageEvents.push({
+        entityId: targetId,
+        damage: damageInfo.damage,
+        isCritical: damageInfo.isCritical,
+        position: { ...position },
+        time: 0,
+        maxTime: 1.0 // Seconds to display
+      });
+    }
     
     // Check if target is destroyed
     if (healthComponent.currentHealth <= 0) {
@@ -288,12 +307,41 @@ class CombatSystem {
           break;
         }
         
+        // Update attack data
+        attackData.lastDamageTime = 0;
+        
         this.attackCooldowns.set(attackerId, cooldown);
         
         // If target was destroyed, stop attacking
         if (targetDestroyed) {
           this.stopAttack(attackerId);
         }
+      }
+    });
+    
+    // Update damage events
+    this.updateDamageEvents(deltaTime);
+  }
+  
+  // Update floating damage text animation
+  updateDamageEvents(deltaTime) {
+    const expiredEvents = [];
+    
+    // Update each damage event
+    this.damageEvents.forEach(event => {
+      event.time += deltaTime;
+      
+      // Remove expired events
+      if (event.time >= event.maxTime) {
+        expiredEvents.push(event);
+      }
+    });
+    
+    // Remove expired events
+    expiredEvents.forEach(event => {
+      const index = this.damageEvents.indexOf(event);
+      if (index !== -1) {
+        this.damageEvents.splice(index, 1);
       }
     });
   }

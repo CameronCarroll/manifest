@@ -20,6 +20,7 @@ import MovementSystem from '../entities/systems/MovementSystem.js';
 import CombatSystem from '../entities/systems/CombatSystem.js';
 import AISystem from '../entities/systems/AISystem.js';
 import SpawnSystem from '../entities/systems/SpawnSystem.js';
+import AnimationSystem from '../entities/systems/AnimationSystem.js'; // Add this line
 
 // Utilities
 import InputManager from '../utils/InputManager.js';
@@ -87,6 +88,8 @@ class GameController {
     this.systems.combat = new CombatSystem(this.entityManager);
     this.systems.ai = new AISystem(this.entityManager, this.systems.combat, this.systems.movement);
     this.systems.spawn = new SpawnSystem(this.entityManager);
+    // Add animation system
+    this.systems.animation = new AnimationSystem(this.entityManager, this.systems);
   }
 
   createMainScene() {

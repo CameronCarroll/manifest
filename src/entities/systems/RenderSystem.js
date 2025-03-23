@@ -52,6 +52,9 @@ export default class RenderSystem {
               renderComponent.scale.z
             );
           }
+          
+          // Store entityId in mesh userData for raycasting
+          mesh.userData.entityId = entityId;
         }
       } else if (this.meshes.has(entityId)) {
         // Remove mesh if the entity no longer has required components
@@ -70,6 +73,7 @@ export default class RenderSystem {
       // Get faction data to determine unit type
       const factionComponent = this.entityManager.getComponent(entityId, 'faction');
       const unitType = factionComponent ? factionComponent.unitType : 'basic';
+      const faction = factionComponent ? factionComponent.faction : 'player';
         
       // Base body geometry and material - will be modified based on unit type
       let bodyGeometry = new THREE.CylinderGeometry(0.4, 0.6, 1.2, 8);
@@ -104,6 +108,16 @@ export default class RenderSystem {
         color: 0x333333,
         opacity: renderComponent.opacity,
         transparent: renderComponent.opacity < 1
+      });
+      
+      // Cybernetic elements
+      const cyberGeometry = new THREE.BoxGeometry(0.1, 0.03, 0.3);
+      const cyberMaterial = new THREE.MeshPhongMaterial({
+        color: faction === 'player' ? 0x00ffff : 0xff00ff, // Cyan for player, magenta for enemy
+        emissive: faction === 'player' ? 0x00ffff : 0xff00ff,
+        emissiveIntensity: 0.5,
+        transparent: true,
+        opacity: 0.9
       });
         
       // Apply unit type variations here
@@ -141,6 +155,22 @@ export default class RenderSystem {
         orbMaterial.emissive.set(0xFFFF00);
         // Smaller staff
         staffGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.8, 6);
+      } else if (unitType === 'heavy') {
+        // For enemy heavy units - make them larger and more imposing
+        bodyGeometry = new THREE.CylinderGeometry(0.55, 0.75, 1.3, 8);
+        shoulderMaterial.color.set(0x666666);
+        orbMaterial.color.set(0xFF0066);
+        orbMaterial.emissive.set(0xFF0066);
+      } else if (unitType === 'light') {
+        // For enemy light units - make them smaller and faster looking
+        bodyGeometry = new THREE.CylinderGeometry(0.35, 0.5, 1.1, 8);
+        orbMaterial.color.set(0xFF3300);
+        orbMaterial.emissive.set(0xFF3300);
+      } else if (unitType === 'specialist') {
+        // For enemy specialist units - unique appearance
+        bodyGeometry = new THREE.CylinderGeometry(0.4, 0.5, 1.2, 6);
+        orbMaterial.color.set(0xAA00FF);
+        orbMaterial.emissive.set(0xAA00FF);
       }
         
       // Now create all the meshes using the modified geometries and materials
@@ -196,6 +226,9 @@ export default class RenderSystem {
       const pointLight = new THREE.PointLight(orbMaterial.color, 0.5, 3);
       pointLight.position.copy(orb.position);
       group.add(pointLight);
+      
+      // Add cybernetic elements
+      this.addCyberneticElements(group, faction, unitType);
         
       mesh = group;
     } 
@@ -282,6 +315,9 @@ export default class RenderSystem {
       glow2.position.set(-0.3, 1.85, -0.3);
       group.add(glow2);
       
+      // Add cybernetic elements to the building
+      this.addBuildingCyberneticElements(group);
+      
       mesh = group;
     }
     else {
@@ -296,9 +332,32 @@ export default class RenderSystem {
       
       // For resource nodes, use a different shape
       if (renderComponent.meshId === 'resource') {
-        geometry = new THREE.CylinderGeometry(0.7, 0.7, 0.3, 8);
-        mesh = new THREE.Mesh(geometry, material);
+        const resourceGeometry = new THREE.CylinderGeometry(0.7, 0.7, 0.3, 8);
+        mesh = new THREE.Mesh(resourceGeometry, material);
         mesh.rotation.x = Math.PI / 2; // Lay flat
+        
+        // Add glow effect for resources
+        const resourceType = this.entityManager.getComponent(entityId, 'resource')?.type;
+        if (resourceType) {
+          const glowColor = resourceType === 'gas' ? 0x00ffff : 0xffff00;
+          const glowMaterial = new THREE.MeshBasicMaterial({
+            color: glowColor,
+            transparent: true,
+            opacity: 0.6
+          });
+          
+          const glowMesh = new THREE.Mesh(resourceGeometry, glowMaterial);
+          glowMesh.scale.set(1.1, 1.1, 1.1);
+          mesh.add(glowMesh);
+          
+          // Add pulsing animation 
+          glowMesh.userData.pulseTime = 0;
+          glowMesh.userData.updatePulse = (deltaTime) => {
+            glowMesh.userData.pulseTime += deltaTime;
+            const scale = 1.1 + Math.sin(glowMesh.userData.pulseTime * 2) * 0.1;
+            glowMesh.scale.set(scale, scale, scale);
+          };
+        }
       }
     }
     
@@ -320,6 +379,231 @@ export default class RenderSystem {
     }
 
     return mesh;
+  }
+  
+  // Add cybernetic elements to unit meshes
+  addCyberneticElements(group, faction, unitType) {
+    // Determine color by faction and unit type
+    let primaryColor, secondaryColor;
+    
+    if (faction === 'player') {
+      primaryColor = 0x00ffff; // Cyan
+      secondaryColor = 0x00ff99; // Teal
+    } else {
+      primaryColor = 0xff00ff; // Magenta
+      secondaryColor = 0xff3366; // Pink/red
+    }
+    
+    // Get body mesh (first cylinder)
+    const bodyMesh = group.children.find(child => 
+      child.geometry instanceof THREE.CylinderGeometry && 
+      child.position.y === 0.6
+    );
+    
+    if (!bodyMesh) {return;}
+    
+    // Add glowing circuit patterns
+    const circuitMaterial = new THREE.MeshBasicMaterial({
+      color: primaryColor,
+      transparent: true,
+      opacity: 0.9
+    });
+    
+    // Add circuit lines
+    const circuitCount = 3;
+    for (let i = 0; i < circuitCount; i++) {
+      const circuitGeometry = new THREE.BoxGeometry(0.05, 0.6, 0.02);
+      const circuit = new THREE.Mesh(circuitGeometry, circuitMaterial);
+      
+      // Position around the body
+      const angle = (i / circuitCount) * Math.PI * 2;
+      const radius = bodyMesh.geometry.parameters.radiusTop * 0.9;
+      
+      circuit.position.x = Math.cos(angle) * radius;
+      circuit.position.z = Math.sin(angle) * radius;
+      circuit.position.y = 0.6;
+      
+      bodyMesh.add(circuit);
+    }
+    
+    // Add shoulder circuit accents
+    const shoulders = group.children.filter(child => 
+      child.geometry instanceof THREE.CylinderGeometry && 
+      child.position.y === 1.1
+    );
+    
+    shoulders.forEach(shoulder => {
+      const accentGeometry = new THREE.RingGeometry(0.1, 0.15, 8);
+      const accentMaterial = new THREE.MeshBasicMaterial({
+        color: secondaryColor,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide
+      });
+      
+      const accent = new THREE.Mesh(accentGeometry, accentMaterial);
+      accent.rotation.x = Math.PI / 2;
+      accent.position.y = 0.02;
+      
+      shoulder.add(accent);
+    });
+    
+    // Add a holographic floating element above the head
+    const head = group.children.find(child => 
+      child.geometry instanceof THREE.SphereGeometry && 
+      child.position.y === 1.3
+    );
+    
+    if (head) {
+      const holoGeometry = new THREE.TorusGeometry(0.1, 0.01, 8, 16);
+      const holoMaterial = new THREE.MeshBasicMaterial({
+        color: primaryColor,
+        transparent: true,
+        opacity: 0.7
+      });
+      
+      const holo = new THREE.Mesh(holoGeometry, holoMaterial);
+      holo.position.y = 0.25;
+      
+      // Store animation state in userData
+      holo.userData = {
+        rotationSpeed: 2,
+        pulseTime: 0
+      };
+      
+      // Add update function to animate
+      holo.userData.update = (deltaTime) => {
+        holo.rotation.y += holo.userData.rotationSpeed * deltaTime;
+        holo.userData.pulseTime += deltaTime;
+        
+        const pulse = (Math.sin(holo.userData.pulseTime * 5) + 1) / 2;
+        holo.scale.set(1 + pulse * 0.1, 1 + pulse * 0.1, 1 + pulse * 0.1);
+        
+        if (holo.material) {
+          holo.material.opacity = 0.4 + pulse * 0.4;
+        }
+      };
+      
+      head.add(holo);
+    }
+    
+    // For support units, add additional magical cyber elements
+    if (unitType === 'support' || unitType === 'medic') {
+      const runeGeometry = new THREE.CircleGeometry(0.1, 6);
+      const runeMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ff99,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide
+      });
+      
+      // Add floating runes around the body
+      const runeCount = 3;
+      for (let i = 0; i < runeCount; i++) {
+        const rune = new THREE.Mesh(runeGeometry, runeMaterial);
+        
+        const angle = (i / runeCount) * Math.PI * 2;
+        const radius = 0.7;
+        
+        rune.position.x = Math.cos(angle) * radius;
+        rune.position.z = Math.sin(angle) * radius;
+        rune.position.y = 0.8 + i * 0.2;
+        
+        // Face toward center
+        rune.lookAt(0, rune.position.y, 0);
+        
+        // Store animation params
+        rune.userData = {
+          baseY: rune.position.y,
+          offset: i * Math.PI * 0.5,
+          speed: 1 + Math.random() * 0.5
+        };
+        
+        // Add update function
+        rune.userData.update = (deltaTime) => {
+          const time = Date.now() * 0.001;
+          rune.position.y = rune.userData.baseY + Math.sin(time * rune.userData.speed + rune.userData.offset) * 0.1;
+          rune.rotation.z += deltaTime * 0.5;
+        };
+        
+        group.add(rune);
+      }
+    }
+  }
+  
+  // Add cybernetic elements to buildings
+  addBuildingCyberneticElements(group) {
+    // Add holographic floating data projections
+    const holoGeometry = new THREE.PlaneGeometry(0.4, 0.4);
+    const holoMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide
+    });
+    
+    const holo = new THREE.Mesh(holoGeometry, holoMaterial);
+    holo.position.set(0, 1.8, 0);
+    
+    // Rotate to be horizontal
+    holo.rotation.x = Math.PI / 2;
+    
+    // Store animation state
+    holo.userData = {
+      rotationSpeed: 0.5,
+      time: 0
+    };
+    
+    // Add update function
+    holo.userData.update = (deltaTime) => {
+      holo.rotation.z += holo.userData.rotationSpeed * deltaTime;
+      holo.userData.time += deltaTime;
+      
+      const pulse = (Math.sin(holo.userData.time * 2) + 1) / 2;
+      holo.material.opacity = 0.4 + pulse * 0.3;
+    };
+    
+    group.add(holo);
+    
+    // Add energy conduits along the building
+    const conduitCount = 4;
+    const conduitMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.7
+    });
+    
+    for (let i = 0; i < conduitCount; i++) {
+      const conduitGeometry = new THREE.BoxGeometry(0.05, 0.8, 0.05);
+      const conduit = new THREE.Mesh(conduitGeometry, conduitMaterial);
+      
+      // Position at corners
+      const angle = (i / conduitCount) * Math.PI * 2;
+      const radius = 0.5;
+      
+      conduit.position.x = Math.cos(angle) * radius;
+      conduit.position.z = Math.sin(angle) * radius;
+      conduit.position.y = 0.5;
+      
+      // Add animation data
+      conduit.userData = {
+        pulseTime: i * Math.PI / 2,
+        pulseSpeed: 2
+      };
+      
+      // Add update function
+      conduit.userData.update = (deltaTime) => {
+        conduit.userData.pulseTime += deltaTime * conduit.userData.pulseSpeed;
+        
+        const pulse = (Math.sin(conduit.userData.pulseTime) + 1) / 2;
+        
+        if (conduit.material) {
+          conduit.material.opacity = 0.5 + pulse * 0.5;
+        }
+      };
+      
+      group.add(conduit);
+    }
   }
 
   removeMesh(entityId, scene) {
