@@ -56,6 +56,10 @@ export default class RenderSystem {
           // Store entityId in mesh userData for raycasting
           mesh.userData.entityId = entityId;
         }
+
+        if (this.selectionIndicator && this.selectionIndicator.selectionRings.has(entityId)) {
+          this.selectionIndicator.updateSelectionRingPosition(entityId, positionComponent);
+        }
       } else if (this.meshes.has(entityId)) {
         // Remove mesh if the entity no longer has required components
         this.removeMesh(entityId, scene);
@@ -627,6 +631,11 @@ export default class RenderSystem {
 
   // Update selection visualization
   updateSelections(selectedEntities) {
+    console.log('RenderSystem updateSelections called', { 
+      selectedEntities: Array.from(selectedEntities),
+      selectionIndicatorExists: !!this.selectionIndicator 
+    });
+  
     if (this.selectionIndicator) {
       this.selectionIndicator.updateSelectionRings(selectedEntities, this.entityManager);
     }

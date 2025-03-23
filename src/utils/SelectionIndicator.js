@@ -30,6 +30,13 @@ class SelectionIndicator {
 
   // Add selection ring for an entity
   addSelectionRing(entityId, position, radius = 1.2, isEnemy = false) {
+    console.log('Adding selection ring', { 
+      entityId, 
+      position, 
+      radius, 
+      isEnemy 
+    });
+
     // Remove existing ring if there is one
     this.removeSelectionRing(entityId);
     
@@ -76,33 +83,45 @@ class SelectionIndicator {
 
   // Update all selection rings based on current selection
   updateSelectionRings(selectedEntities, entityManager) {
-    // First remove rings for entities no longer selected
+    console.log('Updating selection rings', { 
+      selectedEntities: Array.from(selectedEntities),
+      entityManagerExists: !!entityManager 
+    });
+  
+    // First, remove rings for entities no longer selected
     for (const entityId of this.selectionRings.keys()) {
       if (!selectedEntities.has(entityId)) {
         this.removeSelectionRing(entityId);
       }
     }
     
-    // Then add/update rings for selected entities
+    // Then, add/update rings for selected entities
     for (const entityId of selectedEntities) {
-      const positionComponent = entityManager.getComponent(entityId, 'position');
-      
-      if (positionComponent) {
-        // If already has a ring, update its position
+      // Check if entity has position component
+      if (entityManager.hasComponent(entityId, 'position')) {
+        const positionComponent = entityManager.getComponent(entityId, 'position');
+        
+        // If ring already exists, update its position
         if (this.selectionRings.has(entityId)) {
           this.updateSelectionRingPosition(entityId, positionComponent);
         } else {
           // Create a new ring
-          // Determine radius based on entity type or size
+          // Calculate radius based on entity's render component
           let radius = 1.2; // Default size
-          const renderComponent = entityManager.getComponent(entityId, 'render');
-          
-          if (renderComponent && renderComponent.scale) {
-            // Base radius on the entity's scale
-            radius = Math.max(renderComponent.scale.x, renderComponent.scale.z) * 0.7;
+          if (entityManager.hasComponent(entityId, 'render')) {
+            const renderComponent = entityManager.getComponent(entityId, 'render');
+            radius = Math.max(
+              renderComponent.scale.x, 
+              renderComponent.scale.z
+            ) * 0.7;
           }
           
-          this.addSelectionRing(entityId, positionComponent, radius);
+          // Determine if it's an enemy unit
+          const isEnemy = entityManager.hasComponent(entityId, 'faction') && 
+            entityManager.getComponent(entityId, 'faction').faction !== 'player';
+          
+          // Add the selection ring
+          this.addSelectionRing(entityId, positionComponent, radius, isEnemy);
         }
       }
     }
