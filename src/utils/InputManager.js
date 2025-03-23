@@ -526,18 +526,96 @@ class InputManager {
   }
 
   issueMoveCommand(position) {
-    // Issue move command to all selected entities
+    // Skip if no units selected
+    if (this.selectedEntities.size === 0) {return;}
+    
+    // Calculate formation positions based on number of selected units
+    const formationPositions = this.calculateFormationPositions(
+      Array.from(this.selectedEntities), 
+      position
+    );
+    
+    // Assign each unit its formation position
+    let index = 0;
     for (const entityId of this.selectedEntities) {
       if (this.entityManager.hasComponent(entityId, 'position')) {
         // If we have a combat system, stop any attacks
         if (this.systems.combat) {
           this.systems.combat.stopAttack(entityId);
         }
-
-        // Move the entity
-        this.systems.movement.moveEntity(entityId, position, 5);
+  
+        // Move the entity to its formation position
+        if (index < formationPositions.length) {
+          this.systems.movement.moveEntity(entityId, formationPositions[index], 5);
+          index++;
+        }
       }
     }
+  }
+
+  // Calculate formation positions for a group of units
+  calculateFormationPositions(selectedEntities, centerPosition) {
+    const positions = [];
+    const unitCount = selectedEntities.length;
+  
+    // Single unit - just send to the target position
+    if (unitCount === 1) {
+      positions.push({ ...centerPosition });
+      return positions;
+    }
+  
+    // Small formations (2-4 units) - simple pattern
+    if (unitCount <= 4) {
+      const spacing = 2; // Units of spacing between units
+      const offset = spacing / 2;
+    
+      // Position units in a small square/rectangle
+      for (let i = 0; i < unitCount; i++) {
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        positions.push({
+          x: centerPosition.x + (col * spacing - offset),
+          y: centerPosition.y,
+          z: centerPosition.z + (row * spacing - offset)
+        });
+      }
+      return positions;
+    }
+  
+    // Larger formations - use circular or grid pattern
+    const spacing = 2;
+  
+    // Number of rings needed to fit all units
+    let ringCount = 1;
+    let capacity = 1;
+    while (capacity < unitCount) {
+      ringCount++;
+      // Each ring holds approximately 2πr units at spacing distance
+      capacity += Math.floor(2 * Math.PI * ringCount);
+    }
+  
+    // First, add the center position
+    positions.push({ ...centerPosition });
+  
+    // Then add positions in concentric rings
+    let remaining = unitCount - 1;
+    for (let ring = 1; ring <= ringCount && remaining > 0; ring++) {
+    // Calculate how many units fit in this ring
+      const unitsInRing = Math.min(Math.floor(2 * Math.PI * ring), remaining);
+    
+      // Add units evenly spaced around the ring
+      for (let i = 0; i < unitsInRing && remaining > 0; i++) {
+        const angle = (i / unitsInRing) * 2 * Math.PI;
+        positions.push({
+          x: centerPosition.x + Math.cos(angle) * ring * spacing,
+          y: centerPosition.y,
+          z: centerPosition.z + Math.sin(angle) * ring * spacing
+        });
+        remaining--;
+      }
+    }
+  
+    return positions;
   }
 
   issueAttackCommand(targetEntityId) {

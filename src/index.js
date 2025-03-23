@@ -64,13 +64,13 @@ window.addEventListener('DOMContentLoaded', () => {
   menuSystem.showMainMenu();
 
   // Add this to index.js or any global script
-window.toggleCollisionDebug = function() {
-  if (window.game && window.game.gameController) {
-    console.log('Toggling collision debug from global function');
-    return window.game.gameController.toggleCollisionDebug();
-  } else {
-    console.error('Game controller not found');
-    return false;
-  }
-};
+  window.toggleCollisionDebug = function() {
+    if (window.game && window.game.gameController) {
+      console.log('Toggling collision debug from global function');
+      return window.game.gameController.toggleCollisionDebug();
+    } else {
+      console.error('Game controller not found');
+      return false;
+    }
+  };
 });
