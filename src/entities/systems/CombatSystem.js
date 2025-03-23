@@ -39,14 +39,9 @@ class CombatSystem {
   }
 
   initialize() {
-    // Initialize animation system integration
-    if (this.entityManager.gameState && this.entityManager.gameState.systems && 
-        this.entityManager.gameState.systems.animation) {
-      console.log('CombatSystem connected to AnimationSystem');
-      this.animationSystem = this.entityManager.gameState.systems.animation;
-    } else {
-      console.warn('AnimationSystem not available for CombatSystem');
-    }
+    // Initialize animation system integration - after all systems are created
+    // We'll get the animation system reference during the first update
+    // This prevents circular dependency issues during initialization
   }
   
   // Set movement system reference
@@ -253,6 +248,14 @@ class CombatSystem {
   }
 
   update(deltaTime) {
+    // Try to get animation system reference if we don't have it yet
+    if (!this.animationSystem && this.entityManager.gameState && this.entityManager.gameState.systems) {
+      this.animationSystem = this.entityManager.gameState.systems.animation;
+      if (this.animationSystem) {
+        console.log('CombatSystem connected to AnimationSystem');
+      }
+    }
+
     // Update cooldowns
     this.attackCooldowns.forEach((cooldown, entityId) => {
       cooldown -= deltaTime;
@@ -302,13 +305,10 @@ class CombatSystem {
         // Apply damage to target
         const targetDestroyed = this.applyDamage(targetId, damageInfo);
 
-        // Trigger animation (this is the key part we need to add)
-    if (this.entityManager.gameState.systems && 
-      this.entityManager.gameState.systems.animation) {
-    this.entityManager.gameState.systems.animation.startAttackAnimation(
-      attackerId, targetId
-    );
-  }
+        // Trigger animation using the stored animation system reference
+        if (this.animationSystem && typeof this.animationSystem.startAttackAnimation === 'function') {
+          this.animationSystem.startAttackAnimation(attackerId, targetId);
+        }
         
         // Set cooldown for next attack
         const attackerFaction = this.entityManager.getComponent(attackerId, 'faction');

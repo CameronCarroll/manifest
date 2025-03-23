@@ -84,8 +84,8 @@ class GameController {
   createSystems() {
     console.log('Creating systems');
     this.systems.render = new RenderSystem(this.entityManager, this.sceneManager, this.modelLoader);
-    this.systems.movement = new MovementSystem(this.entityManager);
-    this.systems.combat = new CombatSystem(this.entityManager);
+    this.systems.movement = new MovementSystem(this.entityManager, this.systems);
+    this.systems.combat = new CombatSystem(this.entityManager, this.systems.movement);
     this.systems.ai = new AISystem(this.entityManager, this.systems.combat, this.systems.movement);
     this.systems.spawn = new SpawnSystem(this.entityManager);
     // Add animation system

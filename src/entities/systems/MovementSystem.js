@@ -118,7 +118,7 @@ update(deltaTime) {
       // Find enemy entities near this entity
       if (this.entityManager.hasComponent(entityId, 'faction')) {
         const faction = this.entityManager.getComponent(entityId, 'faction');
-        const nearestTarget = this.findNearestEnemyInRange(entityId, faction.faction);
+        const nearestTarget = this.findNearestEnemyInRange(entityId);
         
         // If found an enemy in range, stop to attack
         if (nearestTarget && this.systems.combat.canAttack(entityId, nearestTarget, true)) {
@@ -128,67 +128,19 @@ update(deltaTime) {
         }
       }
     }
-  });
-}
 
-// Helper method to find the nearest enemy in attack range
-findNearestEnemyInRange(entityId, factionName = null) {
-  if (!this.entityManager.hasComponent(entityId, 'position') ||
-      !this.entityManager.hasComponent(entityId, 'faction')) {
-    return null;
-  }
-  
-  const position = this.entityManager.getComponent(entityId, 'position');
-  const faction = this.entityManager.getComponent(entityId, 'faction');
-  
-  // Use provided faction or entity's faction
-  const entityFaction = factionName || faction.faction;
-  
-  let nearestTarget = null;
-  let nearestDistance = Infinity;
-  
-  // Check all entities with position, health, and faction components
-  this.entityManager.gameState.entities.forEach((entity, potentialTargetId) => {
-    if (potentialTargetId === entityId) return; // Skip self
-    
-    if (this.entityManager.hasComponent(potentialTargetId, 'position') &&
-        this.entityManager.hasComponent(potentialTargetId, 'health') &&
-        this.entityManager.hasComponent(potentialTargetId, 'faction')) {
-      
-      const targetFaction = this.entityManager.getComponent(potentialTargetId, 'faction');
-      
-      // Only target entities of different factions
-      if (targetFaction.faction !== entityFaction) {
-        const targetPosition = this.entityManager.getComponent(potentialTargetId, 'position');
-        
-        // Calculate distance
-        const dx = targetPosition.x - position.x;
-        const dz = targetPosition.z - position.z;
-        const distance = Math.sqrt(dx * dx + dz * dz);
-        
-        // Get the attack range
-        let attackRange = 10; // Default detection range
-        if (this.systems && this.systems.combat) {
-          // Try to use the combat system's attack range if available
-          attackRange = this.systems.combat.getAttackRange(
-            faction.unitType, 
-            faction.attackType
-          );
-          
-          // Add a small buffer for detection
-          attackRange += 2;
-        }
-        
-        // Check if this is the nearest target within detection range
-        if (distance < nearestDistance && distance <= attackRange) {
-          nearestDistance = distance;
-          nearestTarget = potentialTargetId;
-        }
+    if (attackMove) {
+      console.log(`Entity ${entityId} is in attack-move mode`);
+      const nearestEnemy = this.findNearestEnemyInRange(entityId);
+      console.log(`Nearest enemy: ${nearestEnemy}`);
+      if (nearestEnemy) {
+        console.log(`Found enemy, stopping to attack`);
+        this.stopEntity(entityId);
+        this.systems.combat.startAttack(entityId, nearestEnemy);
+        return;
       }
     }
   });
-  
-  return nearestTarget;
 }
 
 // Helper method to calculate optimal attack position
@@ -253,46 +205,62 @@ calculateAttackPosition(attackerId, targetId) {
   };
 }
   
-  // Helper method to find nearest enemy in attack range
-  findNearestEnemyInRange(entityId, faction) {
-    if (!this.entityManager.hasComponent(entityId, 'position')) {
-      return null;
-    }
+  // Consolidated findNearestEnemyInRange method
+findNearestEnemyInRange(entityId) {
+  if (!this.entityManager.hasComponent(entityId, 'position') ||
+      !this.entityManager.hasComponent(entityId, 'faction')) {
+    return null;
+  }
+  
+  const position = this.entityManager.getComponent(entityId, 'position');
+  const faction = this.entityManager.getComponent(entityId, 'faction');
+  
+  let nearestTarget = null;
+  let nearestDistance = Infinity;
+  
+  // Check all entities with position, health, and faction components
+  this.entityManager.gameState.entities.forEach((entity, potentialTargetId) => {
+    if (potentialTargetId === entityId) return; // Skip self
     
-    const position = this.entityManager.getComponent(entityId, 'position');
-    let nearestTarget = null;
-    let nearestDistance = Infinity;
-    
-    // Check all entities with position, health, and faction components
-    this.entityManager.gameState.entities.forEach((entity, potentialTargetId) => {
-      if (potentialTargetId === entityId) {return;} // Skip self
+    if (this.entityManager.hasComponent(potentialTargetId, 'position') &&
+        this.entityManager.hasComponent(potentialTargetId, 'health') &&
+        this.entityManager.hasComponent(potentialTargetId, 'faction')) {
       
-      if (this.entityManager.hasComponent(potentialTargetId, 'position') &&
-          this.entityManager.hasComponent(potentialTargetId, 'health') &&
-          this.entityManager.hasComponent(potentialTargetId, 'faction')) {
+      const targetFaction = this.entityManager.getComponent(potentialTargetId, 'faction');
+      
+      // Only target entities of different factions
+      if (targetFaction.faction !== faction.faction) {
+        const targetPosition = this.entityManager.getComponent(potentialTargetId, 'position');
         
-        const targetFaction = this.entityManager.getComponent(potentialTargetId, 'faction');
+        // Calculate distance
+        const dx = targetPosition.x - position.x;
+        const dz = targetPosition.z - position.z;
+        const distance = Math.sqrt(dx * dx + dz * dz);
         
-        // Only target entities of different factions
-        if (targetFaction.faction !== faction) {
-          const targetPosition = this.entityManager.getComponent(potentialTargetId, 'position');
+        // Get the attack range
+        let attackRange = 10; // Default detection range
+        if (this.systems && this.systems.combat) {
+          // Try to use the combat system's attack range if available
+          attackRange = this.systems.combat.getAttackRange(
+            faction.unitType, 
+            faction.attackType
+          );
           
-          // Calculate distance
-          const dx = targetPosition.x - position.x;
-          const dz = targetPosition.z - position.z;
-          const distance = Math.sqrt(dx * dx + dz * dz);
-          
-          // Check if this is the nearest target and in detection range
-          if (distance < nearestDistance && distance <= 10) { // 10 units detection range
-            nearestDistance = distance;
-            nearestTarget = potentialTargetId;
-          }
+          // Add a small buffer for detection
+          attackRange += 2;
+        }
+        
+        // Check if this is the nearest target within detection range
+        if (distance < nearestDistance && distance <= attackRange) {
+          nearestDistance = distance;
+          nearestTarget = potentialTargetId;
         }
       }
-    });
-    
-    return nearestTarget;
-  }
+    }
+  });
+  
+  return nearestTarget;
+}
 
   // For serialization
   serialize() {
