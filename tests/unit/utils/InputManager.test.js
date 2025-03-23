@@ -305,6 +305,8 @@ describe('InputManager', () => {
       expect(inputManager.selectionStart).toEqual({ x: 100, y: 200 });
       expect(inputManager.selectionEnd).toEqual({ x: 100, y: 200 });
       expect(inputManager.isSelecting).toBe(true);
+      inputManager.startSelection({clientX: 100, clientY: 100});
+      inputManager.updateSelectionBox({clientX: 120, clientY: 120});
       expect(inputManager.selectionBox.style.display).toBe('block');
     });
 
