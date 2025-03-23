@@ -191,12 +191,17 @@ class GameController {
       return;
     }
     
-    // Initialize input manager
+    // Initialize input manager with edge scrolling preference from menu if available
     this.inputManager = new InputManager(
       this.entityManager,
       this.sceneManager,
       this.systems
     );
+    
+    // Apply edge scrolling setting from menu if it exists
+    if (window.game && window.game.menuSystem) {
+      this.inputManager.toggleEdgeScrolling(window.game.menuSystem.edgeScrollingEnabled);
+    }
     
     // Initialize game loop
     this.gameLoop = new GameLoop(
@@ -213,7 +218,7 @@ class GameController {
     this.gameLoop.start();
     
     this.isRunning = true;
-    console.log('Game started');
+    console.info('Game started');
   }
 
   initializeSystems() {

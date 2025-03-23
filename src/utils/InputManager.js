@@ -26,6 +26,7 @@ class InputManager {
     this.doubleClickDelay = 300; // milliseconds
     
     // Edge panning
+    this.edgeScrollingEnabled = true; // Default to enabled, will be updated based on menu toggle
     this.isEdgePanning = false;
     this.edgePanThreshold = 20; // Pixels from edge to trigger panning
     this.edgePanSpeed = 20; // Movement speed when edge panning
@@ -412,6 +413,16 @@ class InputManager {
 
   // Update edge panning method in InputManager
   checkEdgePanning() {
+    // Return early if edge scrolling is disabled
+    if (this.edgeScrollingEnabled !== true) {
+      // Reset any edge panning state when disabled
+      if (this.isEdgePanning) {
+        this.isEdgePanning = false;
+        document.body.style.cursor = 'default';
+      }
+      return false;
+    }
+
     // Safety checks
     if (!this.sceneManager || !this.sceneManager.camera) {
       return false;
@@ -477,6 +488,11 @@ class InputManager {
     }
   
     return this.isEdgePanning;
+  }
+
+  toggleEdgeScrolling(enable = !this.edgeScrollingEnabled) {
+    this.edgeScrollingEnabled = enable;
+    console.info(`Edge scrolling ${enable ? 'enabled' : 'disabled'}`);
   }
   
   // Unchanged helper method
@@ -547,7 +563,7 @@ class InputManager {
     }
   }
 
-  handleSingleSelection(event) {
+  handleSingleSelection(_event) {
   // Handle a single-click selection
     const intersect = this.castRay();
     if (intersect) {
@@ -558,7 +574,7 @@ class InputManager {
     }
   }
 
-  handleBoxSelection(event) {
+  handleBoxSelection(_event) {
   // Handle a box/drag selection
   // Use the selection box dimensions to find entities
     const selectedEntities = this.getEntitiesInSelectionBox();
@@ -569,7 +585,7 @@ class InputManager {
     }
   }
 
-  handleCommand(event) {
+  handleCommand(_event) {
     // Get ray intersection
     const intersect = this.castRay();
     if (!intersect) {return;}

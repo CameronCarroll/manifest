@@ -18,40 +18,17 @@ class MenuSystem {
     this.menuContainer.style.fontFamily = '"Courier New", Courier, monospace'; // Retro font
     this.menuContainer.style.zIndex = '1000';
     document.body.appendChild(this.menuContainer);
+
+    // Game options
+    this.edgeScrollingEnabled = true;
     
     // Callback for game start (will be set by index.js)
     this.onStartGame = null;
   }
 
   showMainMenu() {
-    // Get available scenarios from ScenarioManager
-    let scenarioOptionsHTML = '';
-    
-    if (window.game && window.game.gameController && window.game.gameController.scenarioManager) {
-      const scenarioList = window.game.gameController.scenarioManager.getScenarioList();
-      
-      scenarioOptionsHTML = scenarioList.map(scenarioId => {
-        // Get scenario instance to display name/description
-        const scenario = window.game.gameController.scenarioManager.loadScenario(scenarioId);
-        const scenarioName = scenario ? scenario.name : scenarioId;
-        const scenarioDesc = scenario ? scenario.description : '';
-        
-        return `
-          <div class="scenario-option" data-scenario-id="${scenarioId}" style="
-            background-color: rgba(0, 0, 0, 0.5);
-            border: 2px solid #FFD700;
-            border-radius: 10px;
-            padding: 10px;
-            margin: 8px 0;
-            cursor: pointer;
-            transition: transform 0.2s, background-color 0.2s;
-          ">
-            <h3 style="margin: 0 0 5px 0; color: #FFD700;">${scenarioName}</h3>
-            <p style="margin: 0; font-size: 14px;">${scenarioDesc}</p>
-          </div>
-        `;
-      }).join('');
-    }
+    // Get scenario options HTML before creating the template
+    const scenarioOptionsHTML = this.createScenarioOptions();
     
     this.menuContainer.style.display = 'flex';
     this.menuContainer.innerHTML = `
@@ -102,6 +79,35 @@ class MenuSystem {
         </div>
         
         <div style="
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          margin-bottom: 20px;
+        ">
+          <div style="
+            color: #FFD700;
+            margin-right: 15px;
+            font-size: 18px;
+          ">Edge Scrolling:</div>
+          
+          <button id="edge-scroll-toggle" style="
+            background-color: ${this.edgeScrollingEnabled ? '#00FF00' : '#FF0000'};
+            color: black;
+            border: 2px solid #FFD700;
+            border-radius: 20px;
+            padding: 8px 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+          ">
+            ${this.edgeScrollingEnabled ? 'ON' : 'OFF'}
+          </button>
+        </div>
+        
+        <div style="
           margin-top: 40px; 
           font-size: 16px; 
           text-align: left;
@@ -124,7 +130,17 @@ class MenuSystem {
       </div>
     `;
     
-    // Add event listener to scenario options
+    // Add event listener to edge scrolling toggle
+    const edgeScrollToggle = document.getElementById('edge-scroll-toggle');
+    edgeScrollToggle.addEventListener('click', () => {
+      this.toggleEdgeScrolling();
+      
+      // Update button appearance
+      edgeScrollToggle.textContent = this.edgeScrollingEnabled ? 'ON' : 'OFF';
+      edgeScrollToggle.style.backgroundColor = this.edgeScrollingEnabled ? '#00FF00' : '#FF0000';
+    });
+    
+    // Add event listeners to scenario options
     const scenarioOptionElements = document.querySelectorAll('.scenario-option');
     scenarioOptionElements.forEach(option => {
       // Add hover effect
@@ -146,6 +162,48 @@ class MenuSystem {
         }
       });
     });
+  }
+
+  createScenarioOptions() {
+    if (!window.game?.gameController?.scenarioManager) {
+      return '<p>No scenarios available</p>';
+    }
+  
+    const scenarioList = window.game.gameController.scenarioManager.getScenarioList();
+    
+    return scenarioList.map(scenarioId => {
+      // Get scenario instance to display name/description
+      const scenario = window.game.gameController.scenarioManager.loadScenario(scenarioId);
+      const scenarioName = scenario?.name || scenarioId;
+      const scenarioDesc = scenario?.description || 'No description available';
+      
+      return `
+        <div class="scenario-option" data-scenario-id="${scenarioId}" style="
+          background-color: rgba(0, 0, 0, 0.5);
+          border: 2px solid #FFD700;
+          border-radius: 10px;
+          padding: 10px;
+          margin: 8px 0;
+          cursor: pointer;
+          transition: transform 0.2s, background-color 0.2s;
+        ">
+          <h3 style="margin: 0 0 5px 0; color: #FFD700;">${scenarioName}</h3>
+          <p style="margin: 0; font-size: 14px;">${scenarioDesc}</p>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Add method to toggle edge scrolling
+  toggleEdgeScrolling(enable = !this.edgeScrollingEnabled) {
+    this.edgeScrollingEnabled = enable;
+    console.info(`Edge scrolling ${enable ? 'enabled' : 'disabled'}`);
+    
+    // If game is running, we might want to communicate this to the input manager
+    if (window.game && window.game.gameController && window.game.gameController.inputManager) {
+      // This assumes InputManager has a method to toggle edge scrolling
+      window.game.gameController.inputManager.toggleEdgeScrolling(this.edgeScrollingEnabled);
+    }
   }
 
   hideMainMenu() {
