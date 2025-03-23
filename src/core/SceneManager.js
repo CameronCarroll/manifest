@@ -22,11 +22,7 @@ class SceneManager {
       ArrowUp: false,
       ArrowDown: false,
       ArrowLeft: false,
-      ArrowRight: false,
-      w: false,
-      a: false,
-      s: false,
-      d: false
+      ArrowRight: false
     };
     
     this.initRenderer();
@@ -155,11 +151,11 @@ class SceneManager {
     let moveX = 0;
     let moveZ = 0;
 
-    // Handle WASD and arrow keys for camera movement
-    if (this.keys.ArrowUp || this.keys.w) {moveZ -= 1;}
-    if (this.keys.ArrowDown || this.keys.s) {moveZ += 1;}
-    if (this.keys.ArrowLeft || this.keys.a) {moveX -= 1;}
-    if (this.keys.ArrowRight || this.keys.d) {moveX += 1;}
+    // Handle arrow keys for camera movement
+    if (this.keys.ArrowUp) {moveZ -= 1;}
+    if (this.keys.ArrowDown) {moveZ += 1;}
+    if (this.keys.ArrowLeft) {moveX -= 1;}
+    if (this.keys.ArrowRight) {moveX += 1;}
 
     // Normalize diagonal movement
     if (moveX !== 0 && moveZ !== 0) {

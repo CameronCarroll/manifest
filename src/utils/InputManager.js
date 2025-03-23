@@ -17,6 +17,7 @@ class InputManager {
     this.selectionStart = { x: 0, y: 0 };
     this.selectionEnd = { x: 0, y: 0 };
     this.selectedEntities = new Set();
+    this.isAttackMoveMode = false; // Track if we're in attack-move mode
 
     // Create raycaster for picking
     this.raycaster = new THREE.Raycaster();
@@ -68,30 +69,36 @@ class InputManager {
     this.lastClickTime = now;
 
     // Right click - issue move/attack command
-    if (event.button === 2) {
-      // Only call preventDefault if it exists (for testing compatibility)
-      if (typeof event.preventDefault === 'function') {
-        event.preventDefault();
-      }
-
-      // Cast ray to find intersected objects
-      const intersect = this.castRay();
-
-      if (intersect) {
-        // Check if we clicked on an entity
-        const clickedEntityId = this.getEntityAtPosition(intersect.point);
-
-        // If we clicked on an enemy entity, issue attack command
-        if (clickedEntityId && this.isEnemyEntity(clickedEntityId)) {
-          this.issueAttackCommand(clickedEntityId);
+  if (event.button === 2) {
+    // Only call preventDefault if it exists (for testing compatibility)
+    if (typeof event.preventDefault === 'function') {
+      event.preventDefault();
+    }
+    
+    // Cast ray to find intersected objects
+    const intersect = this.castRay();
+    
+    if (intersect) {
+      // Check if we clicked on an entity
+      const clickedEntityId = this.getEntityAtPosition(intersect.point);
+      
+      // If we clicked on an enemy entity, issue attack command
+      if (clickedEntityId && this.isEnemyEntity(clickedEntityId)) {
+        this.issueAttackCommand(clickedEntityId);
+      } else {
+        // If in attack-move mode, issue attack-move command
+        if (this.isAttackMoveMode) {
+          this.issueAttackMoveCommand(intersect.point);
+          this.toggleAttackMoveMode(false); // Turn off attack-move mode after use
         } else {
           // Otherwise issue move command to the clicked position
           this.issueMoveCommand(intersect.point);
         }
       }
-
-      return;
     }
+    
+    return;
+  }
 
     // Left click - selection
     if (event.button === 0) {
@@ -144,20 +151,26 @@ class InputManager {
     }
   }
 
-  onKeyDown(event) {
-    // Handle keyboard shortcuts
-    if (event.key === 'z' && event.ctrlKey) {
-      this.undo();
-    } else if (event.key === 'y' && event.ctrlKey) {
-      this.redo();
-    } else if (event.key === 'Escape') {
-      this.clearSelection();
-    } else if (event.key === 'a' && event.shiftKey) {
-      this.selectAllPlayerUnits();
-    } else if (event.key === 's') {
-      this.stopSelectedUnits();
-    }
+  // Update the onKeyDown method
+onKeyDown(event) {
+  // Handle keyboard shortcuts
+  if (event.key === 'z' && event.ctrlKey) {
+    this.undo();
+  } else if (event.key === 'y' && event.ctrlKey) {
+    this.redo();
+  } else if (event.key === 'Escape') {
+    this.clearSelection();
+    this.toggleAttackMoveMode(false); // Ensure attack-move is off
+  } else if (event.key === 'a' && event.shiftKey) {
+    this.selectAllPlayerUnits();
+  } else if (event.key === 'a' && !event.shiftKey) {
+    // Toggle attack-move mode with 'a' key
+    this.toggleAttackMoveMode();
+  } else if (event.key === 's') {
+    this.stopSelectedUnits();
   }
+  // Arrow keys are handled by SceneManager's smooth camera movement system
+}
 
   updateMousePosition(event) {
     // Calculate mouse position in normalized device coordinates (-1 to +1)
@@ -883,6 +896,67 @@ class InputManager {
 
     return selectedEntities;
   }
+
+  // Toggle attack-move mode
+toggleAttackMoveMode(enable = !this.isAttackMoveMode) {
+  this.isAttackMoveMode = enable;
+  
+  // Change cursor
+  document.body.style.cursor = this.isAttackMoveMode ? 'crosshair' : 'default';
+  
+  // Show/hide attack-move indicator
+  this.updateAttackMoveIndicator();
+  
+  console.log(`Attack-move mode ${enable ? 'enabled' : 'disabled'}`);
+}
+// Update the attack-move indicator UI
+updateAttackMoveIndicator() {
+  // Get or create the indicator element
+  let indicator = document.getElementById('attack-move-indicator');
+  
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.id = 'attack-move-indicator';
+    indicator.style.position = 'absolute';
+    indicator.style.bottom = '50px';
+    indicator.style.left = '50%';
+    indicator.style.transform = 'translateX(-50%)';
+    indicator.style.backgroundColor = 'rgba(255, 0, 0, 0.6)';
+    indicator.style.color = 'white';
+    indicator.style.padding = '5px 15px';
+    indicator.style.borderRadius = '5px';
+    indicator.style.fontWeight = 'bold';
+    indicator.style.zIndex = '100';
+    indicator.style.pointerEvents = 'none';
+    document.body.appendChild(indicator);
+  }
+  
+  if (this.isAttackMoveMode) {
+    indicator.textContent = '⚔️ ATTACK-MOVE ⚔️';
+    indicator.style.display = 'block';
+  } else {
+    indicator.style.display = 'none';
+  }
+}
+
+// Issue attack-move command
+issueAttackMoveCommand(position) {
+  // Issue attack-move command to all selected entities
+  for (const entityId of this.selectedEntities) {
+    if (this.entityManager.hasComponent(entityId, 'position')) {
+      // If we have a combat system, stop any attacks
+      if (this.systems.combat) {
+        this.systems.combat.stopAttack(entityId);
+      }
+      
+      // Move the entity with attack-move flag
+      if (this.systems.movement) {
+        this.systems.movement.moveEntity(entityId, position, 5, null, true); // Last param is attackMove flag
+      }
+    }
+  }
+}
+
 }
 
 export default InputManager;

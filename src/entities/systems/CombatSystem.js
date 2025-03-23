@@ -39,7 +39,14 @@ class CombatSystem {
   }
 
   initialize() {
-    // Initialize system if needed
+    // Initialize animation system integration
+    if (this.entityManager.gameState && this.entityManager.gameState.systems && 
+        this.entityManager.gameState.systems.animation) {
+      console.log('CombatSystem connected to AnimationSystem');
+      this.animationSystem = this.entityManager.gameState.systems.animation;
+    } else {
+      console.warn('AnimationSystem not available for CombatSystem');
+    }
   }
   
   // Set movement system reference
@@ -86,6 +93,11 @@ class CombatSystem {
       damageType: attackerFaction.damageType || 'normal',
       lastDamageTime: 0 // Track when damage was last applied
     });
+
+    // Trigger animation when attack starts
+  if (this.animationSystem && typeof this.animationSystem.startAttackAnimation === 'function') {
+    this.animationSystem.startAttackAnimation(attackerId, targetId);
+  }
   
     return true;
   }
@@ -289,6 +301,14 @@ class CombatSystem {
         
         // Apply damage to target
         const targetDestroyed = this.applyDamage(targetId, damageInfo);
+
+        // Trigger animation (this is the key part we need to add)
+    if (this.entityManager.gameState.systems && 
+      this.entityManager.gameState.systems.animation) {
+    this.entityManager.gameState.systems.animation.startAttackAnimation(
+      attackerId, targetId
+    );
+  }
         
         // Set cooldown for next attack
         const attackerFaction = this.entityManager.getComponent(attackerId, 'faction');
