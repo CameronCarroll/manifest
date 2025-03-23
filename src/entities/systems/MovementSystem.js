@@ -30,6 +30,7 @@ class MovementSystem {
   }
 
   // In MovementSystem.js - complete update method implementation
+  // Modified update method for MovementSystem
   update(deltaTime) {
   // Process all moving entities
     this.movingEntities.forEach((movementData, entityId) => {
@@ -106,37 +107,60 @@ class MovementSystem {
       const moveDistance = speed * deltaTime;
       const moveRatio = moveDistance / distance;
     
-      // Update position
-      positionComponent.x += dx * moveRatio;
-      positionComponent.z += dz * moveRatio;
+      // Calculate new position
+      const newX = positionComponent.x + dx * moveRatio;
+      const newZ = positionComponent.z + dz * moveRatio;
+    
+      // Check for collisions if we have a collision system
+      if (this.systems && this.systems.collision) {
+        const newPosition = {
+          x: newX,
+          y: positionComponent.y,
+          z: newZ
+        };
+      
+        // Check if move would cause a collision
+        const hasCollision = this.systems.collision.checkCollision(entityId, newPosition);
+      
+        if (hasCollision) {
+        // Try to find a nearby valid position
+          const originalPosition = {
+            x: positionComponent.x,
+            y: positionComponent.y,
+            z: positionComponent.z
+          };
+        
+          const validPosition = this.systems.collision.findNearestValidPosition(
+            entityId, 
+            newPosition,
+            originalPosition
+          );
+        
+          // Update to valid position
+          positionComponent.x = validPosition.x;
+          positionComponent.z = validPosition.z;
+        } else {
+        // No collision, move to intended position
+          positionComponent.x = newX;
+          positionComponent.z = newZ;
+        }
+      } else {
+      // No collision system, just move
+        positionComponent.x = newX;
+        positionComponent.z = newZ;
+      }
     
       // Update rotation to face movement direction
       positionComponent.rotation = Math.atan2(dx, dz);
     
       // Check for targets in range (auto-attack) during attack-move
       if (attackMove && this.systems && this.systems.combat) {
-      // Find enemy entities near this entity
-        if (this.entityManager.hasComponent(entityId, 'faction')) {
-          const faction = this.entityManager.getComponent(entityId, 'faction');
-          const nearestTarget = this.findNearestEnemyInRange(entityId);
-        
-          // If found an enemy in range, stop to attack
-          if (nearestTarget && this.systems.combat.canAttack(entityId, nearestTarget, true)) {
-            this.stopEntity(entityId);
-            this.systems.combat.startAttack(entityId, nearestTarget);
-            return;
-          }
-        }
-      }
-
-      if (attackMove) {
-        console.log(`Entity ${entityId} is in attack-move mode`);
-        const nearestEnemy = this.findNearestEnemyInRange(entityId);
-        console.log(`Nearest enemy: ${nearestEnemy}`);
-        if (nearestEnemy) {
-          console.log(`Found enemy, stopping to attack`);
+        const nearestTarget = this.findNearestEnemyInRange(entityId);
+      
+        // If found an enemy in range, stop to attack
+        if (nearestTarget && this.systems.combat.canAttack(entityId, nearestTarget, true)) {
           this.stopEntity(entityId);
-          this.systems.combat.startAttack(entityId, nearestEnemy);
+          this.systems.combat.startAttack(entityId, nearestTarget);
           return;
         }
       }

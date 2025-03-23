@@ -76,6 +76,11 @@ class DefaultScenario extends BaseScenario {
         attackType: 'none',
         damageType: 'none'
       });
+      
+      // Register with collision system if available
+      if (this.systems && this.systems.collision) {
+        this.systems.collision.registerEntity(buildingEntity, true); // Static object
+      }
     }
   }
   
@@ -134,50 +139,54 @@ class DefaultScenario extends BaseScenario {
   addTerrainFeatures() {
     console.log('Adding terrain features');
     
-    const { scene } = this.gameController.sceneManager.getActiveScene();
-    
     // Add some hills
     for (let i = 0; i < 10; i++) {
       const hillSize = 5 + Math.random() * 10;
       const hillHeight = 2 + Math.random() * 3;
       
-      const hillGeometry = new THREE.ConeGeometry(hillSize, hillHeight, 8);
-      const hillMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x6b8e4e,
-        roughness: 0.9
-      });
+      const position = {
+        x: (Math.random() - 0.5) * 180,
+        y: 0, // At ground level
+        z: (Math.random() - 0.5) * 180
+      };
       
-      const hill = new THREE.Mesh(hillGeometry, hillMaterial);
+      const scale = {
+        x: hillSize,
+        y: hillHeight,
+        z: hillSize
+      };
       
-      // Position randomly on the map
-      hill.position.x = (Math.random() - 0.5) * 180;
-      hill.position.y = 0; // At ground level
-      hill.position.z = (Math.random() - 0.5) * 180;
-      
-      scene.add(hill);
+      this.createTerrainFeature('hill', position, scale);
     }
     
     // Add some rock formations
     for (let i = 0; i < 15; i++) {
       const rockSize = 2 + Math.random() * 4;
       
-      const rockGeometry = new THREE.DodecahedronGeometry(rockSize, 0);
-      const rockMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x7b7b7b,
-        roughness: 0.7
-      });
+      const position = {
+        x: (Math.random() - 0.5) * 180,
+        y: rockSize / 2, // Half height above ground
+        z: (Math.random() - 0.5) * 180
+      };
       
-      const rock = new THREE.Mesh(rockGeometry, rockMaterial);
+      const scale = {
+        x: rockSize,
+        y: rockSize,
+        z: rockSize
+      };
       
-      // Position randomly on the map
-      rock.position.x = (Math.random() - 0.5) * 180;
-      rock.position.y = rockSize / 2; // Half height above ground
-      rock.position.z = (Math.random() - 0.5) * 180;
+      this.createTerrainFeature('rock', position, scale);
+    }
+    
+    // Add trees
+    for (let i = 0; i < 20; i++) {
+      const position = {
+        x: (Math.random() - 0.5) * 180,
+        y: 0,
+        z: (Math.random() - 0.5) * 180
+      };
       
-      // Random rotation
-      rock.rotation.y = Math.random() * Math.PI * 2;
-      
-      scene.add(rock);
+      this.createTerrainFeature('tree', position);
     }
   }
   

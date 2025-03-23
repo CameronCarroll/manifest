@@ -21,6 +21,7 @@ import CombatSystem from '../entities/systems/CombatSystem.js';
 import AISystem from '../entities/systems/AISystem.js';
 import SpawnSystem from '../entities/systems/SpawnSystem.js';
 import AnimationSystem from '../entities/systems/AnimationSystem.js'; // Add this line
+import CollisionSystem from '../entities/systems/CollisionSystem.js';
 
 // Utilities
 import InputManager from '../utils/InputManager.js';
@@ -89,11 +90,14 @@ class GameController {
       this.entityManager, 
       this.sceneManager, 
       this.modelLoader,
-      this.systems  // Pass the entire systems context
+      this.systems
     );
     console.log('Render system created:', this.systems.render);
-    console.log('Systems after render system:', this.systems);
-  
+    
+    // Create collision system before movement system
+    this.systems.collision = new CollisionSystem(this.entityManager);
+    console.log('Collision system created:', this.systems.collision);
+    
     this.systems.movement = new MovementSystem(this.entityManager, this.systems);
     console.log('Movement system created:', this.systems.movement);
     
@@ -310,6 +314,12 @@ class GameController {
         console.warn('Animation system not available for combat system');
       }
     }
+
+    // Initialize collision system before movement
+    if (this.systems.collision) {
+      console.log('Initializing collision system');
+      this.systems.collision.initialize();
+    }
   
     // Initialize movement system and connect it to combat system
     if (this.systems.movement) {
@@ -456,6 +466,33 @@ class GameController {
     } catch (error) {
       console.error('Failed to get save list:', error);
       throw error;
+    }
+  }
+
+  // Toggle collision debug visualization
+  toggleCollisionDebug() {
+    if (!this.systems.collision) {
+      console.warn('Collision system not available');
+      return false;
+    }
+  
+    const { scene } = this.sceneManager.getActiveScene();
+    if (!scene) {
+      console.warn('No active scene available');
+      return false;
+    }
+  
+    // Check if debug visualization is active
+    if (this.systems.collision.debugMeshes && this.systems.collision.debugMeshes.length > 0) {
+    // Remove existing visualization
+      this.systems.collision.removeDebugVisualization(scene);
+      console.log('Collision debug visualization disabled');
+      return false;
+    } else {
+    // Create new visualization
+      const count = this.systems.collision.createDebugVisualization(scene);
+      console.log(`Collision debug visualization enabled for ${count} entities`);
+      return true;
     }
   }
 }

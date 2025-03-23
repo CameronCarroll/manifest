@@ -270,6 +270,12 @@ class SpawnSystem {
       aiSystem.registerEntity(entityId, template.components.faction.unitType);
     }
     
+    // Register with collision system if available
+    if (this.entityManager.gameState && this.entityManager.gameState.systems && 
+        this.entityManager.gameState.systems.collision) {
+      this.entityManager.gameState.systems.collision.registerEntity(entityId, false); // Not static
+    }
+    
     return entityId;
   }
 

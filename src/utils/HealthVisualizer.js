@@ -216,7 +216,7 @@ class HealthVisualizer {
     const indicatorsToRemove = [];
     
     this.tempDamageIndicators.forEach(indicator => {
-      if (!indicator.userData) return;
+      if (!indicator.userData) {return;}
       
       const age = now - indicator.userData.creationTime;
       const lifePercent = age / indicator.userData.duration;

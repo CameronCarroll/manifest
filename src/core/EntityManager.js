@@ -17,6 +17,11 @@ class EntityManager {
   removeEntity(entityId) {
     if (!this.gameState.entities.has(entityId)) {return false;}
     
+    // Unregister from collision system first if available
+    if (this.gameState.systems && this.gameState.systems.collision) {
+      this.gameState.systems.collision.unregisterEntity(entityId);
+    }
+    
     // Remove all components for this entity
     for (const manager of this.componentManagers.values()) {
       if (manager.hasComponent(entityId)) {

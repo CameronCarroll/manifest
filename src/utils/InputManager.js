@@ -257,6 +257,7 @@ class InputManager {
   }
 
   // Update the onKeyDown method
+  // Add this to InputManager.js onKeyDown method
   onKeyDown(event) {
   // Handle keyboard shortcuts
     if (event.key === 'z' && event.ctrlKey) {
@@ -273,6 +274,18 @@ class InputManager {
       this.toggleAttackMoveMode();
     } else if (event.key === 's') {
       this.stopSelectedUnits();
+    } // In InputManager.js - onKeyDown method
+    else if (event.key === 'c' && event.ctrlKey) {
+      console.log('Ctrl+C detected - attempting to toggle collision debug');
+      
+      // Use window.game to access the game controller
+      if (window.game && window.game.gameController) {
+        console.log('Using window.game.gameController');
+        window.game.gameController.toggleCollisionDebug();
+      } else {
+        console.error('Cannot find game controller reference in window.game');
+        console.log('Available systems:', this.systems);
+      }
     }
   // Arrow keys are handled by SceneManager's smooth camera movement system
   }

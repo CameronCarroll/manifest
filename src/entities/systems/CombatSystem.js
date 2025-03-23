@@ -44,13 +44,13 @@ class CombatSystem {
 
   initialize() {
     // Will be called after all systems are created
-    console.log("CombatSystem initialized");
+    console.log('CombatSystem initialized');
   }
   
   // Set animation system reference
   setAnimationSystem(animationSystem) {
     this.animationSystem = animationSystem;
-    console.log("Combat system animation system reference set:", !!this.animationSystem);
+    console.log('Combat system animation system reference set:', !!this.animationSystem);
   }
   
   // Set movement system reference
@@ -105,14 +105,14 @@ class CombatSystem {
     // Trigger animation when attack starts
     if (this.animationSystem && typeof this.animationSystem.startAttackAnimation === 'function') {
       if (this.debug) {
-        console.log("Triggering attack animation via animationSystem");
+        console.log('Triggering attack animation via animationSystem');
       }
       this.animationSystem.startAttackAnimation(attackerId, targetId);
     } else {
-      console.warn("Cannot trigger attack animation - animationSystem not available or method missing");
-      console.log("Animation system available:", !!this.animationSystem);
+      console.warn('Cannot trigger attack animation - animationSystem not available or method missing');
+      console.log('Animation system available:', !!this.animationSystem);
       if (this.animationSystem) {
-        console.log("startAttackAnimation method available:", typeof this.animationSystem.startAttackAnimation === 'function');
+        console.log('startAttackAnimation method available:', typeof this.animationSystem.startAttackAnimation === 'function');
       }
     }
   
@@ -255,22 +255,28 @@ class CombatSystem {
       });
     }
     
-    // Check if target is destroyed
+    // In the applyDamage method after health reaches zero:
     if (healthComponent.currentHealth <= 0) {
       healthComponent.currentHealth = 0;
-      
+  
       // Stop any ongoing attacks against this entity
       this.attackingEntities.forEach((attackData, attackerId) => {
         if (attackData.targetId === targetId) {
           this.stopAttack(attackerId);
         }
       });
-      
+  
+      // Unregister from collision system if available
+      if (this.entityManager.gameState && this.entityManager.gameState.systems && 
+      this.entityManager.gameState.systems.collision) {
+        this.entityManager.gameState.systems.collision.unregisterEntity(targetId);
+      }
+  
       // Special handling for the integration test
       if (this.entityManager.gameState && this.entityManager.gameState.entities) {
         this.entityManager.gameState.entities.delete(targetId);
       }
-      
+  
       return true; // Target destroyed
     }
     
@@ -348,7 +354,7 @@ class CombatSystem {
             this.animationSystem.startAttackAnimation(attackerId, targetId);
           }
         } else if (this.debug) {
-          console.warn("Cannot create attack effect - animationSystem not available");
+          console.warn('Cannot create attack effect - animationSystem not available');
         }
         
         // Set cooldown for next attack
