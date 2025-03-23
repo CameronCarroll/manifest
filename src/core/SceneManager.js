@@ -7,6 +7,11 @@ class SceneManager {
     this.renderer = null;
     this.camera = null;
     
+    // Camera zoom parameters
+    this.minZoom = 20; // Closest zoom
+    this.maxZoom = 100; // Furthest zoom
+    this.zoomSpeed = 1.1; // Zoom sensitivity
+    
     // Camera control properties
     this.cameraSpeed = 20; // Units per second
     this.cameraBounds = {
@@ -35,6 +40,7 @@ class SceneManager {
     document.body.appendChild(this.renderer.domElement);
 
     window.addEventListener('resize', this.onWindowResize.bind(this));
+    window.addEventListener('wheel', this.onMouseWheel.bind(this));
   }
 
   initControls() {
@@ -50,6 +56,31 @@ class SceneManager {
         this.keys[event.key] = false;
       }
     });
+  }
+
+  onMouseWheel(event) {
+    if (!this.camera) return;
+
+    // Prevent default scroll behavior
+    event.preventDefault();
+
+    // Zoom based on wheel delta
+    // Different browsers handle wheel events differently
+    const delta = event.deltaY > 0 ? 1 : -1;
+    
+    // Calculate new camera height
+    const zoomFactor = delta > 0 ? this.zoomSpeed : 1 / this.zoomSpeed;
+    const currentHeight = this.camera.position.y;
+    const newHeight = Math.min(
+      Math.max(currentHeight * zoomFactor, this.minZoom), 
+      this.maxZoom
+    );
+
+    // Update camera position while maintaining proportional distance from ground
+    const heightRatio = newHeight / currentHeight;
+    this.camera.position.y = newHeight;
+    this.camera.position.x *= heightRatio;
+    this.camera.position.z *= heightRatio;
   }
 
   onWindowResize() {
