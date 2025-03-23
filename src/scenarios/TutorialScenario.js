@@ -8,6 +8,10 @@ class TutorialScenario extends BaseScenario {
     this.name = 'Tutorial';
     this.description = 'Learn the basics of the game';
     
+    // Configure features for tutorial - simplified UI
+    this.features.resources = true;
+    this.features.production = false; // Disable production to keep it simple for tutorial
+    
     // Steps for the tutorial
     this.tutorialSteps = [
       {

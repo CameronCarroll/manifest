@@ -20,7 +20,7 @@ class MenuSystem {
     document.body.appendChild(this.menuContainer);
 
     // Game options
-    this.edgeScrollingEnabled = true;
+    this.edgeScrollingEnabled = false;
     
     // Callback for game start (will be set by index.js)
     this.onStartGame = null;

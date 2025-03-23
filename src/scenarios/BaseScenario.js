@@ -13,6 +13,13 @@ class BaseScenario {
     // Victory/defeat conditions
     this.victoryConditions = [];
     this.defeatConditions = [];
+    
+    // New configuration for scenario features
+    this.features = {
+      resources: false,    // Toggle resource UI
+      production: false,   // Toggle production queue UI
+      economyManagement: false  // Could be used for more complex economic scenarios
+    };
   }
     
   // Initialize the scenario

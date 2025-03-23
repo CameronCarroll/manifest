@@ -1,6 +1,7 @@
 // scenarios/ScenarioManager.js
 import DefaultScenario from './DefaultScenario.js';
 import TutorialScenario from './TutorialScenario.js';
+import ExplorationScenario from './ExplorationScenario.js';
 
 class ScenarioManager {
   constructor(gameController) {
@@ -10,7 +11,7 @@ class ScenarioManager {
     this.scenarios = {
       'default': DefaultScenario,
       'tutorial': TutorialScenario,
-      // Add more scenarios here as they're created
+      'exploration': ExplorationScenario
     };
   }
   

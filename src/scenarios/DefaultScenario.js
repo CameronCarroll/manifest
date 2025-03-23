@@ -14,6 +14,10 @@ class DefaultScenario extends BaseScenario {
       minerals: 500,
       gas: 200
     };
+    
+    // Enable UI features
+    this.features.resources = true;
+    this.features.production = true;
   }
   
   start() {
@@ -44,7 +48,7 @@ class DefaultScenario extends BaseScenario {
       const posX = (Math.random() - 0.5) * 40; // Closer to center
       const posZ = (Math.random() - 0.5) * 40;
       
-      this.createPlayerUnit('assault', { x: posX, z: posZ });
+      this.createPlayerUnit('sniper', { x: posX, z: posZ });
     }
     
     // Create a few buildings

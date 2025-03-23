@@ -155,7 +155,36 @@ class GameController {
       return false;
     }
     
+    // Update UI visibility based on scenario features
+    this.updateUIVisibility();
+    
     return true;
+  }
+  
+  // New method to update UI visibility based on scenario features
+  updateUIVisibility() {
+    if (!this.currentScenario) { return; }
+    
+    // If we're using the DOM for UI elements, find and update their visibility
+    const resourceDisplay = document.getElementById('resource-display');
+    const productionDisplay = document.getElementById('production-display');
+    const actionButtons = document.getElementById('action-buttons');
+    
+    if (resourceDisplay) {
+      resourceDisplay.style.display = this.currentScenario.features.resources ? 'block' : 'none';
+    }
+    
+    if (actionButtons) {
+      actionButtons.style.display = this.currentScenario.features.resources ? 'flex' : 'none';
+    }
+    
+    if (productionDisplay) {
+      productionDisplay.style.display = this.currentScenario.features.production ? 'block' : 'none';
+    }
+    
+    console.log(`UI visibility updated based on scenario: 
+      Resources: ${this.currentScenario.features.resources ? 'Shown' : 'Hidden'}
+      Production: ${this.currentScenario.features.production ? 'Shown' : 'Hidden'}`);
   }
 
   resetGame() {
