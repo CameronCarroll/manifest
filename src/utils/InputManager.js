@@ -91,16 +91,7 @@ class InputManager {
     // Left click - selection
     if (event.button === 0) {
       // Start selection
-      this.isSelecting = true;
-      
-      // Handle compatibility with objects that may not have copy method
-      if (typeof this.selectionStart.copy === 'function') {
-        this.selectionStart.copy(this.mousePosition);
-        this.selectionEnd.copy(this.mousePosition);
-      } else {
-        this.selectionStart = { x: this.mousePosition.x, y: this.mousePosition.y };
-        this.selectionEnd = { x: this.mousePosition.x, y: this.mousePosition.y };
-      }
+      this.startSelection(event);
       
       // If not holding shift, clear previous selection
       if (!event.shiftKey) {
@@ -457,23 +448,29 @@ class InputManager {
     this.isSelecting = true;
     this.selectionStart = { x: event.clientX, y: event.clientY };
     this.selectionEnd = { x: event.clientX, y: event.clientY };
-    this.selectionBox.style.display = 'block';
+    // DON'T show the box immediately
+  this.selectionBox.style.display = 'none';
   }
 
   updateSelectionBox(event) {
     this.selectionEnd = { x: event.clientX, y: event.clientY };
-  
+    
     // Calculate the selection box dimensions
     const left = Math.min(this.selectionStart.x, this.selectionEnd.x);
     const top = Math.min(this.selectionStart.y, this.selectionEnd.y);
     const width = Math.abs(this.selectionEnd.x - this.selectionStart.x);
     const height = Math.abs(this.selectionEnd.y - this.selectionStart.y);
-  
-    // Update the selection box style
-    this.selectionBox.style.left = `${left}px`;
-    this.selectionBox.style.top = `${top}px`;
-    this.selectionBox.style.width = `${width}px`;
-    this.selectionBox.style.height = `${height}px`;
+    
+    // Only show the box if there's actual movement (e.g., dragging)
+    if (width > 3 || height > 3) {
+      this.selectionBox.style.display = 'block';
+      
+      // Update the selection box style
+      this.selectionBox.style.left = `${left}px`;
+      this.selectionBox.style.top = `${top}px`;
+      this.selectionBox.style.width = `${width}px`;
+      this.selectionBox.style.height = `${height}px`;
+    }
   }
 
   completeSelection(event) {
