@@ -17,9 +17,14 @@ class AnimationSystem {
     
     // Effects cache
     this.effectsCache = new Map();
+    
+    // Debug flag - set to true to see detailed logs
+    this.debug = false;
   }
 
   initialize() {
+    if (this.debug) console.log('AnimationSystem: initializing');
+    
     // Subscribe to combat events
     if (this.systems.combat) {
       // Store original startAttack method
@@ -29,7 +34,10 @@ class AnimationSystem {
       this.systems.combat.startAttack = (attackerId, targetId) => {
         const result = originalStartAttack.call(this.systems.combat, attackerId, targetId);
         if (result) {
+          if (this.debug) console.log(`AnimationSystem: Starting attack animation for ${attackerId} targeting ${targetId}`);
           this.startAttackAnimation(attackerId, targetId);
+        } else {
+          if (this.debug) console.log(`AnimationSystem: Attack failed for ${attackerId} targeting ${targetId}`);
         }
         return result;
       };
@@ -40,27 +48,35 @@ class AnimationSystem {
   startAttackAnimation(entityId, targetId) {
     if (!this.entityManager.hasComponent(entityId, 'position') ||
         !this.entityManager.hasComponent(entityId, 'faction')) {
+      if (this.debug) console.log(`AnimationSystem: Missing components for entity ${entityId}`);
       return false;
     }
     
+    // Get the faction component to determine attack type
     const factionComponent = this.entityManager.getComponent(entityId, 'faction');
+    if (!factionComponent) {
+      if (this.debug) console.log(`AnimationSystem: No faction component for entity ${entityId}`);
+      return false;
+    }
+    
     const attackType = factionComponent.attackType || 'ranged';
+    const unitType = factionComponent.unitType || 'basic';
+    
+    if (this.debug) console.log(`AnimationSystem: Entity ${entityId} (${unitType}) using ${attackType} attack`);
     
     // Handle different attack types
     if (attackType === 'melee') {
-      this.startMeleeAttackAnimation(entityId, targetId);
+      this.startMeleeAttackAnimation(entityId, targetId, unitType);
     } else {
-      this.startRangedAttackAnimation(entityId, targetId);
+      this.startRangedAttackAnimation(entityId, targetId, unitType);
     }
     
     return true;
   }
   
   // Start melee attack animation (summoned weapon)
-  startMeleeAttackAnimation(entityId, targetId) {
-    // Get unit type to determine weapon style
-    const factionComponent = this.entityManager.getComponent(entityId, 'faction');
-    const unitType = factionComponent.unitType || 'basic';
+  startMeleeAttackAnimation(entityId, targetId, unitType) {
+    if (this.debug) console.log(`AnimationSystem: Starting melee attack for ${entityId} (${unitType})`);
     
     // Animation timeline:
     // 1. Windup (0.2s) - Summoning the weapon
@@ -76,6 +92,7 @@ class AnimationSystem {
       unitType: unitType,
       weaponMesh: null,
       particleSystem: null,
+      damageEffectApplied: false,
       // Timing configuration
       phaseTimings: {
         windup: 0.2,  // seconds
@@ -83,13 +100,28 @@ class AnimationSystem {
         recovery: 0.2 // seconds
       }
     });
+    
+    // If we already have a weapon animation in progress for this entity, remove it first
+    this.cleanupExistingWeapon(entityId);
+  }
+  
+  // Clean up any existing weapon for an entity
+  cleanupExistingWeapon(entityId) {
+    const entityMesh = this.systems.render?.meshes.get(entityId);
+    if (!entityMesh) return;
+    
+    // Find and remove any existing weapon meshes
+    entityMesh.children.forEach(child => {
+      if (child.userData && child.userData.isWeapon) {
+        entityMesh.remove(child);
+        this.disposeObject(child);
+      }
+    });
   }
   
   // Start ranged attack animation
-  startRangedAttackAnimation(entityId, targetId) {
-    // Get unit type to determine projectile style
-    const factionComponent = this.entityManager.getComponent(entityId, 'faction');
-    const unitType = factionComponent.unitType || 'basic';
+  startRangedAttackAnimation(entityId, targetId, unitType) {
+    if (this.debug) console.log(`AnimationSystem: Starting ranged attack for ${entityId} (${unitType})`);
     
     // Animation timeline:
     // 1. Windup (0.2s) - Charging the attack
@@ -105,6 +137,7 @@ class AnimationSystem {
       unitType: unitType,
       projectile: null,
       particleSystem: null,
+      damageEffectApplied: false,
       // Timing configuration
       phaseTimings: {
         windup: 0.2,  // seconds
@@ -112,6 +145,127 @@ class AnimationSystem {
         recovery: 0.1 // seconds
       }
     });
+    
+    // Create projectile animation immediately
+    this.createProjectileEffect(entityId, targetId, unitType);
+  }
+  
+  // Create projectile effect for ranged attacks
+  createProjectileEffect(attackerId, targetId, unitType) {
+    const { scene } = this.systems.sceneManager?.getActiveScene() || {};
+    if (!scene) {
+      if (this.debug) console.log('AnimationSystem: No scene available for projectile');
+      return null;
+    }
+    
+    const attackerPos = this.entityManager.getComponent(attackerId, 'position');
+    const targetPos = this.entityManager.getComponent(targetId, 'position');
+    
+    if (!attackerPos || !targetPos) {
+      if (this.debug) console.log('AnimationSystem: Missing positions for projectile');
+      return null;
+    }
+    
+    // Determine projectile appearance based on unit type
+    let projectileColor;
+    let projectileSize = 0.15;
+    
+    switch(unitType) {
+      case 'assault':
+        projectileColor = 0xFF0000; // Red
+        break;
+      case 'sniper':
+        projectileColor = 0x0088FF; // Blue
+        projectileSize = 0.1; // Smaller, faster projectile
+        break;
+      case 'support':
+        projectileColor = 0x00FF00; // Green
+        projectileSize = 0.2; // Larger healing projectile
+        break;
+      default:
+        projectileColor = 0x00FFFF; // Cyan default
+    }
+    
+    // Create projectile geometry
+    const projectileGeometry = new THREE.SphereGeometry(projectileSize, 8, 8);
+    const projectileMaterial = new THREE.MeshBasicMaterial({
+      color: projectileColor,
+      transparent: true,
+      opacity: 0.8,
+      emissive: projectileColor,
+      emissiveIntensity: 0.5
+    });
+    
+    const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+    
+    // Set initial position at attacker
+    projectile.position.set(
+      attackerPos.x, 
+      attackerPos.y + 1.2, // At weapon height
+      attackerPos.z
+    );
+    
+    // Calculate direction to target
+    const direction = new THREE.Vector3(
+      targetPos.x - attackerPos.x,
+      0, // Keep y level
+      targetPos.z - attackerPos.z
+    ).normalize();
+    
+    // Add data for animation
+    projectile.userData = {
+      startPos: new THREE.Vector3(attackerPos.x, attackerPos.y + 1.2, attackerPos.z),
+      targetPos: new THREE.Vector3(targetPos.x, targetPos.y + 0.6, targetPos.z),
+      direction: direction,
+      speed: unitType === 'sniper' ? 25 : 15, // Sniper shots are faster
+      distanceTraveled: 0,
+      maxDistance: new THREE.Vector3(
+        targetPos.x - attackerPos.x,
+        (targetPos.y + 0.6) - (attackerPos.y + 1.2),
+        targetPos.z - attackerPos.z
+      ).length(),
+      attackerId: attackerId,
+      targetId: targetId,
+      unitType: unitType
+    };
+    
+    // Add projectile trail
+    const trailCount = 5;
+    for (let i = 0; i < trailCount; i++) {
+      const trailScale = 1 - (i / trailCount) * 0.5;
+      const trailOpacity = 0.4 * (1 - i / trailCount);
+      
+      const trailGeometry = new THREE.SphereGeometry(projectileSize * trailScale, 8, 8);
+      const trailMaterial = new THREE.MeshBasicMaterial({
+        color: projectileColor,
+        transparent: true,
+        opacity: trailOpacity
+      });
+      
+      const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+      trail.position.copy(projectile.position);
+      trail.userData = {
+        offset: i * 0.1, // Spacing between trail elements
+        index: i
+      };
+      
+      projectile.add(trail);
+    }
+    
+    // Add point light
+    const light = new THREE.PointLight(projectileColor, 1, 3);
+    projectile.add(light);
+    
+    // Add to scene
+    scene.add(projectile);
+    
+    // Store reference in animating entities
+    const animData = this.animatingEntities.get(attackerId);
+    if (animData) {
+      animData.projectile = projectile;
+    }
+    
+    return projectile;
   }
   
   // Create a weapon mesh based on unit type
@@ -120,6 +274,7 @@ class AnimationSystem {
     
     // Create group to hold all weapon parts
     const group = new THREE.Group();
+    group.userData.isWeapon = true; // Mark as weapon for cleanup
     
     // Base material with glow effect
     const baseMaterial = new THREE.MeshStandardMaterial({
@@ -374,6 +529,66 @@ class AnimationSystem {
     if (animData.particleSystem) {
       this.updateParticles(animData.particleSystem, deltaTime);
     }
+    
+    // Update projectile if it exists
+    if (animData.projectile) {
+      this.updateProjectile(animData.projectile, deltaTime);
+    }
+  }
+  
+  // Update projectile movement and effects
+  updateProjectile(projectile, deltaTime) {
+    if (!projectile || !projectile.userData) return;
+    
+    // Calculate movement
+    const moveDistance = projectile.userData.speed * deltaTime;
+    const direction = projectile.userData.direction;
+    
+    // Move projectile
+    projectile.position.x += direction.x * moveDistance;
+    projectile.position.z += direction.z * moveDistance;
+    
+    // Calculate current distance traveled
+    projectile.userData.distanceTraveled += moveDistance;
+    
+    // Update trail particles
+    projectile.children.forEach(child => {
+      if (child.userData && child.userData.offset !== undefined) {
+        const trailIndex = child.userData.index;
+        const trailOffset = child.userData.offset;
+        
+        // Calculate position along trail
+        const trailX = projectile.position.x - direction.x * trailOffset * trailIndex;
+        const trailZ = projectile.position.z - direction.z * trailOffset * trailIndex;
+        
+        child.position.set(
+          trailX - projectile.position.x,
+          0,
+          trailZ - projectile.position.z
+        );
+      }
+    });
+    
+    // Check if projectile reached target
+    if (projectile.userData.distanceTraveled >= projectile.userData.maxDistance) {
+      // Create impact effect at target location
+      this.createDamageEffect(
+        projectile.userData.targetId, 
+        projectile.userData.unitType
+      );
+      
+      // Remove projectile
+      if (projectile.parent) {
+        projectile.parent.remove(projectile);
+      }
+      this.disposeObject(projectile);
+      
+      // Check if we need to clean up the reference in animating entities
+      const animData = this.animatingEntities.get(projectile.userData.attackerId);
+      if (animData && animData.projectile === projectile) {
+        animData.projectile = null;
+      }
+    }
   }
   
   // Update windup phase
@@ -382,7 +597,7 @@ class AnimationSystem {
     const entityMesh = this.systems.render?.meshes.get(entityId);
     if (!entityMesh) {return;}
     
-    // Create and position weapon mesh if it doesn't exist
+    // Create and position weapon mesh if it doesn't exist (for melee attacks)
     if (!animData.weaponMesh && animData.attackType === 'melee') {
       animData.weaponMesh = this.createWeaponMesh(animData.unitType);
       
@@ -415,10 +630,47 @@ class AnimationSystem {
       animData.weaponMesh.rotation.z = windupProgress * Math.PI * 0.5;
     }
     
+    // For ranged attacks, create any charging effects
+    if (animData.attackType === 'ranged' && !animData.chargeEffect) {
+      const chargeGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+      const chargeColor = this.getUnitTypeColor(animData.unitType);
+      const chargeMaterial = new THREE.MeshBasicMaterial({
+        color: chargeColor,
+        transparent: true,
+        opacity: 0.7
+      });
+      
+      const chargeEffect = new THREE.Mesh(chargeGeometry, chargeMaterial);
+      chargeEffect.position.set(0.5, 1.2, 0.4);
+      
+      // Add to entity mesh
+      entityMesh.add(chargeEffect);
+      animData.chargeEffect = chargeEffect;
+    }
+    
+    // Update charge effect for ranged attacks
+    if (animData.attackType === 'ranged' && animData.chargeEffect) {
+      const windupProgress = animData.stateTime / animData.phaseTimings.windup;
+      const pulseScale = 0.5 + windupProgress * 0.7;
+      animData.chargeEffect.scale.set(pulseScale, pulseScale, pulseScale);
+      
+      // Pulse opacity
+      if (animData.chargeEffect.material) {
+        animData.chargeEffect.material.opacity = 0.7 * (0.5 + Math.sin(windupProgress * Math.PI) * 0.5);
+      }
+    }
+    
     // Transition to strike phase when windup is complete
     if (animData.stateTime >= animData.phaseTimings.windup) {
       animData.state = this.STATES.ATTACK_STRIKE;
       animData.stateTime = 0;
+      
+      // Remove charge effect for ranged attacks before strike
+      if (animData.attackType === 'ranged' && animData.chargeEffect) {
+        entityMesh.remove(animData.chargeEffect);
+        this.disposeObject(animData.chargeEffect);
+        animData.chargeEffect = null;
+      }
     }
   }
   
@@ -426,12 +678,12 @@ class AnimationSystem {
   updateStrikePhase(entityId, animData, deltaTime) {
     // Get the render meshes from render system
     const entityMesh = this.systems.render?.meshes.get(entityId);
-    if (!entityMesh || !animData.weaponMesh) {return;}
+    if (!entityMesh || (!animData.weaponMesh && animData.attackType === 'melee')) {return;}
     
     const strikeProgress = animData.stateTime / animData.phaseTimings.strike;
     
-    // Animate strike (swing weapon)
-    if (animData.attackType === 'melee') {
+    // Animate strike (swing weapon for melee)
+    if (animData.attackType === 'melee' && animData.weaponMesh) {
       // Swing the weapon
       // Start with weapon raised, then swing down in an arc
       const swingAngle = Math.PI * 1.5 * strikeProgress;
@@ -443,12 +695,9 @@ class AnimationSystem {
     }
     
     // If we have a target and we're halfway through the strike, apply damage effect
-    if (strikeProgress >= 0.5 && animData.targetId) {
-      const targetMesh = this.systems.render?.meshes.get(animData.targetId);
-      if (targetMesh && !animData.damageEffectApplied) {
-        this.createDamageEffect(animData.targetId, animData.unitType);
-        animData.damageEffectApplied = true;
-      }
+    if (strikeProgress >= 0.5 && animData.targetId && !animData.damageEffectApplied) {
+      this.createDamageEffect(animData.targetId, animData.unitType);
+      animData.damageEffectApplied = true;
     }
     
     // Transition to recovery phase when strike is complete
@@ -462,12 +711,12 @@ class AnimationSystem {
   updateRecoveryPhase(entityId, animData, deltaTime) {
     // Get the render meshes from render system
     const entityMesh = this.systems.render?.meshes.get(entityId);
-    if (!entityMesh || !animData.weaponMesh) {return;}
+    if (!entityMesh) {return;}
     
     const recoveryProgress = animData.stateTime / animData.phaseTimings.recovery;
     
-    // Animate recovery (weapon dissipating)
-    if (animData.attackType === 'melee') {
+    // Animate recovery (weapon dissipating for melee)
+    if (animData.attackType === 'melee' && animData.weaponMesh) {
       // Fade out the weapon
       const opacity = 1.0 - recoveryProgress;
       
@@ -493,8 +742,8 @@ class AnimationSystem {
     
     // End animation when recovery is complete
     if (animData.stateTime >= animData.phaseTimings.recovery) {
-      // Remove weapon mesh
-      if (animData.weaponMesh) {
+      // Remove weapon mesh for melee
+      if (animData.attackType === 'melee' && animData.weaponMesh) {
         entityMesh.remove(animData.weaponMesh);
         this.disposeObject(animData.weaponMesh);
       }
@@ -517,9 +766,12 @@ class AnimationSystem {
   // Create damage effect on target
   createDamageEffect(targetId, attackerUnitType) {
     const targetMesh = this.systems.render?.meshes.get(targetId);
-    if (!targetMesh) {return;}
+    if (!targetMesh) {
+      if (this.debug) console.log(`AnimationSystem: No target mesh found for entity ${targetId}`);
+      return;
+    }
     
-    // Create a flash effect
+    // Flash effect
     const flashGeometry = new THREE.SphereGeometry(1.0, 8, 8);
     const flashMaterial = new THREE.MeshBasicMaterial({
       color: this.getUnitTypeColor(attackerUnitType),
@@ -534,7 +786,8 @@ class AnimationSystem {
     // Store the creation time for animation
     flash.userData = {
       creationTime: Date.now(),
-      duration: 300 // ms
+      duration: 300, // ms
+      type: 'damageEffect'
     };
     
     // Store the flash effect for cleanup
@@ -570,7 +823,8 @@ class AnimationSystem {
           (Math.random() - 0.5) * 2.0
         ),
         creationTime: Date.now(),
-        duration: 500 + Math.random() * 300 // ms
+        duration: 500 + Math.random() * 300, // ms
+        type: 'damageEffect'
       };
       
       targetMesh.add(spark);
@@ -592,7 +846,8 @@ class AnimationSystem {
     
     sigil.userData = {
       creationTime: Date.now(),
-      duration: 600 // ms
+      duration: 600, // ms
+      type: 'damageEffect'
     };
     
     targetMesh.add(sigil);
@@ -719,6 +974,43 @@ class AnimationSystem {
     
     // Update existing effects (damage flashes, particles, etc)
     this.updateEffects();
+    
+    // Update any projectiles in the scene that aren't specifically tied to an entity
+    const { scene } = this.systems.sceneManager?.getActiveScene() || {};
+    if (scene) {
+      scene.children.forEach(child => {
+        if (child.userData && child.userData.isProjectile) {
+          this.updateProjectile(child, deltaTime);
+        }
+      });
+    }
+    
+    // Update any animation functions stored in userData
+    this.systems.render?.meshes.forEach((mesh) => {
+      this.updateMeshAnimations(mesh, deltaTime);
+    });
+  }
+  
+  // Update mesh animations (for cybernetic elements and special effects)
+  updateMeshAnimations(mesh, deltaTime) {
+    if (!mesh) return;
+    
+    // Update any animation function in userData
+    if (mesh.userData && typeof mesh.userData.update === 'function') {
+      mesh.userData.update(deltaTime);
+    }
+    
+    // Update children recursively
+    mesh.children.forEach(child => {
+      if (child.userData && typeof child.userData.update === 'function') {
+        child.userData.update(deltaTime);
+      }
+      
+      // Recurse into children
+      if (child.children && child.children.length > 0) {
+        this.updateMeshAnimations(child, deltaTime);
+      }
+    });
   }
   
   // Helper to dispose of Three.js objects
@@ -755,6 +1047,14 @@ class AnimationSystem {
       if (entityMesh && animData.particleSystem) {
         entityMesh.remove(animData.particleSystem);
         this.disposeObject(animData.particleSystem);
+      }
+      
+      if (animData.projectile) {
+        const { scene } = this.systems.sceneManager?.getActiveScene() || {};
+        if (scene) {
+          scene.remove(animData.projectile);
+          this.disposeObject(animData.projectile);
+        }
       }
     });
     

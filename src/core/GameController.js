@@ -86,10 +86,10 @@ class GameController {
     this.systems.render = new RenderSystem(this.entityManager, this.sceneManager, this.modelLoader);
     this.systems.movement = new MovementSystem(this.entityManager, this.systems);
     this.systems.combat = new CombatSystem(this.entityManager, this.systems.movement);
+    // Animation system should be created before AI system
+    this.systems.animation = new AnimationSystem(this.entityManager, this.systems);
     this.systems.ai = new AISystem(this.entityManager, this.systems.combat, this.systems.movement);
     this.systems.spawn = new SpawnSystem(this.entityManager);
-    // Add animation system
-    this.systems.animation = new AnimationSystem(this.entityManager, this.systems);
   }
 
   createMainScene() {
@@ -259,17 +259,39 @@ class GameController {
       return false;
     }
     
-    // Initialize each system
-    for (const [name, system] of Object.entries(this.systems)) {
-      if (typeof system.initialize === 'function') {
-        try {
-          console.log(`Initializing system: ${name}`);
-          system.initialize();
-        } catch (error) {
-          console.error(`Error initializing system ${name}:`, error);
-          return false;
-        }
-      }
+    // Initialize render system first
+    if (this.systems.render) {
+      console.log('Initializing render system');
+      this.systems.render.initialize();
+    }
+    
+    // Initialize movement system
+    if (this.systems.movement) {
+      console.log('Initializing movement system');
+      this.systems.movement.initialize();
+    }
+    
+    // Initialize combat system
+    if (this.systems.combat) {
+      console.log('Initializing combat system');
+      this.systems.combat.initialize();
+    }
+    
+    // Initialize animation system after combat system
+    if (this.systems.animation) {
+      console.log('Initializing animation system');
+      this.systems.animation.initialize();
+    }
+    
+    // Initialize AI and spawn systems last
+    if (this.systems.ai) {
+      console.log('Initializing AI system');
+      this.systems.ai.initialize();
+    }
+    
+    if (this.systems.spawn) {
+      console.log('Initializing spawn system');
+      this.systems.spawn.initialize();
     }
     
     console.log('All systems initialized successfully');

@@ -255,7 +255,7 @@ class CombatSystem {
         console.log('CombatSystem connected to AnimationSystem');
       }
     }
-
+  
     // Update cooldowns
     this.attackCooldowns.forEach((cooldown, entityId) => {
       cooldown -= deltaTime;
@@ -304,8 +304,8 @@ class CombatSystem {
         
         // Apply damage to target
         const targetDestroyed = this.applyDamage(targetId, damageInfo);
-
-        // Trigger animation using the stored animation system reference
+  
+        // Trigger animation using the animation system
         if (this.animationSystem && typeof this.animationSystem.startAttackAnimation === 'function') {
           this.animationSystem.startAttackAnimation(attackerId, targetId);
         }
