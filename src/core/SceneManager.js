@@ -92,6 +92,8 @@ class SceneManager {
   }
 
   createScene(id, cameraOptions = {}) {
+    console.log('[Camera Debug] Creating scene with options:', JSON.stringify(cameraOptions, null, 2));
+  
     const scene = new THREE.Scene();
     
     const camera = new THREE.PerspectiveCamera(
@@ -101,13 +103,30 @@ class SceneManager {
       cameraOptions.far || 1000
     );
     
+    console.log('[Camera Debug] Initial camera position before set:', camera.position);
+  
     if (cameraOptions.position) {
-      camera.position.copy(cameraOptions.position);
+      // Validate the position object before copying
+      if (
+        cameraOptions.position instanceof THREE.Vector3 && 
+        !isNaN(cameraOptions.position.x) && 
+        !isNaN(cameraOptions.position.y) && 
+        !isNaN(cameraOptions.position.z)
+      ) {
+        camera.position.copy(cameraOptions.position);
+        console.log('[Camera Debug] Position copied from options:', camera.position);
+      } else {
+        console.warn('[Camera Debug] Invalid position object, using default');
+        camera.position.set(0, 10, 20);
+      }
     } else {
       camera.position.set(0, 10, 20);
+      console.log('[Camera Debug] Using default position:', camera.position);
     }
-    
+  
     camera.lookAt(0, 0, 0);
+    
+    console.log('[Camera Debug] Final camera position:', camera.position);
     
     this.scenes.set(id, { scene, camera });
     return { scene, camera };

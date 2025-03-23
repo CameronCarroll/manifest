@@ -29,6 +29,11 @@ class InputManager {
     this.isEdgePanning = false;
     this.edgePanThreshold = 20; // Pixels from edge to trigger panning
     this.edgePanSpeed = 20; // Movement speed when edge panning
+    this.lastEdgePanState = null;
+    this.edgeThreshold = Math.min(
+      window.innerWidth * 0.08,   // 8% of screen width
+      window.innerHeight * 0.08   // 8% of screen height
+    );
     
     // Create selection box element - THIS IS THE MISSING PART
     this.selectionBox = document.createElement('div');
@@ -395,52 +400,106 @@ class InputManager {
     this.sceneManager.renderer.domElement.addEventListener('contextmenu', (e) => {
       e.preventDefault();
     });
+
+    window.addEventListener('resize', () => {
+      // Recalculate edge threshold on window resize
+      this.edgeThreshold = Math.min(
+        window.innerWidth * 0.08,
+        window.innerHeight * 0.08
+      );
+    });
   }
 
+  // Update edge panning method in InputManager
   checkEdgePanning() {
-    // Check if mouse is near screen edges for camera panning
-    const edgeThreshold = this.edgePanThreshold;
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
-    
+    // Safety checks
+    if (!this.sceneManager || !this.sceneManager.camera) {
+      return false;
+    }
+  
+    const camera = this.sceneManager.camera;
+    const bounds = this.sceneManager.cameraBounds;
+  
+    // Define edge zones (8% of screen width/height)
+    const edgeThreshold = Math.min(
+      window.innerWidth * 0.08,
+      window.innerHeight * 0.08
+    );
+  
+    // Determine pan direction and speed
     let panX = 0;
     let panZ = 0;
-    
-    // Check each edge
+    const basePanSpeed = 10; // Adjusted base speed
+  
+    // Left edge
     if (this.mouseX < edgeThreshold) {
-      // Left edge
-      panX = -this.edgePanSpeed;
-    } else if (this.mouseX > screenWidth - edgeThreshold) {
-      // Right edge
-      panX = this.edgePanSpeed;
+      panX = -basePanSpeed * (1 - this.mouseX / edgeThreshold);
     }
-    
+    // Right edge
+    else if (this.mouseX > window.innerWidth - edgeThreshold) {
+      panX = basePanSpeed * ((this.mouseX - (window.innerWidth - edgeThreshold)) / edgeThreshold);
+    }
+  
+    // Top edge
     if (this.mouseY < edgeThreshold) {
-      // Top edge
-      panZ = -this.edgePanSpeed;
-    } else if (this.mouseY > screenHeight - edgeThreshold) {
-      // Bottom edge
-      panZ = this.edgePanSpeed;
+      panZ = -basePanSpeed * (1 - this.mouseY / edgeThreshold);
     }
-    
-    // Update flag and camera position if panning
-    this.isEdgePanning = (panX !== 0 || panZ !== 0);
-    
-    if (this.isEdgePanning && this.sceneManager && this.sceneManager.camera) {
-      // Move camera
-      const camera = this.sceneManager.camera;
-      camera.position.x += panX * 0.1; // Scale by deltaTime if available
-      camera.position.z += panZ * 0.1;
+    // Bottom edge
+    else if (this.mouseY > window.innerHeight - edgeThreshold) {
+      panZ = basePanSpeed * ((this.mouseY - (window.innerHeight - edgeThreshold)) / edgeThreshold);
+    }
+  
+    // Continuous panning logic
+    if (panX !== 0 || panZ !== 0) {
+      // Enable continuous panning
+      this.isEdgePanning = true;
       
-      // Ensure camera stays within bounds
-      if (this.sceneManager.cameraBounds) {
-        const bounds = this.sceneManager.cameraBounds;
-        camera.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, camera.position.x));
-        camera.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, camera.position.z));
+      // Smooth interpolation
+      const smoothing = 0.2;
+      const newX = camera.position.x + panX * smoothing;
+      const newZ = camera.position.z + panZ * smoothing;
+  
+      // Bounds checking
+      if (bounds) {
+        camera.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, newX));
+        camera.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, newZ));
+      } else {
+        camera.position.x = newX;
+        camera.position.z = newZ;
       }
+  
+      // Visual feedback
+      document.body.style.cursor = 'move';
+    } else {
+      // Reset panning state when not in edge zone
+      this.isEdgePanning = false;
+      document.body.style.cursor = 'default';
+    }
+  
+    return this.isEdgePanning;
+  }
+  
+  // Unchanged helper method
+  calculatePanSpeed(distance, baseSpeed, accelerationCurve) {
+    // Prevent division by zero and NaN
+    if (this.edgeThreshold <= 0) {
+      console.warn('Edge threshold is invalid, resetting to default');
+      this.edgeThreshold = Math.min(
+        window.innerWidth * 0.08,
+        window.innerHeight * 0.08
+      );
     }
     
-    return this.isEdgePanning;
+    // Clamp distance to prevent extreme values
+    const clampedDistance = Math.min(distance, this.edgeThreshold);
+    
+    // Safe calculation with fallback
+    try {
+      return baseSpeed * Math.pow(clampedDistance / this.edgeThreshold, accelerationCurve);
+    } catch (error) {
+      console.error('Pan speed calculation failed:', error);
+      return baseSpeed; // Fallback to base speed
+    }
   }
 
   // Handle selection methods
