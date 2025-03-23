@@ -4,7 +4,7 @@ import GameState from './core/GameState.js';
 import SaveSystem from './core/SaveSystem.js';
 import SceneManager from './core/SceneManager.js';
 import EntityManager from './core/EntityManager.js';
-import ObjectivesSystem from './core/ObjectivesSystem.js';
+import ObjectiveSystem from './core/ObjectiveSystem.js';
 import ResourceSystem from './core/ResourceSystem.js';
 import ProductionSystem from './core/ProductionSystem.js';
 

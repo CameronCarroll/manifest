@@ -161,59 +161,82 @@ describe('InputManager', () => {
       checkEdgePanningSpy.mockRestore();
     });
 
-    test('onMouseDown sets isMouseDown and handles left click', () => {
-      // Spy on startSelection method
-      const startSelectionSpy = jest.spyOn(inputManager, 'startSelection').mockImplementation();
+    test('onMouseDown should handle left click properly', () => {
+      // Spy on clearSelection method (this is actually called)
+      const clearSelectionSpy = jest.spyOn(inputManager, 'clearSelection').mockImplementation();
       
-      handleCommandSpy = jest.spyOn(inputManager, 'handleCommand').mockImplementation(() => {});
-
-      // Then ensure onMouseDown directly calls handleCommand
-      test('onMouseDown handles right click command', () => {
-        // Spy on handleCommand method
-        const handleCommandSpy = jest.spyOn(inputManager, 'handleCommand').mockImplementation();
-        
-        // Create mock event for right click
-        const mockEvent = { button: 2, clientX: 100, clientY: 200 };
-        
-        // Call onMouseDown
-        inputManager.onMouseDown(mockEvent);
-        
-        // Verify handleCommand is called
-        expect(handleCommandSpy).toHaveBeenCalledWith(mockEvent);
-        
-        // Restore the original method
-        handleCommandSpy.mockRestore();
-      });
+      // Spy on selectAllUnitsOfSameType for double click case
+      const selectAllUnitsOfSameTypeSpy = jest.spyOn(inputManager, 'selectAllUnitsOfSameType').mockImplementation();
       
       // Create mock event for left click
-      const mockEvent = { button: 0, clientX: 100, clientY: 200 };
+      const mockEvent = { 
+        button: 0,
+        clientX: 100, 
+        clientY: 200,
+        shiftKey: false
+      };
+      
+      // Mock updateMousePosition to avoid errors
+      jest.spyOn(inputManager, 'updateMousePosition').mockImplementation();
       
       // Call onMouseDown
       inputManager.onMouseDown(mockEvent);
       
-      // Verify isMouseDown is set and startSelection is called
+      // Verify isMouseDown is set and selection is started
       expect(inputManager.isMouseDown).toBe(true);
-      expect(startSelectionSpy).toHaveBeenCalledWith(mockEvent);
+      expect(inputManager.isSelecting).toBe(true);
+      expect(clearSelectionSpy).toHaveBeenCalled();
+      expect(selectAllUnitsOfSameTypeSpy).not.toHaveBeenCalled();
       
-      // Restore the original method
-      startSelectionSpy.mockRestore();
+      // Reset spies
+      clearSelectionSpy.mockClear();
+      
+      // Test shift+click behavior (should not clear selection)
+      const shiftClickEvent = {
+        button: 0,
+        clientX: 120,
+        clientY: 220,
+        shiftKey: true
+      };
+      
+      // Call onMouseDown with shift
+      inputManager.onMouseDown(shiftClickEvent);
+      
+      // Verify behavior
+      expect(clearSelectionSpy).not.toHaveBeenCalled(); // Should not clear with shift held
+      
+      // Restore mocks
+      clearSelectionSpy.mockRestore();
+      selectAllUnitsOfSameTypeSpy.mockRestore();
+      inputManager.updateMousePosition.mockRestore();
     });
 
     test('onMouseDown handles right click command', () => {
-      // Spy on handleCommand method
-      const handleCommandSpy = jest.spyOn(inputManager, 'handleCommand').mockImplementation();
+      // Mock the necessary methods
+      jest.spyOn(inputManager, 'updateMousePosition').mockImplementation();
+      const castRaySpy = jest.spyOn(inputManager, 'castRay').mockReturnValue({ point: { x: 10, y: 0, z: 10 } });
+      const issueMoveCommandSpy = jest.spyOn(inputManager, 'issueMoveCommand').mockImplementation();
       
       // Create mock event for right click
-      const mockEvent = { button: 2, clientX: 100, clientY: 200 };
+      const mockEvent = { 
+        button: 2, 
+        clientX: 100, 
+        clientY: 200,
+        preventDefault: jest.fn()
+      };
       
       // Call onMouseDown
       inputManager.onMouseDown(mockEvent);
       
-      // Verify handleCommand is called
-      expect(handleCommandSpy).toHaveBeenCalledWith(mockEvent);
+      // Verify right click behavior
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+      expect(castRaySpy).toHaveBeenCalled();
+      expect(issueMoveCommandSpy).toHaveBeenCalledWith({ x: 10, y: 0, z: 10 });
       
-      // Restore the original method
-      handleCommandSpy.mockRestore();
+      // Restore mocks
+      inputManager.updateMousePosition.mockRestore();
+      castRaySpy.mockRestore();
+      issueMoveCommandSpy.mockRestore();
     });
 
     test('onMouseUp handles left click completion', () => {
@@ -223,12 +246,26 @@ describe('InputManager', () => {
       // Create mock event for left click
       const mockEvent = { button: 0 };
       
+      // Set isSelecting to true to match the condition in the implementation
+      inputManager.isSelecting = true;
+      
       // Call onMouseUp
       inputManager.onMouseUp(mockEvent);
       
       // Verify isMouseDown is cleared and completeSelection is called
       expect(inputManager.isMouseDown).toBe(false);
       expect(completeSelectionSpy).toHaveBeenCalledWith(mockEvent);
+      
+      // Reset isSelecting to false
+      inputManager.isSelecting = false;
+      completeSelectionSpy.mockClear();
+      
+      // Test the case when isSelecting is false
+      inputManager.onMouseUp(mockEvent);
+      
+      // Verify isMouseDown is still cleared but completeSelection is NOT called
+      expect(inputManager.isMouseDown).toBe(false);
+      expect(completeSelectionSpy).not.toHaveBeenCalled();
       
       // Restore the original method
       completeSelectionSpy.mockRestore();
@@ -345,26 +382,47 @@ describe('InputManager', () => {
   });
 
   describe('command handling', () => {
-    test('handleCommand creates and executes move commands', () => {
+    test('handleCommand should move selected entities and target enemies when found', () => {
       // Add entities to selection
       inputManager.selectedEntities.add(1);
       inputManager.selectedEntities.add(2);
       
-      // Spy on executeCommands method
-      const executeCommandsSpy = jest.spyOn(inputManager, 'executeCommands').mockImplementation();
+      // Mock the ray casting result to simulate clicking on a point
+      const mockIntersectPoint = { x: 10, y: 0, z: 15 };
+      jest.spyOn(inputManager, 'castRay').mockReturnValue({ point: mockIntersectPoint });
       
-      // Mock event
-      const mockEvent = {};
+      // Mock first to check normal movement
+      jest.spyOn(inputManager, 'getEntityAtPosition').mockReturnValue(null);
+      jest.spyOn(inputManager, 'isEnemyEntity').mockReturnValue(false);
       
-      // Call handleCommand
+      // Call handleCommand with a mock event
+      const mockEvent = { button: 2, preventDefault: jest.fn() };
       inputManager.handleCommand(mockEvent);
       
-      // Verify movement commands were created and executed
+      // Verify movement commands were created
       expect(mockMovementSystem.moveEntity).toHaveBeenCalledTimes(2);
-      expect(executeCommandsSpy).toHaveBeenCalledWith(expect.any(Array));
+      expect(mockMovementSystem.moveEntity).toHaveBeenCalledWith(1, mockIntersectPoint);
+      expect(mockMovementSystem.moveEntity).toHaveBeenCalledWith(2, mockIntersectPoint);
       
-      // Restore original method
-      executeCommandsSpy.mockRestore();
+      // Reset mocks
+      mockMovementSystem.moveEntity.mockClear();
+      
+      // Now test targeting an enemy
+      const mockEnemyId = 3;
+      inputManager.getEntityAtPosition.mockReturnValue(mockEnemyId);
+      inputManager.isEnemyEntity.mockReturnValue(true);
+      
+      // Mock the combat system
+      const mockCombatSystem = { startAttack: jest.fn() };
+      inputManager.systems.combat = mockCombatSystem;
+      
+      // Call handleCommand again
+      inputManager.handleCommand(mockEvent);
+      
+      // Verify attack commands were issued
+      expect(mockCombatSystem.startAttack).toHaveBeenCalledTimes(2);
+      expect(mockCombatSystem.startAttack).toHaveBeenCalledWith(1, mockEnemyId);
+      expect(mockCombatSystem.startAttack).toHaveBeenCalledWith(2, mockEnemyId);
     });
 
     test('executeCommands adds commands to undoStack and clears redoStack', () => {
