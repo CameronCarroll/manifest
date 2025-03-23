@@ -449,7 +449,7 @@ class InputManager {
     this.selectionStart = { x: event.clientX, y: event.clientY };
     this.selectionEnd = { x: event.clientX, y: event.clientY };
     // DON'T show the box immediately
-  this.selectionBox.style.display = 'none';
+    this.selectionBox.style.display = 'none';
   }
 
   updateSelectionBox(event) {
@@ -637,7 +637,7 @@ class InputManager {
   }
 
   getEntitiesInSelectionBox() {
-     // Convert selection start/end to screen coordinates
+    // Convert selection start/end to screen coordinates
     const startX = Math.min(this.selectionStart.x, this.selectionEnd.x);
     const startY = Math.min(this.selectionStart.y, this.selectionEnd.y);
     const endX = Math.max(this.selectionStart.x, this.selectionEnd.x);
@@ -655,7 +655,7 @@ class InputManager {
         const position = this.entityManager.getComponent(entityId, 'position');
         const { camera } = this.sceneManager.getActiveScene();
         
-        if (!camera) return;
+        if (!camera) {return;}
         
         // Convert 3D position to screen coordinates
         const pos3D = new THREE.Vector3(position.x, position.y, position.z);

@@ -6,14 +6,15 @@ import GameController from './core/GameController.js';
 window.addEventListener('DOMContentLoaded', () => {
   console.log('DOM content loaded, initializing game');
   
-  // Create menu system
-  const menuSystem = new MenuSystem();
-  
   // Create game controller but don't start it yet
   const gameController = new GameController();
   
+  // Create menu system AFTER game controller is initialized
+  const menuSystem = new MenuSystem();
+  
   // Register game start callback
   menuSystem.onStartGame = (scenarioId) => {
+    console.log(`Starting scenario: ${scenarioId}`);
     menuSystem.hideMainMenu();
     gameController.loadScenario(scenarioId);
     gameController.start();
@@ -24,12 +25,12 @@ window.addEventListener('DOMContentLoaded', () => {
     menuSystem.showGameOver(playerWon);
   };
   
-  // Show the main menu
-  menuSystem.showMainMenu();
-  
-  // Expose for debugging
+  // Expose for debugging and menu access to scenarios
   window.game = {
     menuSystem,
     gameController
   };
+  
+  // Show the main menu
+  menuSystem.showMainMenu();
 });

@@ -177,7 +177,7 @@ class GameController {
   }
 
   start() {
-    if (this.isRunning) return;
+    if (this.isRunning) {return;}
     
     console.log('Starting game');
     
@@ -240,7 +240,7 @@ class GameController {
   }
 
   update(deltaTime) {
-    if (this.isPaused) return;
+    if (this.isPaused) {return;}
     
     // Update game state
     this.gameState.update(deltaTime);
@@ -301,13 +301,13 @@ class GameController {
   }
 
   pause() {
-    if (!this.isRunning) return;
+    if (!this.isRunning) {return;}
     this.isPaused = true;
     console.log('Game paused');
   }
 
   resume() {
-    if (!this.isRunning) return;
+    if (!this.isRunning) {return;}
     this.isPaused = false;
     console.log('Game resumed');
   }

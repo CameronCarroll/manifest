@@ -417,103 +417,153 @@
     });
     
     function updateUI() {
-      if (!window.game) return;
-      
-      // Update selection info
-      const selectionInfo = document.getElementById('selection-info');
-      const selectedEntities = window.game.inputManager.selectedEntities;
-      
-      if (selectedEntities.size > 0) {
-        let unitTypes = {};
-        let totalHealth = 0;
-        let totalMaxHealth = 0;
-        
-        selectedEntities.forEach(entityId => {
-          const entity = window.game.entityManager;
-          if (entity.hasComponent(entityId, 'faction') && entity.hasComponent(entityId, 'health')) {
-            const faction = entity.getComponent(entityId, 'faction');
-            const health = entity.getComponent(entityId, 'health');
-            
-            // Count unit types
-            const unitType = faction.unitType || 'unknown';
-            unitTypes[unitType] = (unitTypes[unitType] || 0) + 1;
-            
-            // Sum health
-            totalHealth += health.currentHealth;
-            totalMaxHealth += health.maxHealth;
-          }
-        });
-        
-        // Create selection info text
-        let infoText = `<p>Selected: ${selectedEntities.size} units</p>`;
-        infoText += `<p>Health: ${Math.floor(totalHealth)}/${totalMaxHealth}</p>`;
-        
-        // List unit types
-        infoText += '<p>Types: ';
-        for (const [type, count] of Object.entries(unitTypes)) {
-          infoText += `${type} (${count}) `;
-        }
-        infoText += '</p>';
-        
-        selectionInfo.innerHTML = infoText;
-        selectionInfo.style.display = 'block';
-      } else {
-        selectionInfo.style.display = 'none';
-      }
-      
-      // Update wave info
-      if (window.game.systems && window.game.systems.spawn) {
-        const waveInfo = window.game.systems.spawn.activeWaves;
-        const currentWave = document.getElementById('current-wave');
-        const enemiesRemaining = document.getElementById('enemies-remaining');
-        
-        let activeWaveId = 0;
-        let remainingEnemies = 0;
-        
-        waveInfo.forEach((wave, waveId) => {
-          if (wave.active && !wave.completed) {
-            activeWaveId = Math.max(activeWaveId, waveId);
-            remainingEnemies += (wave.totalEnemies - wave.spawnedEnemies);
-          }
-        });
-        
-        currentWave.textContent = `Current Wave: ${activeWaveId}`;
-        enemiesRemaining.textContent = `Enemies Remaining: ${remainingEnemies}`;
-      }
-      
-      // Update objectives
-      if (window.game.systems && window.game.systems.objectives) {
-        const objectivesStatus = window.game.systems.objectives.getObjectivesStatus();
-        const objectivesList = document.querySelector('#objectives-display .objective-list');
-        
-        let objectivesHTML = '';
-        
-        objectivesStatus.objectives.forEach(objective => {
-          const progressWidth = Math.floor(objective.progress * 100);
-          const checkmark = objective.completed ? '✓' : '●';
-          
-          objectivesHTML += `
-            <div class="objective-item">
-              <div class="objective-header">
-                <div class="objective-icon">${checkmark}</div>
-                <div class="objective-text">${objective.title}</div>
-              </div>
-              <div class="objective-progress">
-                <div class="objective-progress-fill" style="width: ${progressWidth}%"></div>
-              </div>
-            </div>
-          `;
-        });
-        
-        objectivesList.innerHTML = objectivesHTML;
-      }
-      
-      // Update production display
-      const productionDisplay = document.getElementById('production-display');
-      if (productionDisplay && productionDisplay.innerHTML.trim() === '') {
-        productionDisplay.innerHTML = '<div class="panel-header"><h3>Production</h3></div><div class="panel-content"></div>';
-      }
+  // Return early if game object doesn't exist
+  if (!window.game || !window.game.gameController) return;
+  
+  const gameController = window.game.gameController;
+  const entityManager = gameController.entityManager;
+  
+  // Update selection info
+  updateSelectionInfo();
+  
+  // Update wave info
+  updateWaveInfo();
+  
+  // Update objectives display
+  updateObjectives();
+  
+  // Update production display
+  initializeProductionDisplay();
+  
+  // Helper function to update selection information
+  function updateSelectionInfo() {
+    const selectionInfo = document.getElementById('selection-info');
+    if (!selectionInfo) return;
+    
+    // Check if inputManager exists and has selected entities
+    const inputManager = gameController.inputManager;
+    if (!inputManager || !inputManager.selectedEntities) {
+      selectionInfo.style.display = 'none';
+      return;
     }
+    
+    const selectedEntities = inputManager.selectedEntities;
+    
+    if (selectedEntities.size > 0 && entityManager) {
+      let unitTypes = {};
+      let totalHealth = 0;
+      let totalMaxHealth = 0;
+      
+      selectedEntities.forEach(entityId => {
+        if (entityManager.hasComponent(entityId, 'faction') && 
+            entityManager.hasComponent(entityId, 'health')) {
+          
+          const faction = entityManager.getComponent(entityId, 'faction');
+          const health = entityManager.getComponent(entityId, 'health');
+          
+          // Count unit types
+          const unitType = faction.unitType || 'unknown';
+          unitTypes[unitType] = (unitTypes[unitType] || 0) + 1;
+          
+          // Sum health
+          totalHealth += health.currentHealth;
+          totalMaxHealth += health.maxHealth;
+        }
+      });
+      
+      // Create selection info text
+      let infoText = `<p>Selected: ${selectedEntities.size} units</p>`;
+      infoText += `<p>Health: ${Math.floor(totalHealth)}/${totalMaxHealth}</p>`;
+      
+      // List unit types
+      infoText += '<p>Types: ';
+      for (const [type, count] of Object.entries(unitTypes)) {
+        infoText += `${type} (${count}) `;
+      }
+      infoText += '</p>';
+      
+      selectionInfo.innerHTML = infoText;
+      selectionInfo.style.display = 'block';
+    } else {
+      selectionInfo.style.display = 'none';
+    }
+  }
+  
+  // Helper function to update wave information
+  function updateWaveInfo() {
+    if (!gameController.systems || !gameController.systems.spawn) return;
+    
+    const waveInfo = gameController.systems.spawn.activeWaves;
+    const currentWave = document.getElementById('current-wave');
+    const enemiesRemaining = document.getElementById('enemies-remaining');
+    
+    if (!waveInfo || !currentWave || !enemiesRemaining) return;
+    
+    let activeWaveId = 0;
+    let remainingEnemies = 0;
+    
+    waveInfo.forEach((wave, waveId) => {
+      if (wave.active && !wave.completed) {
+        activeWaveId = Math.max(activeWaveId, waveId);
+        remainingEnemies += (wave.totalEnemies - wave.spawnedEnemies);
+      }
+    });
+    
+    currentWave.textContent = `Current Wave: ${activeWaveId}`;
+    enemiesRemaining.textContent = `Enemies Remaining: ${remainingEnemies}`;
+  }
+  
+  // Helper function to update objectives display
+  function updateObjectives() {
+    if (!gameController.systems || !gameController.systems.objectives) return;
+    
+    const objectivesSystem = gameController.systems.objectives;
+    const objectivesList = document.querySelector('#objectives-display .objective-list');
+    
+    if (!objectivesList || typeof objectivesSystem.getObjectivesStatus !== 'function') return;
+    
+    try {
+      const objectivesStatus = objectivesSystem.getObjectivesStatus();
+      
+      if (!objectivesStatus || !objectivesStatus.objectives) return;
+      
+      let objectivesHTML = '';
+      
+      objectivesStatus.objectives.forEach(objective => {
+        if (!objective) return;
+        
+        const progressWidth = Math.floor((objective.progress || 0) * 100);
+        const checkmark = objective.completed ? '✓' : '●';
+        
+        objectivesHTML += `
+          <div class="objective-item">
+            <div class="objective-header">
+              <div class="objective-icon">${checkmark}</div>
+              <div class="objective-text">${objective.title || 'Unnamed Objective'}</div>
+            </div>
+            <div class="objective-progress">
+              <div class="objective-progress-fill" style="width: ${progressWidth}%"></div>
+            </div>
+          </div>
+        `;
+      });
+      
+      objectivesList.innerHTML = objectivesHTML;
+    } catch (error) {
+      console.error("Error updating objectives:", error);
+    }
+  }
+  
+  // Helper function to initialize production display panel if empty
+  function initializeProductionDisplay() {
+    const productionDisplay = document.getElementById('production-display');
+    if (!productionDisplay) return;
+    
+    if (productionDisplay.innerHTML.trim() === '') {
+      productionDisplay.innerHTML = '<div class="panel-header"><h3>Production</h3></div><div class="panel-content"></div>';
+    }
+  }
+}
   </script>
 </body>
 </html>

@@ -5,23 +5,23 @@ class TutorialScenario extends BaseScenario {
   constructor(gameController) {
     super(gameController);
     
-    this.name = "Tutorial";
-    this.description = "Learn the basics of the game";
+    this.name = 'Tutorial';
+    this.description = 'Learn the basics of the game';
     
     // Steps for the tutorial
     this.tutorialSteps = [
       {
-        message: "Welcome to the tutorial! First, select a unit by clicking on it.",
+        message: 'Welcome to the tutorial! First, select a unit by clicking on it.',
         condition: () => this.gameController.inputManager.selectedEntities.size > 0,
         completed: false
       },
       {
-        message: "Great! Now right-click somewhere to move your unit.",
+        message: 'Great! Now right-click somewhere to move your unit.',
         condition: () => this.unitMoved,
         completed: false
       },
       {
-        message: "Perfect! Now select multiple units by dragging a box around them.",
+        message: 'Perfect! Now select multiple units by dragging a box around them.',
         condition: () => this.gameController.inputManager.selectedEntities.size > 2,
         completed: false
       },

@@ -6,8 +6,8 @@ class DefaultScenario extends BaseScenario {
   constructor(gameController) {
     super(gameController);
     
-    this.name = "Default Scenario";
-    this.description = "Defend your base against waves of enemies";
+    this.name = 'Default Scenario';
+    this.description = 'Defend your base against waves of enemies';
     
     // Set initial resources
     this.initialResources = {
