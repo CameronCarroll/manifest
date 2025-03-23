@@ -379,6 +379,122 @@ describe('InputManager', () => {
       // Verify render system is updated
       expect(mockRenderSystem.updateSelections).toHaveBeenCalledWith(inputManager.selectedEntities);
     });
+
+    test('getEntitiesInSelectionBox returns entities within screen coordinates', () => {
+      // Get the actual THREE mock
+      const THREE = jest.requireMock('three');
+      
+      // Set up selection box coordinates
+      inputManager.selectionStart = { x: 200, y: 200 };
+      inputManager.selectionEnd = { x: 600, y: 500 };
+      
+      // Create a mock Vector3 with project method
+      const mockVector3 = {
+        project: jest.fn().mockReturnValue({ x: -0.3, y: -0.3 }) 
+        // With window size 800x600, this will map to screenX=280, screenY=390
+        // Which is inside our selection box (200,200) to (600,500)
+      };
+      
+      // Setup THREE.Vector3 mock
+      THREE.Vector3.mockImplementation(() => mockVector3);
+      
+      // Setup gameState entities
+      mockEntityManager.gameState.entities = new Map([
+        [1, {}] // Test entity
+      ]);
+      
+      // Mock window dimensions
+      Object.defineProperty(window, 'innerWidth', { value: 800 });
+      Object.defineProperty(window, 'innerHeight', { value: 600 });
+      
+      // Mock necessary methods
+      jest.spyOn(inputManager, 'isPlayerEntity').mockReturnValue(true);
+      mockEntityManager.hasComponent.mockReturnValue(true);
+      mockEntityManager.getComponent.mockReturnValue({ x: 10, y: 0, z: 10 });
+      
+      // Get entities in selection box
+      const selectedEntities = inputManager.getEntitiesInSelectionBox();
+      
+      // Verify selection (should now be selected because converted coordinates are in the box)
+      expect(selectedEntities.size).toBe(1);
+      expect(selectedEntities.has(1)).toBe(true);
+    });
+    
+    test('getEntitiesInSelectionBox handles entities outside selection', () => {
+      // Get the actual THREE mock from the jest.mock setup
+      const THREE = jest.requireMock('three');
+      
+      // Set up the selection box coordinates
+      inputManager.selectionStart = { x: 100, y: 100 };
+      inputManager.selectionEnd = { x: 200, y: 200 };
+      
+      // Mock Vector3 for projection to be outside the selection box
+      const mockVector3 = { 
+        project: jest.fn().mockImplementation(() => ({ x: 0.9, y: 0.9 })) 
+      };
+      THREE.Vector3.mockImplementation(() => mockVector3);
+      
+      // Set up gameState entities
+      mockEntityManager.gameState.entities = new Map([
+        [1, {}]  // Entity 1
+      ]);
+      
+      // Mock isPlayerEntity to return true
+      jest.spyOn(inputManager, 'isPlayerEntity').mockReturnValue(true);
+      
+      // Mock window dimensions
+      Object.defineProperty(window, 'innerWidth', { value: 800 });
+      Object.defineProperty(window, 'innerHeight', { value: 600 });
+      
+      // Entity position doesn't matter since projection is mocked
+      mockEntityManager.getComponent.mockReturnValue({ x: 10, y: 0, z: 10 });
+      
+      // Get entities in selection box
+      const selectedEntities = inputManager.getEntitiesInSelectionBox();
+      
+      // Verify selectedEntities is empty (entity is outside box)
+      expect(selectedEntities.size).toBe(0);
+    });
+    
+    test('getEntitiesInSelectionBox skips non-player entities', () => {
+      // Get the actual THREE mock from the jest.mock setup
+      const THREE = jest.requireMock('three');
+      
+      // Set up the selection box to cover the entire screen
+      inputManager.selectionStart = { x: 0, y: 0 };
+      inputManager.selectionEnd = { x: 800, y: 600 };
+      
+      // Mock Vector3 to project in screen center
+      const mockVector3 = { 
+        project: jest.fn().mockImplementation(() => ({ x: 0, y: 0 })) 
+      };
+      THREE.Vector3.mockImplementation(() => mockVector3);
+      
+      // Set up gameState entities
+      mockEntityManager.gameState.entities = new Map([
+        [1, {}], // Entity 1 - player entity
+        [2, {}]  // Entity 2 - enemy entity
+      ]);
+      
+      // Mock isPlayerEntity to return true only for entity 1
+      jest.spyOn(inputManager, 'isPlayerEntity').mockImplementation((entityId) => {
+        return entityId === 1;
+      });
+      
+      // Both entities have position components
+      mockEntityManager.hasComponent.mockReturnValue(true);
+      
+      // Both entities are at the same position
+      mockEntityManager.getComponent.mockReturnValue({ x: 0, y: 0, z: 0 });
+      
+      // Get entities in selection box
+      const selectedEntities = inputManager.getEntitiesInSelectionBox();
+      
+      // Verify only player entity is selected (entity 1)
+      expect(selectedEntities.size).toBe(1);
+      expect(selectedEntities.has(1)).toBe(true);
+      expect(selectedEntities.has(2)).toBe(false);
+    });
   });
 
   describe('command handling', () => {

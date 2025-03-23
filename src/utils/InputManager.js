@@ -638,6 +638,46 @@ class InputManager {
   
     return null;
   }
+
+  getEntitiesInSelectionBox() {
+     // Convert selection start/end to screen coordinates
+    const startX = Math.min(this.selectionStart.x, this.selectionEnd.x);
+    const startY = Math.min(this.selectionStart.y, this.selectionEnd.y);
+    const endX = Math.max(this.selectionStart.x, this.selectionEnd.x);
+    const endY = Math.max(this.selectionStart.y, this.selectionEnd.y);
+    
+    // Entities found in selection box
+    const selectedEntities = new Set();
+    
+    // Check each entity
+    this.entityManager.gameState.entities.forEach((entity, entityId) => {
+      // Only consider player entities with position
+      if (this.isPlayerEntity(entityId) && 
+          this.entityManager.hasComponent(entityId, 'position')) {
+        
+        const position = this.entityManager.getComponent(entityId, 'position');
+        const { camera } = this.sceneManager.getActiveScene();
+        
+        if (!camera) return;
+        
+        // Convert 3D position to screen coordinates
+        const pos3D = new THREE.Vector3(position.x, position.y, position.z);
+        const screenPos = pos3D.project(camera);
+        
+        // Convert to pixel coordinates
+        const screenX = (screenPos.x + 1) / 2 * window.innerWidth;
+        const screenY = (-screenPos.y + 1) / 2 * window.innerHeight;
+        
+        // Check if the entity is inside the selection box
+        if (screenX >= startX && screenX <= endX && 
+            screenY >= startY && screenY <= endY) {
+          selectedEntities.add(entityId);
+        }
+      }
+    });
+    
+    return selectedEntities;
+  }
 }
 
 export default InputManager;
