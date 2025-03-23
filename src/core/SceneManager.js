@@ -13,7 +13,7 @@ class SceneManager {
     this.zoomSpeed = 1.1; // Zoom sensitivity
     
     // Camera control properties
-    this.cameraSpeed = 20; // Units per second
+    this.cameraSpeed = 25; // Units per second - increased by 25%
     this.cameraBounds = {
       minX: -50, maxX: 50,
       minZ: -50, maxZ: 50
@@ -55,7 +55,9 @@ class SceneManager {
   }
 
   onMouseWheel(event) {
-    if (!this.camera) return;
+    if (!this.camera) {
+      return;
+    }
 
     // Prevent default scroll behavior
     event.preventDefault();

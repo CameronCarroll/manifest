@@ -126,6 +126,7 @@ class MenuSystem {
           <p>- Right-click to move selected units</p>
           <p>- Right-click on enemy to attack</p>
           <p>- WASD or arrow keys to move camera</p>
+          <p>- Middle mouse button drag to pan camera</p>
         </div>
       </div>
     `;

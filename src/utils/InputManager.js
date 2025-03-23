@@ -18,6 +18,13 @@ class InputManager {
     this.selectionEnd = { x: 0, y: 0 };
     this.selectedEntities = new Set();
     this.isAttackMoveMode = false; // Track if we're in attack-move mode
+    
+    // Middle mouse button panning
+    this.isMiddleMouseDown = false;
+    this.middleMouseStart = { x: 0, y: 0 };
+    this.lastMouseX = 0;
+    this.lastMouseY = 0;
+    this.isPanning = false;
 
     // Create raycaster for picking
     this.raycaster = new THREE.Raycaster();
@@ -68,37 +75,59 @@ class InputManager {
     const isDoubleClick = (now - this.lastClickTime) < this.doubleClickDelay;
     this.lastClickTime = now;
 
-    // Right click - issue move/attack command
-  if (event.button === 2) {
-    // Only call preventDefault if it exists (for testing compatibility)
-    if (typeof event.preventDefault === 'function') {
-      event.preventDefault();
-    }
-    
-    // Cast ray to find intersected objects
-    const intersect = this.castRay();
-    
-    if (intersect) {
-      // Check if we clicked on an entity
-      const clickedEntityId = this.getEntityAtPosition(intersect.point);
+    // Middle mouse button - camera panning
+    if (event.button === 1) {
+      // Prevent default browser behavior (often page scrolling with middle mouse)
+      if (typeof event.preventDefault === 'function') {
+        event.preventDefault();
+      }
       
-      // If we clicked on an enemy entity, issue attack command
-      if (clickedEntityId && this.isEnemyEntity(clickedEntityId)) {
-        this.issueAttackCommand(clickedEntityId);
-      } else {
-        // If in attack-move mode, issue attack-move command
-        if (this.isAttackMoveMode) {
-          this.issueAttackMoveCommand(intersect.point);
-          this.toggleAttackMoveMode(false); // Turn off attack-move mode after use
+      // Set middle mouse button state
+      this.isMiddleMouseDown = true;
+      this.isPanning = true;
+      
+      // Store initial position for calculating deltas
+      this.middleMouseStart = { x: event.clientX, y: event.clientY };
+      this.lastMouseX = event.clientX;
+      this.lastMouseY = event.clientY;
+      
+      // Change cursor to indicate panning mode
+      document.body.style.cursor = 'grabbing';
+      
+      return;
+    }
+
+    // Right click - issue move/attack command
+    if (event.button === 2) {
+      // Only call preventDefault if it exists (for testing compatibility)
+      if (typeof event.preventDefault === 'function') {
+        event.preventDefault();
+      }
+      
+      // Cast ray to find intersected objects
+      const intersect = this.castRay();
+      
+      if (intersect) {
+        // Check if we clicked on an entity
+        const clickedEntityId = this.getEntityAtPosition(intersect.point);
+        
+        // If we clicked on an enemy entity, issue attack command
+        if (clickedEntityId && this.isEnemyEntity(clickedEntityId)) {
+          this.issueAttackCommand(clickedEntityId);
         } else {
-          // Otherwise issue move command to the clicked position
-          this.issueMoveCommand(intersect.point);
+          // If in attack-move mode, issue attack-move command
+          if (this.isAttackMoveMode) {
+            this.issueAttackMoveCommand(intersect.point);
+            this.toggleAttackMoveMode(false); // Turn off attack-move mode after use
+          } else {
+            // Otherwise issue move command to the clicked position
+            this.issueMoveCommand(intersect.point);
+          }
         }
       }
+      
+      return;
     }
-    
-    return;
-  }
 
     // Left click - selection
     if (event.button === 0) {
@@ -137,16 +166,65 @@ class InputManager {
       this.updateSelectionBox(event);
     }
 
+    // Handle middle mouse button camera panning
+    if (this.isMiddleMouseDown && this.isPanning) {
+      // Calculate movement delta
+      const deltaX = this.mouseX - this.lastMouseX;
+      const deltaY = this.mouseY - this.lastMouseY;
+      
+      // Update last position for next frame
+      this.lastMouseX = this.mouseX;
+      this.lastMouseY = this.mouseY;
+      
+      // Apply camera movement (invert direction for natural feel)
+      if (this.sceneManager && this.sceneManager.camera) {
+        const camera = this.sceneManager.camera;
+        const cameraMoveSpeed = 0.15; // Reduced by 25% from 0.2
+        
+        // Move camera based on mouse drag (invert deltaX and deltaY for natural feel)
+        camera.position.x -= deltaX * cameraMoveSpeed;
+        camera.position.z -= deltaY * cameraMoveSpeed;
+        
+        // Apply camera bounds if they exist
+        const bounds = this.sceneManager.cameraBounds;
+        if (bounds) {
+          camera.position.x = Math.max(bounds.minX, Math.min(bounds.maxX, camera.position.x));
+          camera.position.z = Math.max(bounds.minZ, Math.min(bounds.maxZ, camera.position.z));
+        }
+      }
+      
+      // Prevent default behavior to avoid text selection during drag
+      if (typeof event.preventDefault === 'function') {
+        event.preventDefault();
+      }
+      
+      return;
+    }
+
     // Check for edge panning
     this.checkEdgePanning();
   }
 
   onMouseUp(event) {
+    // Left mouse button release
     if (event.button === 0) {
       this.isMouseDown = false;
 
       if (this.isSelecting) {
         this.completeSelection(event);
+      }
+    }
+    
+    // Middle mouse button release
+    if (event.button === 1) {
+      this.isMiddleMouseDown = false;
+      this.isPanning = false;
+      
+      // Reset cursor
+      if (this.isAttackMoveMode) {
+        document.body.style.cursor = 'crosshair'; // Maintain attack-move cursor
+      } else {
+        document.body.style.cursor = 'default';
       }
     }
   }
