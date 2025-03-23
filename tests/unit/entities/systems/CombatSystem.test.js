@@ -69,15 +69,27 @@ describe('CombatSystem', () => {
     });
 
     test('should start attack if valid', () => {
+      // Mock hasComponent to return true for all relevant checks
+      mockEntityManager.hasComponent.mockImplementation((entityId, componentType) => {
+        // Return true for all component checks in startAttack
+        return true;
+      });
+      
       // Mock canAttack to return true
       jest.spyOn(combatSystem, 'canAttack').mockReturnValue(true);
       
       // Mock getComponent to return different factions
       mockEntityManager.getComponent.mockImplementation((entityId, componentType) => {
         if (componentType === 'faction') {
-          return entityId === 1 ? { faction: 'player', attackType: 'ranged', damageType: 'normal' } 
-            : { faction: 'enemy' };
+          return entityId === 1 ? 
+            { faction: 'player', attackType: 'ranged', damageType: 'normal' } : 
+            { faction: 'enemy' };
         }
+        // Also mock position for the movement system branch
+        if (componentType === 'position') {
+          return { x: 0, y: 0, z: 0 };
+        }
+        return null;
       });
       
       const result = combatSystem.startAttack(1, 2);

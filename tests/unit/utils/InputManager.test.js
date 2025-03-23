@@ -165,6 +165,26 @@ describe('InputManager', () => {
       // Spy on startSelection method
       const startSelectionSpy = jest.spyOn(inputManager, 'startSelection').mockImplementation();
       
+      handleCommandSpy = jest.spyOn(inputManager, 'handleCommand').mockImplementation(() => {});
+
+      // Then ensure onMouseDown directly calls handleCommand
+      test('onMouseDown handles right click command', () => {
+        // Spy on handleCommand method
+        const handleCommandSpy = jest.spyOn(inputManager, 'handleCommand').mockImplementation();
+        
+        // Create mock event for right click
+        const mockEvent = { button: 2, clientX: 100, clientY: 200 };
+        
+        // Call onMouseDown
+        inputManager.onMouseDown(mockEvent);
+        
+        // Verify handleCommand is called
+        expect(handleCommandSpy).toHaveBeenCalledWith(mockEvent);
+        
+        // Restore the original method
+        handleCommandSpy.mockRestore();
+      });
+      
       // Create mock event for left click
       const mockEvent = { button: 0, clientX: 100, clientY: 200 };
       

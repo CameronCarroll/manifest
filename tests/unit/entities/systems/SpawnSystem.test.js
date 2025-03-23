@@ -281,7 +281,8 @@ describe('SpawnSystem', () => {
       expect(spawnSystem.spawnEnemy).toHaveBeenCalledWith(
         'heavyInfantry',
         expect.anything(),
-        mockAISystem
+        mockAISystem,
+        expect.any(Number) // Match the wave number 
       );
     });
   });

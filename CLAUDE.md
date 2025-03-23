@@ -23,3 +23,4 @@
 - Methods/Variables: Use camelCase
 - Comments: Add JSDoc-style comments for public methods
 - Components follow the Entity Component System pattern
+- Do not add workarounds or extensive stub/mock code to the functional codebase in order to make tests pass.
