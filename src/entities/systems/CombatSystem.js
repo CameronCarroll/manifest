@@ -33,15 +33,24 @@ class CombatSystem {
     this.DEFAULT_ATTACK_RANGE = ATTACK_RANGES.DEFAULT;
     this.DEFAULT_ATTACK_COOLDOWN = ATTACK_COOLDOWNS.DEFAULT;
     this.movementSystem = movementSystem;
+    this.animationSystem = null; // Will be set during game initialization
     
     // For damage feedback
     this.damageEvents = [];
+    
+    // Debug flag
+    this.debug = true;
   }
 
   initialize() {
-    // Initialize animation system integration - after all systems are created
-    // We'll get the animation system reference during the first update
-    // This prevents circular dependency issues during initialization
+    // Will be called after all systems are created
+    console.log("CombatSystem initialized");
+  }
+  
+  // Set animation system reference
+  setAnimationSystem(animationSystem) {
+    this.animationSystem = animationSystem;
+    console.log("Combat system animation system reference set:", !!this.animationSystem);
   }
   
   // Set movement system reference
@@ -89,9 +98,22 @@ class CombatSystem {
       lastDamageTime: 0 // Track when damage was last applied
     });
 
+    if (this.debug) {
+      console.log(`Starting attack from ${attackerId} (${attackerFaction.unitType}) to ${targetId} using ${attackerFaction.attackType} attack`);
+    }
+
     // Trigger animation when attack starts
     if (this.animationSystem && typeof this.animationSystem.startAttackAnimation === 'function') {
+      if (this.debug) {
+        console.log("Triggering attack animation via animationSystem");
+      }
       this.animationSystem.startAttackAnimation(attackerId, targetId);
+    } else {
+      console.warn("Cannot trigger attack animation - animationSystem not available or method missing");
+      console.log("Animation system available:", !!this.animationSystem);
+      if (this.animationSystem) {
+        console.log("startAttackAnimation method available:", typeof this.animationSystem.startAttackAnimation === 'function');
+      }
     }
   
     return true;
@@ -129,6 +151,10 @@ class CombatSystem {
     // Get attacker's attack range (could be based on unit type or weapon)
     const attackerFaction = this.entityManager.getComponent(attackerId, 'faction');
     const attackRange = this.getAttackRange(attackerFaction.unitType, attackerFaction.attackType);
+    
+    if (this.debug && attackerFaction.unitType === 'sniper') {
+      console.log(`Sniper attack check: Distance=${distance.toFixed(2)}, Range=${attackRange}, In range=${distance <= attackRange}`);
+    }
     
     return distance <= attackRange;
   }
@@ -210,6 +236,10 @@ class CombatSystem {
     
     // Apply damage
     healthComponent.currentHealth -= damageInfo.damage;
+
+    if (this.debug) {
+      console.log(`Damage applied to ${targetId}: ${damageInfo.damage} (${healthComponent.currentHealth}/${healthComponent.maxHealth})`);
+    }
     
     // Create damage event for visualization
     if (this.entityManager.hasComponent(targetId, 'position')) {
@@ -248,14 +278,6 @@ class CombatSystem {
   }
 
   update(deltaTime) {
-    // Try to get animation system reference if we don't have it yet
-    if (!this.animationSystem && this.entityManager.gameState && this.entityManager.gameState.systems) {
-      this.animationSystem = this.entityManager.gameState.systems.animation;
-      if (this.animationSystem) {
-        console.log('CombatSystem connected to AnimationSystem');
-      }
-    }
-  
     // Update cooldowns
     this.attackCooldowns.forEach((cooldown, entityId) => {
       cooldown -= deltaTime;
@@ -306,12 +328,15 @@ class CombatSystem {
         const targetDestroyed = this.applyDamage(targetId, damageInfo);
   
         // Trigger animation
-        if (this.animationSystem && typeof this.animationSystem.startAttackAnimation === 'function') {
+        if (this.animationSystem) {
           const attackerFaction = this.entityManager.getComponent(attackerId, 'faction');
           const isRanged = attackerFaction && attackerFaction.attackType === 'ranged';
           
           // For ranged units, create projectile immediately without waiting for animation phases
           if (isRanged) {
+            if (this.debug) {
+              console.log(`Creating ranged projectile effect from ${attackerId} (${attackerFaction.unitType}) to ${targetId}`);
+            }
             this.animationSystem.createProjectileEffect(
               attackerId, 
               targetId, 
@@ -322,10 +347,9 @@ class CombatSystem {
             // For melee units, use the standard animation system
             this.animationSystem.startAttackAnimation(attackerId, targetId);
           }
+        } else if (this.debug) {
+          console.warn("Cannot create attack effect - animationSystem not available");
         }
-        
-        // Set cooldown for next attack
-        // ...
         
         // Set cooldown for next attack
         const attackerFaction = this.entityManager.getComponent(attackerId, 'faction');

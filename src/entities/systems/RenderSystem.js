@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import SelectionIndicator from '../../utils/SelectionIndicator.js';
+import HealthVisualizer from '../../utils/HealthVisualizer.js';
 
 export default class RenderSystem {
   constructor(entityManager, sceneManager, modelLoader, systems) {
@@ -9,19 +10,30 @@ export default class RenderSystem {
     this.systems = systems; // Store the entire systems context
     this.meshes = new Map(); // Maps entityId to THREE.Mesh
     this.selectionIndicator = null;
+    this.healthVisualizer = null;
+    
+    // Debugging
+    this.debug = true;
   }
 
   // In src/entities/systems/RenderSystem.js
   initialize() {
     const { scene } = this.sceneManager.getActiveScene();
     if (scene) {
-    // Pass the entire systems context
+      // Pass the entire systems context
       this.selectionIndicator = new SelectionIndicator(scene, this.systems);
+      
+      // Create health visualizer
+      this.healthVisualizer = new HealthVisualizer(scene);
+      
+      if (this.debug) {
+        console.log('RenderSystem: Selection indicator and health visualizer created');
+      }
     }
   }
 
   update(deltaTime) {
-    const { scene } = this.sceneManager.getActiveScene();
+    const { scene, camera } = this.sceneManager.getActiveScene();
     if (!scene) {return;}
 
     // Process entities with both position and render components
@@ -68,6 +80,17 @@ export default class RenderSystem {
         this.removeMesh(entityId, scene);
       }
     });
+
+    // Process damage events from combat system and update health bars
+    if (this.healthVisualizer && this.systems.combat) {
+      // Process any new damage events
+      if (this.systems.combat.damageEvents && this.systems.combat.damageEvents.length > 0) {
+        this.healthVisualizer.processDamageEvents(this.systems.combat.damageEvents);
+      }
+      
+      // Update health visualizations
+      this.healthVisualizer.update(deltaTime, this.entityManager, camera);
+    }
 
     if (this.selectionIndicator) {
       this.selectionIndicator.updateTargetIndicators(deltaTime);
@@ -664,6 +687,12 @@ export default class RenderSystem {
     if (this.selectionIndicator) {
       this.selectionIndicator.dispose();
       this.selectionIndicator = null;
+    }
+    
+    // Dispose of health visualizer
+    if (this.healthVisualizer) {
+      this.healthVisualizer.dispose();
+      this.healthVisualizer = null;
     }
   }
 }

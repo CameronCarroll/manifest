@@ -291,26 +291,34 @@ class GameController {
       this.systems.render.initialize();
     }
   
-    // Initialize movement system
-    if (this.systems.movement) {
-      console.log('Initializing movement system');
-      this.systems.movement.initialize();
-    }
-  
-    // Initialize combat system
-    if (this.systems.combat) {
-      console.log('Initializing combat system');
-      this.systems.combat.initialize();
-    }
-  
-    // Initialize animation system after combat system
+    // Initialize animation system early
     if (this.systems.animation) {
       console.log('Initializing animation system');
       this.systems.animation.initialize();
-    
-      // Connect animation system to combat system
+    }
+  
+    // Initialize combat system and connect it to the animation system
+    if (this.systems.combat) {
+      console.log('Initializing combat system');
+      this.systems.combat.initialize();
+      
+      // Explicitly set the animation system reference
+      if (this.systems.animation) {
+        console.log('Connecting combat system to animation system');
+        this.systems.combat.setAnimationSystem(this.systems.animation);
+      } else {
+        console.warn('Animation system not available for combat system');
+      }
+    }
+  
+    // Initialize movement system and connect it to combat system
+    if (this.systems.movement) {
+      console.log('Initializing movement system');
+      this.systems.movement.initialize();
+      
+      // Connect movement system to combat system
       if (this.systems.combat) {
-        this.systems.combat.animationSystem = this.systems.animation;
+        this.systems.combat.setMovementSystem(this.systems.movement);
       }
     }
   
