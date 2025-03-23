@@ -8,7 +8,8 @@
     body {
       margin: 0;
       overflow: hidden;
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #e1e1e1;
     }
     #game-container {
       position: absolute;
@@ -16,37 +17,87 @@
       left: 0;
       width: 100%;
       height: 100%;
+      /* Removed the background-color that was hiding the canvas */
     }
     #ui-overlay {
       position: absolute;
       top: 10px;
       left: 10px;
       color: white;
-      text-shadow: 1px 1px 2px black;
+      text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
       pointer-events: none;
       z-index: 10;
+    }
+    .panel {
+      background-color: rgba(0, 0, 0, 0.7);
+      border: 1px solid #4CAF50;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      transition: height 0.3s ease, opacity 0.3s ease;
+      overflow: hidden;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(76, 175, 80, 0.5);
+      user-select: none;
+      cursor: pointer;
+    }
+    .panel-header h3 {
+      margin: 0;
+      color: #4CAF50;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .panel-header .toggle-btn {
+      color: #e1e1e1;
+      font-size: 18px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: auto;
+    }
+    .panel-content {
+      transition: max-height 0.3s ease;
+      max-height: 500px;
+    }
+    .collapsed .panel-content {
+      max-height: 0;
     }
     #controls-help {
       position: absolute;
       bottom: 10px;
       left: 10px;
-      color: white;
-      text-shadow: 1px 1px 2px black;
-      background-color: rgba(0, 0, 0, 0.5);
-      padding: 10px;
-      border-radius: 5px;
-      font-size: 14px;
+      width: 240px;
       z-index: 10;
+      pointer-events: auto;
+    }
+    #controls-help .control-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    #controls-help .key {
+      color: #4CAF50;
+      font-weight: 600;
+      margin-right: 10px;
     }
     #wave-info {
       position: absolute;
       top: 10px;
       right: 10px;
-      color: white;
-      text-shadow: 1px 1px 2px black;
-      background-color: rgba(0, 0, 0, 0.5);
-      padding: 10px;
-      border-radius: 5px;
+      width: 220px;
       z-index: 10;
     }
     #resource-display {
@@ -54,76 +105,91 @@
       top: 10px;
       left: 50%;
       transform: translateX(-50%);
-      color: white;
-      text-shadow: 1px 1px 2px black;
-      background-color: rgba(0, 0, 0, 0.5);
-      padding: 10px;
-      border-radius: 5px;
+      width: 200px;
       z-index: 10;
+      text-align: center;
     }
     .resource-counter {
       display: flex;
+      justify-content: space-around;
       gap: 20px;
+    }
+    #resource-display .resource-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #resource-display .resource-icon {
+      margin-right: 6px;
+      color: #4CAF50;
     }
     #production-display {
       position: absolute;
       bottom: 10px;
       right: 10px;
-      color: white;
-      background-color: rgba(0, 0, 0, 0.5);
-      padding: 10px;
-      border-radius: 5px;
-      z-index: 10;
       width: 250px;
+      z-index: 10;
     }
     .production-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 5px;
+      margin-bottom: 8px;
     }
     .progress-bar {
       width: 100px;
-      height: 15px;
-      background-color: #555;
-      border-radius: 3px;
+      height: 12px;
+      background-color: rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
       overflow: hidden;
+      margin: 0 10px;
     }
     .progress-fill {
       height: 100%;
       background-color: #4CAF50;
+      border-radius: 6px;
+      transition: width 0.2s ease;
     }
     #objectives-display {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      background-color: rgba(0, 0, 0, 0.5);
-      padding: 10px;
-      border-radius: 5px;
+      top: 85px;
+      right: 10px;
+      width: 220px;
       z-index: 10;
-      max-width: 300px;
+      pointer-events: auto;
     }
     .objective-item {
       display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
+    .objective-header {
+      display: flex;
       align-items: center;
-      margin-bottom: 5px;
+      margin-bottom: 6px;
     }
     .objective-icon {
-      margin-right: 10px;
-      font-size: 20px;
+      margin-right: 8px;
+      font-size: 16px;
+      color: #4CAF50;
+    }
+    .objective-text {
+      flex-grow: 1;
+      font-size: 14px;
     }
     .objective-progress {
-      width: 100px;
+      width: 100%;
       height: 8px;
-      background-color: #555;
+      background-color: rgba(255, 255, 255, 0.2);
       border-radius: 4px;
       overflow: hidden;
-      margin-left: auto;
+      margin-top: 4px;
     }
     .objective-progress-fill {
       height: 100%;
       background-color: #4CAF50;
+      border-radius: 4px;
+      transition: width 0.3s ease;
     }
     #action-buttons {
       position: absolute;
@@ -141,10 +207,14 @@
       padding: 10px;
       border-radius: 5px;
       cursor: pointer;
-      transition: background-color 0.2s;
+      transition: background-color 0.2s, transform 0.1s;
     }
     .action-button:hover {
       background-color: rgba(0, 100, 0, 0.7);
+      transform: translateY(-2px);
+    }
+    .action-button:active {
+      transform: translateY(1px);
     }
     #pause-overlay {
       position: absolute;
@@ -152,7 +222,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0, 0, 0.7);
+      background-color: rgba(0, 0, 0, 0.8);
       display: none;
       flex-direction: column;
       justify-content: center;
@@ -163,9 +233,24 @@
     }
     #pause-overlay button {
       margin-top: 20px;
-      padding: 10px 20px;
+      padding: 12px 24px;
       font-size: 18px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
       cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    #pause-overlay button:hover {
+      background-color: #3d8b40;
+    }
+    #selection-info {
+      background-color: rgba(0, 0, 0, 0.6);
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+      max-width: 300px;
     }
   </style>
 </head>
@@ -177,42 +262,89 @@
     <div id="selection-info"></div>
   </div>
   
-  <div id="controls-help">
-    <h3>Controls:</h3>
-    <p>Left Click: Select unit</p>
-    <p>Shift + Left Click: Add to selection</p>
-    <p>Double Click: Select all units of same type</p>
-    <p>Right Click: Move selected units</p>
-    <p>Right Click on Enemy: Attack</p>
-    <p>S: Stop selected units</p>
-    <p>Shift + A: Select all player units</p>
-    <p>ESC: Clear selection</p>
-    <p>P: Pause/Resume game</p>
-  </div>
-  
-  <div id="wave-info">
-    <h3>Wave Information</h3>
-    <div id="current-wave">Current Wave: 1</div>
-    <div id="enemies-remaining">Enemies Remaining: 10</div>
-  </div>
-  
-  <div id="resource-display">
-    <div class="resource-counter">
-      <div>Minerals: 250</div>
-      <div>Gas: 100</div>
+  <div id="controls-help" class="panel">
+    <div class="panel-header">
+      <h3>Controls</h3>
+      <button class="toggle-btn">−</button>
+    </div>
+    <div class="panel-content">
+      <div class="control-item">
+        <span class="key">Left Click</span>
+        <span class="action">Select unit</span>
+      </div>
+      <div class="control-item">
+        <span class="key">Shift + Left Click</span>
+        <span class="action">Add to selection</span>
+      </div>
+      <div class="control-item">
+        <span class="key">Double Click</span>
+        <span class="action">Select all of same type</span>
+      </div>
+      <div class="control-item">
+        <span class="key">Right Click</span>
+        <span class="action">Move selected units</span>
+      </div>
+      <div class="control-item">
+        <span class="key">Right Click on Enemy</span>
+        <span class="action">Attack</span>
+      </div>
+      <div class="control-item">
+        <span class="key">S</span>
+        <span class="action">Stop selected units</span>
+      </div>
+      <div class="control-item">
+        <span class="key">Shift + A</span>
+        <span class="action">Select all player units</span>
+      </div>
+      <div class="control-item">
+        <span class="key">ESC</span>
+        <span class="action">Clear selection</span>
+      </div>
+      <div class="control-item">
+        <span class="key">P</span>
+        <span class="action">Pause/Resume game</span>
+      </div>
     </div>
   </div>
   
-  <div id="production-display"></div>
+  <div id="wave-info" class="panel">
+    <div class="panel-header">
+      <h3>Wave Information</h3>
+    </div>
+    <div class="panel-content">
+      <div id="current-wave">Current Wave: 1</div>
+      <div id="enemies-remaining">Enemies Remaining: 10</div>
+    </div>
+  </div>
   
-  <div id="objectives-display">
-    <h3>Objectives</h3>
-    <div class="objective-list">
-      <div class="objective-item">
-        <div class="objective-icon">●</div>
-        <div class="objective-text">Survive All Waves</div>
-        <div class="objective-progress">
-          <div class="objective-progress-fill" style="width: 33%"></div>
+  <div id="resource-display" class="panel">
+    <div class="panel-content">
+      <div class="resource-counter">
+        <div class="resource-item"><span class="resource-icon">⬡</span> 250</div>
+        <div class="resource-item"><span class="resource-icon">⬢</span> 100</div>
+      </div>
+    </div>
+  </div>
+  
+  <div id="production-display" class="panel">
+    <!-- Production items will be added dynamically -->
+  </div>
+  
+  <div id="objectives-display" class="panel">
+    <div class="panel-header">
+      <h3>Objectives</h3>
+      <button class="toggle-btn">−</button>
+    </div>
+    <div class="panel-content">
+      <div class="objective-list">
+        <div class="objective-item">
+          <div class="objective-header">
+            <div class="objective-icon">●</div>
+            <div class="objective-text">Survive All Waves</div>
+          </div>
+          <div class="objective-progress">
+            <div class="objective-progress-fill" style="width: 33%"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -247,6 +379,22 @@
     
     // Update UI with game information
     window.addEventListener('DOMContentLoaded', () => {
+      // Set up panel toggling
+      document.querySelectorAll('.panel-header').forEach(header => {
+        header.addEventListener('click', () => {
+          const panel = header.closest('.panel');
+          panel.classList.toggle('collapsed');
+          
+          // Update toggle button text
+          const toggleBtn = header.querySelector('.toggle-btn');
+          if (panel.classList.contains('collapsed')) {
+            toggleBtn.textContent = '+';
+          } else {
+            toggleBtn.textContent = '−';
+          }
+        });
+      });
+      
       // Wait for game to be initialized
       const checkGameInterval = setInterval(() => {
         if (window.game) {
@@ -308,8 +456,9 @@
         infoText += '</p>';
         
         selectionInfo.innerHTML = infoText;
+        selectionInfo.style.display = 'block';
       } else {
-        selectionInfo.innerHTML = '<p>No units selected</p>';
+        selectionInfo.style.display = 'none';
       }
       
       // Update wave info
@@ -335,9 +484,9 @@
       // Update objectives
       if (window.game.systems && window.game.systems.objectives) {
         const objectivesStatus = window.game.systems.objectives.getObjectivesStatus();
-        const objectivesDisplay = document.getElementById('objectives-display');
+        const objectivesList = document.querySelector('#objectives-display .objective-list');
         
-        let objectivesHTML = '<h3>Objectives</h3><div class="objective-list">';
+        let objectivesHTML = '';
         
         objectivesStatus.objectives.forEach(objective => {
           const progressWidth = Math.floor(objective.progress * 100);
@@ -345,8 +494,10 @@
           
           objectivesHTML += `
             <div class="objective-item">
-              <div class="objective-icon">${checkmark}</div>
-              <div class="objective-text">${objective.title}</div>
+              <div class="objective-header">
+                <div class="objective-icon">${checkmark}</div>
+                <div class="objective-text">${objective.title}</div>
+              </div>
               <div class="objective-progress">
                 <div class="objective-progress-fill" style="width: ${progressWidth}%"></div>
               </div>
@@ -354,8 +505,13 @@
           `;
         });
         
-        objectivesHTML += '</div>';
-        objectivesDisplay.innerHTML = objectivesHTML;
+        objectivesList.innerHTML = objectivesHTML;
+      }
+      
+      // Update production display
+      const productionDisplay = document.getElementById('production-display');
+      if (productionDisplay && productionDisplay.innerHTML.trim() === '') {
+        productionDisplay.innerHTML = '<div class="panel-header"><h3>Production</h3></div><div class="panel-content"></div>';
       }
     }
   </script>
