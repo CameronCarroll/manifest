@@ -113,7 +113,34 @@ class InputManager {
         
         // If we clicked on an enemy entity, issue attack command
         if (clickedEntityId && this.isEnemyEntity(clickedEntityId)) {
-          this.issueAttackCommand(clickedEntityId);
+          // Highlight the enemy target with the selection indicator ring
+          if (this.systems.render && this.systems.render.selectionIndicator) {
+            const enemyPos = this.entityManager.getComponent(clickedEntityId, 'position');
+            this.systems.render.selectionIndicator.highlightEnemyTarget(
+              clickedEntityId, 
+              enemyPos
+            );
+          }
+          // Prevent animations from appearing when just targeting
+          if (this.systems.animation) {
+            const animSystem = this.systems.animation;
+            // Store the original methods
+            const originalStartAttackAnimation = animSystem.startAttackAnimation;
+            
+            // Temporarily override to prevent animations
+            animSystem.startAttackAnimation = (attackerId, targetId) => {
+              // Pass isTargeting=true to prevent animations
+              return originalStartAttackAnimation.call(animSystem, attackerId, targetId, true);
+            };
+            
+            // Issue the attack command
+            this.issueAttackCommand(clickedEntityId);
+            
+            // Restore the original methods
+            animSystem.startAttackAnimation = originalStartAttackAnimation;
+          } else {
+            this.issueAttackCommand(clickedEntityId);
+          }
         } else {
           // If in attack-move mode, issue attack-move command
           if (this.isAttackMoveMode) {
@@ -230,25 +257,25 @@ class InputManager {
   }
 
   // Update the onKeyDown method
-onKeyDown(event) {
+  onKeyDown(event) {
   // Handle keyboard shortcuts
-  if (event.key === 'z' && event.ctrlKey) {
-    this.undo();
-  } else if (event.key === 'y' && event.ctrlKey) {
-    this.redo();
-  } else if (event.key === 'Escape') {
-    this.clearSelection();
-    this.toggleAttackMoveMode(false); // Ensure attack-move is off
-  } else if (event.key === 'a' && event.shiftKey) {
-    this.selectAllPlayerUnits();
-  } else if (event.key === 'a' && !event.shiftKey) {
+    if (event.key === 'z' && event.ctrlKey) {
+      this.undo();
+    } else if (event.key === 'y' && event.ctrlKey) {
+      this.redo();
+    } else if (event.key === 'Escape') {
+      this.clearSelection();
+      this.toggleAttackMoveMode(false); // Ensure attack-move is off
+    } else if (event.key === 'a' && event.shiftKey) {
+      this.selectAllPlayerUnits();
+    } else if (event.key === 'a' && !event.shiftKey) {
     // Toggle attack-move mode with 'a' key
-    this.toggleAttackMoveMode();
-  } else if (event.key === 's') {
-    this.stopSelectedUnits();
-  }
+      this.toggleAttackMoveMode();
+    } else if (event.key === 's') {
+      this.stopSelectedUnits();
+    }
   // Arrow keys are handled by SceneManager's smooth camera movement system
-}
+  }
 
   updateMousePosition(event) {
     // Calculate mouse position in normalized device coordinates (-1 to +1)
@@ -976,64 +1003,64 @@ onKeyDown(event) {
   }
 
   // Toggle attack-move mode
-toggleAttackMoveMode(enable = !this.isAttackMoveMode) {
-  this.isAttackMoveMode = enable;
+  toggleAttackMoveMode(enable = !this.isAttackMoveMode) {
+    this.isAttackMoveMode = enable;
   
-  // Change cursor
-  document.body.style.cursor = this.isAttackMoveMode ? 'crosshair' : 'default';
+    // Change cursor
+    document.body.style.cursor = this.isAttackMoveMode ? 'crosshair' : 'default';
   
-  // Show/hide attack-move indicator
-  this.updateAttackMoveIndicator();
+    // Show/hide attack-move indicator
+    this.updateAttackMoveIndicator();
   
-  console.log(`Attack-move mode ${enable ? 'enabled' : 'disabled'}`);
-}
-// Update the attack-move indicator UI
-updateAttackMoveIndicator() {
+    console.log(`Attack-move mode ${enable ? 'enabled' : 'disabled'}`);
+  }
+  // Update the attack-move indicator UI
+  updateAttackMoveIndicator() {
   // Get or create the indicator element
-  let indicator = document.getElementById('attack-move-indicator');
+    let indicator = document.getElementById('attack-move-indicator');
   
-  if (!indicator) {
-    indicator = document.createElement('div');
-    indicator.id = 'attack-move-indicator';
-    indicator.style.position = 'absolute';
-    indicator.style.bottom = '50px';
-    indicator.style.left = '50%';
-    indicator.style.transform = 'translateX(-50%)';
-    indicator.style.backgroundColor = 'rgba(255, 0, 0, 0.6)';
-    indicator.style.color = 'white';
-    indicator.style.padding = '5px 15px';
-    indicator.style.borderRadius = '5px';
-    indicator.style.fontWeight = 'bold';
-    indicator.style.zIndex = '100';
-    indicator.style.pointerEvents = 'none';
-    document.body.appendChild(indicator);
-  }
+    if (!indicator) {
+      indicator = document.createElement('div');
+      indicator.id = 'attack-move-indicator';
+      indicator.style.position = 'absolute';
+      indicator.style.bottom = '50px';
+      indicator.style.left = '50%';
+      indicator.style.transform = 'translateX(-50%)';
+      indicator.style.backgroundColor = 'rgba(255, 0, 0, 0.6)';
+      indicator.style.color = 'white';
+      indicator.style.padding = '5px 15px';
+      indicator.style.borderRadius = '5px';
+      indicator.style.fontWeight = 'bold';
+      indicator.style.zIndex = '100';
+      indicator.style.pointerEvents = 'none';
+      document.body.appendChild(indicator);
+    }
   
-  if (this.isAttackMoveMode) {
-    indicator.textContent = '⚔️ ATTACK-MOVE ⚔️';
-    indicator.style.display = 'block';
-  } else {
-    indicator.style.display = 'none';
+    if (this.isAttackMoveMode) {
+      indicator.textContent = '⚔️ ATTACK-MOVE ⚔️';
+      indicator.style.display = 'block';
+    } else {
+      indicator.style.display = 'none';
+    }
   }
-}
 
-// Issue attack-move command
-issueAttackMoveCommand(position) {
+  // Issue attack-move command
+  issueAttackMoveCommand(position) {
   // Issue attack-move command to all selected entities
-  for (const entityId of this.selectedEntities) {
-    if (this.entityManager.hasComponent(entityId, 'position')) {
+    for (const entityId of this.selectedEntities) {
+      if (this.entityManager.hasComponent(entityId, 'position')) {
       // If we have a combat system, stop any attacks
-      if (this.systems.combat) {
-        this.systems.combat.stopAttack(entityId);
-      }
+        if (this.systems.combat) {
+          this.systems.combat.stopAttack(entityId);
+        }
       
-      // Move the entity with attack-move flag
-      if (this.systems.movement) {
-        this.systems.movement.moveEntity(entityId, position, 5, null, true); // Last param is attackMove flag
+        // Move the entity with attack-move flag
+        if (this.systems.movement) {
+          this.systems.movement.moveEntity(entityId, position, 5, null, true); // Last param is attackMove flag
+        }
       }
     }
   }
-}
 
 }
 

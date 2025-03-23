@@ -23,7 +23,7 @@ class AnimationSystem {
   }
 
   initialize() {
-    if (this.debug) console.log('AnimationSystem: initializing');
+    if (this.debug) {console.log('AnimationSystem: initializing');}
     
     // Subscribe to combat events
     if (this.systems.combat) {
@@ -34,10 +34,10 @@ class AnimationSystem {
       this.systems.combat.startAttack = (attackerId, targetId) => {
         const result = originalStartAttack.call(this.systems.combat, attackerId, targetId);
         if (result) {
-          if (this.debug) console.log(`AnimationSystem: Starting attack animation for ${attackerId} targeting ${targetId}`);
+          if (this.debug) {console.log(`AnimationSystem: Starting attack animation for ${attackerId} targeting ${targetId}`);}
           this.startAttackAnimation(attackerId, targetId);
         } else {
-          if (this.debug) console.log(`AnimationSystem: Attack failed for ${attackerId} targeting ${targetId}`);
+          if (this.debug) {console.log(`AnimationSystem: Attack failed for ${attackerId} targeting ${targetId}`);}
         }
         return result;
       };
@@ -45,24 +45,40 @@ class AnimationSystem {
   }
   
   // Start attack animation for an entity
-  startAttackAnimation(entityId, targetId) {
+  startAttackAnimation(entityId, targetId, isTargeting = false) {
     if (!this.entityManager.hasComponent(entityId, 'position') ||
         !this.entityManager.hasComponent(entityId, 'faction')) {
-      if (this.debug) console.log(`AnimationSystem: Missing components for entity ${entityId}`);
+      if (this.debug) {console.log(`AnimationSystem: Missing components for entity ${entityId}`);}
       return false;
+    }
+    
+    // If this is just targeting (not actual attack), either skip animation completely
+    // or mark the animation as targeting-only to prevent visual effects
+    if (isTargeting) {
+      if (this.debug) {console.log(`AnimationSystem: Skipping or marking targeting-only animation for ${targetId}`);}
+      
+      // Store minimal animation data with isTargeting flag to prevent visual effects
+      this.animatingEntities.set(entityId, {
+        targetId: targetId,
+        isTargeting: true,
+        stateTime: 0,
+        damageEffectApplied: true // Prevent damage effects
+      });
+      
+      return true;
     }
     
     // Get the faction component to determine attack type
     const factionComponent = this.entityManager.getComponent(entityId, 'faction');
     if (!factionComponent) {
-      if (this.debug) console.log(`AnimationSystem: No faction component for entity ${entityId}`);
+      if (this.debug) {console.log(`AnimationSystem: No faction component for entity ${entityId}`);}
       return false;
     }
     
     const attackType = factionComponent.attackType || 'ranged';
     const unitType = factionComponent.unitType || 'basic';
     
-    if (this.debug) console.log(`AnimationSystem: Entity ${entityId} (${unitType}) using ${attackType} attack`);
+    if (this.debug) {console.log(`AnimationSystem: Entity ${entityId} (${unitType}) using ${attackType} attack`);}
     
     // Handle different attack types
     if (attackType === 'melee') {
@@ -76,7 +92,7 @@ class AnimationSystem {
   
   // Start melee attack animation (summoned weapon)
   startMeleeAttackAnimation(entityId, targetId, unitType) {
-    if (this.debug) console.log(`AnimationSystem: Starting melee attack for ${entityId} (${unitType})`);
+    if (this.debug) {console.log(`AnimationSystem: Starting melee attack for ${entityId} (${unitType})`);}
     
     // Animation timeline:
     // 1. Windup (0.2s) - Summoning the weapon
@@ -108,7 +124,7 @@ class AnimationSystem {
   // Clean up any existing weapon for an entity
   cleanupExistingWeapon(entityId) {
     const entityMesh = this.systems.render?.meshes.get(entityId);
-    if (!entityMesh) return;
+    if (!entityMesh) {return;}
     
     // Find and remove any existing weapon meshes
     entityMesh.children.forEach(child => {
@@ -121,7 +137,7 @@ class AnimationSystem {
   
   // Start ranged attack animation
   startRangedAttackAnimation(entityId, targetId, unitType) {
-    if (this.debug) console.log(`AnimationSystem: Starting ranged attack for ${entityId} (${unitType})`);
+    if (this.debug) {console.log(`AnimationSystem: Starting ranged attack for ${entityId} (${unitType})`);}
     
     // Animation timeline:
     // 1. Windup (0.2s) - Charging the attack
@@ -146,15 +162,21 @@ class AnimationSystem {
       }
     });
     
-    // Create projectile animation immediately
-    this.createProjectileEffect(entityId, targetId, unitType);
+    // Skip projectile animation in targeting mode
+    const skipVisualEffects = this.animatingEntities.get(entityId)?.isTargeting === true;
+    this.createProjectileEffect(entityId, targetId, unitType, skipVisualEffects);
   }
   
   // Create projectile effect for ranged attacks
-  createProjectileEffect(attackerId, targetId, unitType) {
+  createProjectileEffect(attackerId, targetId, unitType, skipVisualEffects = false) {
+    if (skipVisualEffects) {
+      // Skip creating any visual effects when targeting
+      return null;
+    }
+    
     const { scene } = this.systems.sceneManager?.getActiveScene() || {};
     if (!scene) {
-      if (this.debug) console.log('AnimationSystem: No scene available for projectile');
+      if (this.debug) {console.log('AnimationSystem: No scene available for projectile');}
       return null;
     }
     
@@ -162,7 +184,7 @@ class AnimationSystem {
     const targetPos = this.entityManager.getComponent(targetId, 'position');
     
     if (!attackerPos || !targetPos) {
-      if (this.debug) console.log('AnimationSystem: Missing positions for projectile');
+      if (this.debug) {console.log('AnimationSystem: Missing positions for projectile');}
       return null;
     }
     
@@ -171,19 +193,19 @@ class AnimationSystem {
     let projectileSize = 0.15;
     
     switch(unitType) {
-      case 'assault':
-        projectileColor = 0xFF0000; // Red
-        break;
-      case 'sniper':
-        projectileColor = 0x0088FF; // Blue
-        projectileSize = 0.1; // Smaller, faster projectile
-        break;
-      case 'support':
-        projectileColor = 0x00FF00; // Green
-        projectileSize = 0.2; // Larger healing projectile
-        break;
-      default:
-        projectileColor = 0x00FFFF; // Cyan default
+    case 'assault':
+      projectileColor = 0xFF0000; // Red
+      break;
+    case 'sniper':
+      projectileColor = 0x0088FF; // Blue
+      projectileSize = 0.1; // Smaller, faster projectile
+      break;
+    case 'support':
+      projectileColor = 0x00FF00; // Green
+      projectileSize = 0.2; // Larger healing projectile
+      break;
+    default:
+      projectileColor = 0x00FFFF; // Cyan default
     }
     
     // Create projectile geometry
@@ -508,6 +530,16 @@ class AnimationSystem {
   
   // Update animation state
   updateAnimation(entityId, animData, deltaTime) {
+    // Skip animation updates for targeting-only animations
+    if (animData.isTargeting === true) {
+      // Just remove the targeting animation after a short time
+      animData.stateTime += deltaTime;
+      if (animData.stateTime > 0.1) {
+        this.animatingEntities.delete(entityId);
+      }
+      return;
+    }
+    
     // Update state time
     animData.stateTime += deltaTime;
     animData.totalAnimationTime += deltaTime;
@@ -538,7 +570,7 @@ class AnimationSystem {
   
   // Update projectile movement and effects
   updateProjectile(projectile, deltaTime) {
-    if (!projectile || !projectile.userData) return;
+    if (!projectile || !projectile.userData) {return;}
     
     // Calculate movement
     const moveDistance = projectile.userData.speed * deltaTime;
@@ -574,7 +606,8 @@ class AnimationSystem {
       // Create impact effect at target location
       this.createDamageEffect(
         projectile.userData.targetId, 
-        projectile.userData.unitType
+        projectile.userData.unitType,
+        true // This is actual damage, show effects
       );
       
       // Remove projectile
@@ -696,7 +729,7 @@ class AnimationSystem {
     
     // If we have a target and we're halfway through the strike, apply damage effect
     if (strikeProgress >= 0.5 && animData.targetId && !animData.damageEffectApplied) {
-      this.createDamageEffect(animData.targetId, animData.unitType);
+      this.createDamageEffect(animData.targetId, animData.unitType, true); // This is actual damage, show effects
       animData.damageEffectApplied = true;
     }
     
@@ -764,11 +797,16 @@ class AnimationSystem {
   }
   
   // Create damage effect on target
-  createDamageEffect(targetId, attackerUnitType) {
+  createDamageEffect(targetId, attackerUnitType, isActualDamage = true) {
     const targetMesh = this.systems.render?.meshes.get(targetId);
     if (!targetMesh) {
-      if (this.debug) console.log(`AnimationSystem: No target mesh found for entity ${targetId}`);
+      if (this.debug) {console.log(`AnimationSystem: No target mesh found for entity ${targetId}`);}
       return;
+    }
+    
+    // Only create visual effects if this is actual damage, not just targeting
+    if (!isActualDamage) {
+      return; // Skip creating visual effects when just targeting
     }
     
     // Flash effect
@@ -993,7 +1031,7 @@ class AnimationSystem {
   
   // Update mesh animations (for cybernetic elements and special effects)
   updateMeshAnimations(mesh, deltaTime) {
-    if (!mesh) return;
+    if (!mesh) {return;}
     
     // Update any animation function in userData
     if (mesh.userData && typeof mesh.userData.update === 'function') {

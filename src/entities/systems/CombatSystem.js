@@ -90,9 +90,9 @@ class CombatSystem {
     });
 
     // Trigger animation when attack starts
-  if (this.animationSystem && typeof this.animationSystem.startAttackAnimation === 'function') {
-    this.animationSystem.startAttackAnimation(attackerId, targetId);
-  }
+    if (this.animationSystem && typeof this.animationSystem.startAttackAnimation === 'function') {
+      this.animationSystem.startAttackAnimation(attackerId, targetId);
+    }
   
     return true;
   }

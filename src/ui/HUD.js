@@ -46,11 +46,11 @@ class HUD {
   }
   
   updateResourceDisplay(resources) {
-    if (!this.resourceDisplay) return;
+    if (!this.resourceDisplay) {return;}
     
     // Update existing resource panel content
     const contentDiv = this.resourceDisplay.querySelector('.panel-content');
-    if (!contentDiv) return;
+    if (!contentDiv) {return;}
     
     let resourceHtml = '<div class="resource-counter">';
     
@@ -66,11 +66,11 @@ class HUD {
   }
   
   updateProductionQueue(queue) {
-    if (!this.productionDisplay) return;
+    if (!this.productionDisplay) {return;}
     
     // Update existing production panel content
     const contentDiv = this.productionDisplay.querySelector('.panel-content');
-    if (!contentDiv) return;
+    if (!contentDiv) {return;}
     
     if (!queue || queue.length === 0) {
       contentDiv.innerHTML = '<div>No units in production</div>';

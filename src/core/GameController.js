@@ -82,14 +82,39 @@ class GameController {
   }
 
   createSystems() {
-    console.log('Creating systems');
-    this.systems.render = new RenderSystem(this.entityManager, this.sceneManager, this.modelLoader);
+    console.log('Creating systems - START');
+    console.log('Current systems object:', this.systems);
+  
+    this.systems.render = new RenderSystem(
+      this.entityManager, 
+      this.sceneManager, 
+      this.modelLoader,
+      this.systems  // Pass the entire systems context
+    );
+    console.log('Render system created:', this.systems.render);
+    console.log('Systems after render system:', this.systems);
+  
     this.systems.movement = new MovementSystem(this.entityManager, this.systems);
+    console.log('Movement system created:', this.systems.movement);
+    
     this.systems.combat = new CombatSystem(this.entityManager, this.systems.movement);
+    console.log('Combat system created:', this.systems.combat);
+    
     // Animation system should be created before AI system
     this.systems.animation = new AnimationSystem(this.entityManager, this.systems);
-    this.systems.ai = new AISystem(this.entityManager, this.systems.combat, this.systems.movement);
+    console.log('Animation system created:', this.systems.animation);
+    
+    this.systems.ai = new AISystem(
+      this.entityManager, 
+      this.systems.combat, 
+      this.systems.movement
+    );
+    console.log('AI system created:', this.systems.ai);
+    
     this.systems.spawn = new SpawnSystem(this.entityManager);
+    console.log('Spawn system created:', this.systems.spawn);
+    
+    console.log('Final systems object:', this.systems);
   }
 
   createMainScene() {

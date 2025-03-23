@@ -2,20 +2,23 @@ import * as THREE from 'three';
 import SelectionIndicator from '../../utils/SelectionIndicator.js';
 
 export default class RenderSystem {
-  constructor(entityManager, sceneManager, modelLoader) {
+  constructor(entityManager, sceneManager, modelLoader, systems) {
     this.entityManager = entityManager;
     this.sceneManager = sceneManager;
     this.modelLoader = modelLoader;
+    this.systems = systems; // Store the entire systems context
     this.meshes = new Map(); // Maps entityId to THREE.Mesh
     this.selectionIndicator = null;
   }
 
-  initialize() {
-    const { scene } = this.sceneManager.getActiveScene();
-    if (scene) {
-      this.selectionIndicator = new SelectionIndicator(scene);
-    }
+  // In src/entities/systems/RenderSystem.js
+initialize() {
+  const { scene } = this.sceneManager.getActiveScene();
+  if (scene) {
+    // Pass the entire systems context
+    this.selectionIndicator = new SelectionIndicator(scene, this.systems);
   }
+}
 
   update(deltaTime) {
     const { scene } = this.sceneManager.getActiveScene();
@@ -65,6 +68,10 @@ export default class RenderSystem {
         this.removeMesh(entityId, scene);
       }
     });
+
+    if (this.selectionIndicator) {
+      this.selectionIndicator.updateTargetIndicators(deltaTime);
+    }
   }
 
   createMesh(entityId, renderComponent, scene) {

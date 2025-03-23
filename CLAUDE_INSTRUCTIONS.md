@@ -1,159 +1,121 @@
-This is an excellent idea for creating varied scenario types that can test different player skills and provide different gameplay experiences. I'll help you design an approach that allows for dynamic UI configuration based on scenario type.
+I see the issue now. The problem is likely that the `sceneManager` is not properly initialized or passed through the system when the `SelectionIndicator` is created. Let's modify our approach to make it more robust.
 
-Looking through your existing code, I see a few strategic points where we can implement this feature:
-
-1. In `BaseScenario.js`, we can add a configuration property to control resource and production visibility:
+In the `RenderSystem`, we'll pass the entire systems context:
 
 ```javascript
-class BaseScenario {
-  constructor(gameController) {
-    // ... existing code ...
-    
-    // New configuration for scenario features
-    this.features = {
-      resources: false,    // Toggle resource UI
-      production: false,   // Toggle production queue UI
-      economyManagement: false  // Could be used for more complex economic scenarios
-    };
+// In src/entities/systems/RenderSystem.js
+constructor(entityManager, sceneManager, modelLoader, systems) {
+  this.entityManager = entityManager;
+  this.sceneManager = sceneManager;
+  this.modelLoader = modelLoader;
+  this.systems = systems; // Store the entire systems context
+  this.meshes = new Map();
+  this.selectionIndicator = null;
+}
+
+initialize() {
+  const { scene } = this.sceneManager.getActiveScene();
+  if (scene) {
+    // Pass the entire systems context
+    this.selectionIndicator = new SelectionIndicator(scene, this.systems);
   }
 }
 ```
 
-2. Modify `DefaultScenario.js` to enable resources:
-```javascript
-class DefaultScenario extends BaseScenario {
-  constructor(gameController) {
-    super(gameController);
-    
-    this.features.resources = true;
-    this.features.production = true;
-  }
-}
-```
-
-3. In the `index.html`, we can add some utility JavaScript to dynamically show/hide UI elements:
+Then update the `SelectionIndicator` to work with this:
 
 ```javascript
-function updateUIVisibility(scenario) {
-  const resourceDisplay = document.getElementById('resource-display');
-  const productionDisplay = document.getElementById('production-display');
-  const actionButtons = document.getElementById('action-buttons');
-
-  if (scenario.features.resources) {
-    resourceDisplay.style.display = 'block';
-    actionButtons.style.display = 'flex';
-  } else {
-    resourceDisplay.style.display = 'none';
-    actionButtons.style.display = 'none';
+// In src/utils/SelectionIndicator.js
+class SelectionIndicator {
+  constructor(scene, systems) {
+    this.scene = scene;
+    this.systems = systems; // Store systems context
+    this.selectionRings = new Map();
+    this.createMaterials();
   }
 
-  if (scenario.features.production) {
-    productionDisplay.style.display = 'block';
-  } else {
-    productionDisplay.style.display = 'none';
-  }
-}
-```
-
-4. In your `GameController.js`, update the `loadScenario` method:
-
-```javascript
-loadScenario(scenarioId) {
-  console.log(`Loading scenario: ${scenarioId}`);
-  
-  // Clear any existing game state
-  this.resetGame();
-  
-  // Load the scenario
-  this.currentScenario = this.scenarioManager.loadScenario(scenarioId);
-  
-  if (!this.currentScenario) {
-    console.error(`Failed to load scenario: ${scenarioId}`);
-    return false;
-  }
-  
-  // New line to update UI visibility
-  updateUIVisibility(this.currentScenario);
-  
-  return true;
-}
-```
-
-5. Create a new "exploration" scenario type in `scenarios/ExplorationScenario.js`:
-
-```javascript
-import BaseScenario from './BaseScenario.js';
-
-class ExplorationScenario extends BaseScenario {
-  constructor(gameController) {
-    super(gameController);
+  highlightEnemyTarget(entityId, position, radius = 1.5) {
+    // Remove any existing enemy target highlights
+    this.removeEnemyTargetHighlight();
     
-    this.name = 'Exploration';
-    this.description = 'Discover and explore the map with limited resources';
-    
-    // By default, no economy UI
-    this.features.resources = false;
-    this.features.production = false;
-  }
-  
-  start() {
-    super.start();
-    
-    // Create exploration-focused units
-    this.createExplorationUnits();
-  }
-  
-  createExplorationUnits() {
-    // Create scout-like units with high mobility
-    const scoutCount = 5;
-    for (let i = 0; i < scoutCount; i++) {
-      const scout = this.createPlayerUnit('sniper', {
-        x: (Math.random() - 0.5) * 40,
-        z: (Math.random() - 0.5) * 40
-      });
-      
-      // Maybe give scouts special exploration abilities
-      this.entityManager.addComponent(scout, 'exploration', {
-        discoveryRadius: 15,
-        sightBonus: true
-      });
+    // Safety checks
+    if (!this.systems || !this.systems.sceneManager) {
+      console.error('SceneManager not available for enemy target highlight');
+      return null;
     }
+
+    const activeScene = this.systems.sceneManager.getActiveScene();
+    if (!activeScene || !activeScene.scene) {
+      console.error('No active scene available');
+      return null;
+    }
+
+    const ringGeometry = new THREE.RingGeometry(radius * 0.9, radius, 32);
+    const ring = new THREE.Mesh(ringGeometry, this.enemyTargetingMaterial);
+    
+    // Position the ring
+    ring.position.set(position.x, 0.1, position.z);
+    ring.rotation.x = -Math.PI / 2;
+    ring.userData.isEnemyTargetIndicator = true;
+    
+    // Add to scene
+    activeScene.scene.add(ring);
+    
+    return ring;
+  }
+
+  removeEnemyTargetHighlight() {
+    // Safety checks
+    if (!this.systems || !this.systems.sceneManager) {
+      console.error('SceneManager not available for removing enemy target highlight');
+      return;
+    }
+
+    const activeScene = this.systems.sceneManager.getActiveScene();
+    if (!activeScene || !activeScene.scene) {
+      console.error('No active scene available');
+      return;
+    }
+
+    // Remove any existing enemy targeting rings
+    const existingRings = activeScene.scene.children.filter(
+      child => child.userData.isEnemyTargetIndicator
+    );
+    
+    existingRings.forEach(ring => {
+      activeScene.scene.remove(ring);
+      ring.geometry.dispose();
+    });
   }
 }
-
-export default ExplorationScenario;
 ```
 
-6. Update `ScenarioManager.js` to include the new scenario:
+You'll also need to update the `GameController` to pass the systems context when creating the `RenderSystem`:
 
 ```javascript
-import DefaultScenario from './DefaultScenario.js';
-import TutorialScenario from './TutorialScenario.js';
-import ExplorationScenario from './ExplorationScenario.js';
-
-class ScenarioManager {
-  constructor(gameController) {
-    this.gameController = gameController;
-    
-    // Register available scenarios
-    this.scenarios = {
-      'default': DefaultScenario,
-      'tutorial': TutorialScenario,
-      'exploration': ExplorationScenario
-    };
-  }
+// In src/core/GameController.js
+createSystems() {
+  console.log('Creating systems');
+  this.systems.render = new RenderSystem(
+    this.entityManager, 
+    this.sceneManager, 
+    this.modelLoader,
+    this.systems  // Pass the entire systems context
+  );
+  // ... rest of the method remains the same
 }
 ```
 
-Benefits of this approach:
-- Flexible scenario configuration
-- Easy to add new scenario types
-- Decoupled UI management
-- Clear separation of concerns
+This approach:
+1. Passes the entire systems context to `SelectionIndicator`
+2. Allows access to `sceneManager` through the systems context
+3. Adds multiple layers of safety checks
+4. Provides meaningful error logging
+5. Maintains the existing code structure
 
-Potential future extensions:
-1. Add more granular feature toggles
-2. Create more specialized scenario types
-3. Add scenario-specific UI elements dynamically
+The key changes are:
+- Adding `systems` as a parameter to `RenderSystem` constructor
+- Modifying `SelectionIndicator` to use `systems.sceneManager`
+- Adding robust error checking and logging
 
-Would you like me to elaborate on any part of this implementation or discuss potential scenario types we could develop?
+Would you like me to explain the rationale behind this approach further?
