@@ -194,10 +194,10 @@ describe('CombatSystem', () => {
       });
       
       // Mock random to force a critical hit
-      jest.spyOn(global.Math, 'random').mockReturnValue(0.1); // No crit (below 0.2)
+      jest.spyOn(global.Math, 'random').mockReturnValue(0.1); // No crit (below 0.8)
       const normalDamage = combatSystem.calculateDamage(1, 2, 'ranged', 'normal');
       
-      jest.spyOn(global.Math, 'random').mockReturnValue(0.5); // Crit (above 0.2)
+      jest.spyOn(global.Math, 'random').mockReturnValue(0.9); // Crit (above 0.8)
       const criticalDamage = combatSystem.calculateDamage(1, 2, 'ranged', 'normal');
       
       // Assault has base damage 15

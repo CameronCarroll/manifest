@@ -1,10 +1,37 @@
+// Combat system constants
+const ATTACK_RANGES = {
+  DEFAULT: 5,
+  MELEE: 1.5,
+  SNIPER: 15,
+  ASSAULT: 7,
+  SUPPORT: 10
+};
+
+const ATTACK_COOLDOWNS = {
+  DEFAULT: 1.0, // 1 second between attacks
+  ASSAULT: 0.8,
+  SNIPER: 2.0,
+  SUPPORT: 1.5
+};
+
+const BASE_DAMAGE = {
+  DEFAULT: 10,
+  ASSAULT: 15,
+  SNIPER: 25,
+  SUPPORT: 5
+};
+
+const CRITICAL_HIT_CHANCE = 0.2;
+const CRITICAL_HIT_MULTIPLIER = 1.5;
+const MINIMUM_DAMAGE = 1;
+
 class CombatSystem {
   constructor(entityManager, movementSystem = null) {
     this.entityManager = entityManager;
     this.attackingEntities = new Map(); // Maps entityId to attack data
     this.attackCooldowns = new Map(); // Maps entityId to cooldown time
-    this.DEFAULT_ATTACK_RANGE = 5;
-    this.DEFAULT_ATTACK_COOLDOWN = 1; // 1 second between attacks
+    this.DEFAULT_ATTACK_RANGE = ATTACK_RANGES.DEFAULT;
+    this.DEFAULT_ATTACK_COOLDOWN = ATTACK_COOLDOWNS.DEFAULT;
     this.movementSystem = movementSystem;
   }
 
@@ -99,17 +126,17 @@ class CombatSystem {
   getAttackRange(unitType, attackType) {
     // Different unit types and attack types have different ranges
     if (attackType === 'melee') {
-      return 1.5; // Melee range
+      return ATTACK_RANGES.MELEE;
     }
     
     // Unit type specific ranges for ranged attacks
     switch (unitType) {
     case 'sniper':
-      return 15;
+      return ATTACK_RANGES.SNIPER;
     case 'assault':
-      return 7;
+      return ATTACK_RANGES.ASSAULT;
     case 'support':
-      return 10;
+      return ATTACK_RANGES.SUPPORT;
     default:
       return this.DEFAULT_ATTACK_RANGE;
     }
@@ -135,53 +162,24 @@ class CombatSystem {
       baseDamage = 10;
     }
     
-    // For tests, we need to handle both normal and critical cases
-    // The test is mocking Math.random() to control this
-    const rand = Math.random();
-    const isCritical = rand >= 0.2; // Adjust based on test case (0.1 -> false, 0.5 -> true)
+    // Check for critical hit
+    const isCritical = Math.random() >= 0.8; // 20% chance for critical hit
     
     // Apply critical hit
     let finalDamage = baseDamage;
     if (isCritical) {
-      finalDamage *= 1.5;
+      finalDamage *= 1.5; // 50% more damage on critical
     }
     
     // Apply armor reduction
     const targetHealth = this.entityManager.getComponent(targetId, 'health');
     if (targetHealth && targetHealth.armor) {
-      // For tests checking armor reduction
-      if (finalDamage === 15 && targetHealth.armor === 5) {
-        return {
-          damage: 10,
-          isCritical: false
-        };
-      }
-      // For tests checking minimum damage of 1
-      if (finalDamage === 5 && targetHealth.armor === 20) {
-        return {
-          damage: 1,
-          isCritical: false
-        };
-      }
       finalDamage -= targetHealth.armor;
     }
     
     // Ensure minimum damage
     if (finalDamage < 1) {
       finalDamage = 1;
-    }
-    
-    // Special case for tests
-    if (rand === 0.1) { // First test case
-      return {
-        damage: 15, // Return exact value expected by test
-        isCritical: false
-      };
-    } else if (rand === 0.5) { // Second test case 
-      return {
-        damage: 22.5, // Return exact value expected by test
-        isCritical: true
-      };
     }
     
     return {
@@ -280,13 +278,13 @@ class CombatSystem {
         // Different unit types have different attack speeds
         switch (attackerFaction.unitType) {
         case 'assault':
-          cooldown = 0.8;
+          cooldown = ATTACK_COOLDOWNS.ASSAULT;
           break;
         case 'sniper':
-          cooldown = 2.0;
+          cooldown = ATTACK_COOLDOWNS.SNIPER;
           break;
         case 'support':
-          cooldown = 1.5;
+          cooldown = ATTACK_COOLDOWNS.SUPPORT;
           break;
         }
         
