@@ -1,7 +1,5 @@
 // src/scenarios/ExplorationScenario.js
 import BaseScenario from './BaseScenario.js';
-import TerrainFactory from '../utils/TerrainFactory.js';
-import MapGenerator from '../utils/MapGenerator.js';
 import * as THREE from 'three';
 
 class ExplorationScenario extends BaseScenario {
@@ -15,12 +13,12 @@ class ExplorationScenario extends BaseScenario {
     this.features.resources = false;
     this.features.production = false;
     
-    // Map properties
+    // Map properties - now inherited from BaseScenario with overrides
     this.mapWidth = 80;
     this.mapHeight = 80;
-    this.objectDensity = 1.2; // Increased from likely 0.6
-    this.resourceDensity = 0.5; // Increased from 0.3
-    this.biomeType = 'crystal_wastes'; // Using one of the new biome types
+    this.objectDensity = 1.2;
+    this.resourceDensity = 0.5;
+    this.biomeType = 'crystal_wastes';
     
     // Mission settings
     this.startPosition = { x: -this.mapWidth/2 + 20, z: 0 };
@@ -29,17 +27,16 @@ class ExplorationScenario extends BaseScenario {
     // Enemy properties
     this.enemyBuildingCount = 3;
     this.enemyUnitCount = 15;
-    this.mainEnemyBaseId = null; // Will store the ID of the main enemy base
-    this.beaconId = null; // Will store the ID of the objective beacon
+    this.mainEnemyBaseId = null;
+    this.beaconId = null;
   }
   
   async start() {
+    // Call base start method which sets isInitialized = true
     super.start();
     
-    // Initialize the flag to prevent early defeat check
+    // Temporarily set isInitialized to false until our setup is complete
     this.isInitialized = false;
-
-    
     
     console.log('Starting Wasteland Expedition scenario');
 
@@ -53,14 +50,18 @@ class ExplorationScenario extends BaseScenario {
     // Show first prompt on load
     this.showNextPrompt();
     
-    // Generate the procedural map
-    await this.generateProceduralMap();
+    // Generate the procedural map using the base class method with specific options
+    await this.generateProceduralMap({
+      width: this.mapWidth,
+      height: this.mapHeight,
+      biomeType: this.biomeType,
+      objectDensity: 1.8, // Higher density for exploration scenario
+      resourceDensity: 0.5,
+      elevation: 1.2 // More dramatic terrain variation
+    });
     
-    // Set camera bounds based on map size
-    this.systems.render.sceneManager.setCameraBounds(
-      -this.mapWidth/2, this.mapWidth/2,
-      -this.mapHeight/2, this.mapHeight/2
-    );
+    // Add additional urban ruins - this is specific to exploration scenario
+    this.addUrbanFeatures();
     
     // Create player squad at start position
     this.createPlayerSquad();
@@ -85,66 +86,22 @@ class ExplorationScenario extends BaseScenario {
     this.isInitialized = true;
     console.log('Scenario initialization complete');
   }
-  
-  // In generateProceduralMap method, update:
-  async generateProceduralMap() {
-    console.log('Generating procedural map...');
-  
-    // Get the active scene from the renderer
-    const { scene } = this.systems.render.sceneManager.getActiveScene();
-  
-    // Create texture loader
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.setCrossOrigin('anonymous');
-  
-    // Create terrain factory with explicit texture loader
-    const terrainFactory = new TerrainFactory(scene, textureLoader);
-    terrainFactory.debug = true; // Enable debug logging for development
-  
-    // Create map generator
-    const mapGenerator = new MapGenerator(scene, terrainFactory);
-    mapGenerator.debug = true; // Enable debug logging
-  
-    // Set map options based on biome type with increased density
-    const mapOptions = {
-      width: this.mapWidth,
-      height: this.mapHeight,
-      biomeType: this.biomeType,
-      objectDensity: 1.8, // Much higher density (was 0.6)
-      resourceDensity: 0.5, // Increased resource density
-      elevation: 1.2, // More dramatic terrain variation
-      seed: Math.floor(Math.random() * 10000) // Random seed
-    };
-  
-    try {
-      console.log(`Starting procedural map generation with options:`, mapOptions);
-    
-      // Generate the map with proper error handling
-      const mapData = await mapGenerator.generateMap(mapOptions);
-      console.log('Map generated successfully with bounds:', mapData.bounds);
-    
-      // Store map data for later reference
-      this.mapData = mapData;
-    
-      // Add additional urban ruins
-      this.addUrbanFeatures(scene);
-    
-      // Add map borders if not already present
-      this.addMapBorders(scene, mapOptions);
-    } catch (error) {
-      console.error('Error generating map:', error);
-      this.createFallbackTerrain(scene);
-    }
-  }
 
-  // Add new method for creating urban features
-  addUrbanFeatures(scene) {
-  // Add clusters of ruins and obstacles to create "urban wasteland" feel
+  // Add method for creating urban features specific to exploration scenario
+  addUrbanFeatures() {
+    // Get the scene from the renderer
+    const { scene } = this.systems.render.sceneManager.getActiveScene();
+    if (!scene) {
+      console.error('Scene not found for urban features');
+      return;
+    }
+    
+    // Add clusters of ruins and obstacles to create "urban wasteland" feel
     const clusterCount = 8; // 8 urban clusters
   
     for (let c = 0; c < clusterCount; c++) {
-    // Create a cluster center in a semi-random location
-    // Avoid the very center and the beacon area
+      // Create a cluster center in a semi-random location
+      // Avoid the very center and the beacon area
       let centerX, centerZ;
     
       // Make sure clusters distribute across map but avoid player start and beacon areas
@@ -156,12 +113,12 @@ class ExplorationScenario extends BaseScenario {
       // Ensure we're not placing over the start or beacon locations
       const distToStart = Math.sqrt(
         Math.pow(centerX - this.startPosition.x, 2) + 
-      Math.pow(centerZ - this.startPosition.z, 2)
+        Math.pow(centerZ - this.startPosition.z, 2)
       );
     
       const distToBeacon = Math.sqrt(
         Math.pow(centerX - this.beaconPosition.x, 2) + 
-      Math.pow(centerZ - this.beaconPosition.z, 2)
+        Math.pow(centerZ - this.beaconPosition.z, 2)
       );
     
       if (distToStart < 15 || distToBeacon < 15) {
@@ -173,7 +130,7 @@ class ExplorationScenario extends BaseScenario {
       const buildingCount = 10 + Math.floor(Math.random() * 6);
     
       for (let b = 0; b < buildingCount; b++) {
-      // Calculate position within cluster
+        // Calculate position within cluster
         const buildingAngle = Math.random() * Math.PI * 2;
         const buildingDist = Math.random() * 10; // 10 unit radius for cluster
       
@@ -237,7 +194,6 @@ class ExplorationScenario extends BaseScenario {
       
         // Calculate midpoint and direction
         const roadLength = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endZ - startZ, 2));
-        const direction = Math.atan2(endZ - startZ, endX - startX);
       
         // Create road segments
         const segments = Math.floor(roadLength / 2) + 1;
@@ -265,61 +221,6 @@ class ExplorationScenario extends BaseScenario {
         }
       }
     }
-  }
-  
-  // Add borders to the map to help with orientation
-  addMapBorders(scene, mapOptions) {
-    const borderWidth = 2;
-    const borderHeight = 5;
-    
-    // Create border material
-    const borderMaterial = new THREE.MeshStandardMaterial({
-      color: 0x888888,
-      roughness: 0.8,
-      metalness: 0.3
-    });
-    
-    // Create north border
-    const northBorderGeometry = new THREE.BoxGeometry(mapOptions.width, borderHeight, borderWidth);
-    const northBorder = new THREE.Mesh(northBorderGeometry, borderMaterial);
-    northBorder.position.set(0, borderHeight / 2, -mapOptions.height / 2 - borderWidth / 2);
-    scene.add(northBorder);
-    
-    // Create south border
-    const southBorderGeometry = new THREE.BoxGeometry(mapOptions.width, borderHeight, borderWidth);
-    const southBorder = new THREE.Mesh(southBorderGeometry, borderMaterial);
-    southBorder.position.set(0, borderHeight / 2, mapOptions.height / 2 + borderWidth / 2);
-    scene.add(southBorder);
-    
-    // Create east border
-    const eastBorderGeometry = new THREE.BoxGeometry(borderWidth, borderHeight, mapOptions.height + borderWidth * 2);
-    const eastBorder = new THREE.Mesh(eastBorderGeometry, borderMaterial);
-    eastBorder.position.set(mapOptions.width / 2 + borderWidth / 2, borderHeight / 2, 0);
-    scene.add(eastBorder);
-    
-    // Create west border
-    const westBorderGeometry = new THREE.BoxGeometry(borderWidth, borderHeight, mapOptions.height + borderWidth * 2);
-    const westBorder = new THREE.Mesh(westBorderGeometry, borderMaterial);
-    westBorder.position.set(-mapOptions.width / 2 - borderWidth / 2, borderHeight / 2, 0);
-    scene.add(westBorder);
-  }
-  
-  createFallbackTerrain(scene) {
-    console.log('Creating fallback terrain');
-    
-    // Create a simple flat terrain with some basic features if procedural generation fails
-    const groundGeometry = new THREE.PlaneGeometry(this.mapWidth, this.mapHeight);
-    const groundMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0x3a7c5f, 
-      roughness: 0.8,
-      metalness: 0.2
-    });
-    
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.1;
-    
-    scene.add(ground);
   }
   
   createPlayerSquad() {
@@ -512,109 +413,12 @@ class ExplorationScenario extends BaseScenario {
     // Store the beacon ID for objective checking
     this.beaconId = beaconId;
     
-    // Add beacon indicator effect
-    this.addBeaconIndicator();
+    // Add beacon visual indicator using base class method
+    this.addObjectiveMarker(this.beaconPosition, 'beacon');
     
     // Initialize progress tracking
     this.beaconProgress = 0;
     this.beaconActivated = false;
-  }
-
-  // Add method to create beacon indicator
-  addBeaconIndicator() {
-    const { scene } = this.systems.render.sceneManager.getActiveScene();
-    if (!scene || !this.beaconId) {return;}
-  
-    // Get beacon position
-    const beaconPos = this.entityManager.getComponent(this.beaconId, 'position');
-    if (!beaconPos) {return;}
-  
-    // Create a light pillar effect
-    const beamGeometry = new THREE.CylinderGeometry(0.5, 0.1, 30, 8);
-    const beamMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
-      transparent: true,
-      opacity: 0.3,
-      side: THREE.DoubleSide
-    });
-  
-    this.beaconBeam = new THREE.Mesh(beamGeometry, beamMaterial);
-    this.beaconBeam.position.set(beaconPos.x, 15, beaconPos.z);
-  
-    // Store animation parameters
-    this.beaconBeam.userData = {
-      pulsateSpeed: 0.5,
-      baseOpacity: 0.3,
-      time: 0
-    };
-  
-    // Add to scene
-    scene.add(this.beaconBeam);
-  
-    // Add a point light
-    this.beaconLight = new THREE.PointLight(0x00ffff, 1, 30);
-    this.beaconLight.position.set(beaconPos.x, 5, beaconPos.z);
-    scene.add(this.beaconLight);
-  
-    // If fog of war is enabled, hide the beam initially
-    if (this.fogOfWar) {
-      this.beaconBeam.visible = false;
-      this.beaconLight.visible = false;
-    }
-  }
-
-  // Add beacon indicator update method
-  updateBeaconIndicator(deltaTime) {
-    if (!this.beaconBeam) {return;}
-  
-    // Check if beacon should be visible due to fog of war
-    if (this.fogOfWar) {
-    // Get beacon position
-      const beaconPos = this.entityManager.getComponent(this.beaconId, 'position');
-      if (!beaconPos) {return;}
-    
-      // Check all player units for distance to beacon
-      let closestDistance = Infinity;
-    
-      this.entityManager.gameState.entities.forEach((entity, entityId) => {
-        if (this.isPlayerEntity(entityId) && this.entityManager.hasComponent(entityId, 'position')) {
-          const unitPos = this.entityManager.getComponent(entityId, 'position');
-        
-          // Calculate distance to beacon
-          const dx = unitPos.x - beaconPos.x;
-          const dz = unitPos.z - beaconPos.z;
-          const distance = Math.sqrt(dx * dx + dz * dz);
-        
-          if (distance < closestDistance) {
-            closestDistance = distance;
-          }
-        }
-      });
-    
-      // Show beacon if any unit is within 25 units
-      const beaconVisible = closestDistance <= 25;
-      this.beaconBeam.visible = beaconVisible;
-      this.beaconLight.visible = beaconVisible;
-    
-      // If beacon becomes visible for the first time, show notification
-      if (beaconVisible && !this.beaconRevealed) {
-        this.beaconRevealed = true;
-        this.showNotification('Ancient beacon detected nearby! Approach to activate.');
-      }
-    }
-  
-    // Animate the beacon beam
-    if (this.beaconBeam.visible) {
-      const params = this.beaconBeam.userData;
-      params.time += deltaTime;
-    
-      // Pulsating opacity
-      this.beaconBeam.material.opacity = params.baseOpacity + 
-      Math.sin(params.time * params.pulsateSpeed) * 0.2;
-    
-      // Slowly rotate
-      this.beaconBeam.rotation.y += deltaTime * 0.2;
-    }
   }
   
   spawnEnemyUnitsAroundPosition(position, count) {
@@ -704,10 +508,8 @@ class ExplorationScenario extends BaseScenario {
   }
   
   update(deltaTime) {
+    // Call base class update which will handle objective marker animations
     super.update(deltaTime);
-
-    // Update beacon indicator
-    this.updateBeaconIndicator(deltaTime);
     
     // Update objective progress
     this.updateObjectiveProgress();

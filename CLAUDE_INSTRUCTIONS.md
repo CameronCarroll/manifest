@@ -1,52 +1,131 @@
-# Work Packages for New Graphics Extensions Implementation
+Looking at the code for `ExplorationScenario` and `BaseScenario`, I can identify several opportunities for refactoring to improve code reuse across different scenarios. The current `ExplorationScenario` contains multiple methods that could be generalized and moved to `BaseScenario`.
 
-Overall goal: Integrate new extended graphics system (See GRAPHICS_EXTENSION_DOCS.md) with existing game engine / codebase. The user will be testing with ExplorationScenario.js, which is designed to use the new asset system.
+Here's my analysis of what should be refactored to the base class:
 
-## 1. Component Registration
-- Register the new `UnitTypeComponent` and `BuildingTypeComponent` in `GameController.js`
-- Add them to the initialization sequence similar to existing components
-- Ensure component managers are properly constructed before being registered
+## Methods to Move to BaseScenario
 
-## 2. Texture Loading System
-- Fix the `TextureLoader` initialization in `TerrainFactory`
-- Implement proper fallback mechanisms for missing textures
-- Ensure texture loading is asynchronous with proper error handling
-- Set up asset paths correctly for development and production
+1. **Map Generation and Terrain Management**
+   - `generateProceduralMap()` with configurable parameters
+   - `addMapBorders()` 
+   - `createFallbackTerrain()`
+   - The existing `createTerrainFeature()` method could be enhanced
 
-## 3. Model Factory Integration
-- Connect the `ModelFactory` to the `RenderSystem` properly
-- Ensure the `createResourceModel` and other factory methods exist and work correctly
-- Add proper error handling for when specific model methods aren't available
-- Implement model caching to improve performance
+2. **UI and Notification System**
+   - `showNotification()` 
+   - `showNextPrompt()` and prompt queue management
 
-## 4. Animation System Configuration
-- Properly connect the `AnimationFactory` to the `AnimationSystem`
-- Ensure animation state transitions are correctly handled
-- Fix animation event propagation between systems
-- Implement proper lifecycle management for animations
+3. **Beacon/Objective Indicator System**
+   - `addBeaconIndicator()` and `updateBeaconIndicator()`
+   - These could be generalized to a broader "objective marker" system
 
-## 5. Terrain and Map Generation
-- Fix the `MapGenerator` to properly use the terrain factory
-- Implement environment object placement with collision detection
-- Create biome-specific terrain textures and features
-- Add appropriate terrain height variation and decoration
+4. **Entity Creation Methods**
+   - `createEnemyBuilding()` to complement the existing `createPlayerUnit()`
+   - `spawnEnemyUnitsAroundPosition()` and `spawnRandomEnemyUnits()`
 
-## 6. Scenario Integration
-- Create a component registry system that works with both new and old components
-- Implement entity creation that uses appropriate component types based on availability
-- Create visual representations that work with both systems during transition
-- Ensure objective systems correctly reference entities
+5. **Unit Management Utilities**
+   - `getUnitHealthValues()`, `getUnitAttackType()`, `getUnitAbilities()`
+   - `convertUnitTypeToFactionType()`
+   - `isPlayerEntity()` utility function
 
-## 7. Debug and Testing Tools
-- Add debug visualization toggles for new models and components
-- Create test scenarios for each new asset type
-- Implement performance monitoring for the new graphics systems
-- Add graceful fallbacks for when new components aren't available
+6. **Objective Management**
+   - The objective tracking logic in `updateObjectiveProgress()` would be useful across scenarios
 
-## 8. Asset Preparation
-- Create placeholder assets for development if needed
-- Implement procedural generation for testing before final assets are ready
-- Set up an asset loading queue with priorities
-- Add asset compression and optimization
+## Implementation Strategy
 
-These work packages would need to be implemented sequentially, with Component Registration being the highest priority since it's causing the immediate errors. The implementation should focus on backward compatibility to ensure the game still works even if certain extension components aren't available.
+Here's how I would refactor the code:
+
+```javascript
+// In BaseScenario.js
+
+// Add new configurable properties
+constructor(gameController) {
+  // Existing code...
+  
+  // Map configuration
+  this.mapWidth = 40;
+  this.mapHeight = 40;
+  this.objectDensity = 0.6;
+  this.resourceDensity = 0.3;
+  this.biomeType = 'default';
+  
+  // UI configuration
+  this.promptQueue = [];
+  
+  // Combat configuration
+  this.unitTypes = {}; // Define in subclasses
+}
+
+// Add map generation methods
+async generateProceduralMap(options = {}) {
+  // Generalized version of the map generation logic
+  // with fallback mechanisms
+}
+
+addMapBorders(scene, mapOptions) {
+  // Existing logic from ExplorationScenario
+}
+
+createFallbackTerrain(scene) {
+  // Existing logic from ExplorationScenario
+}
+
+// Add UI methods
+showNotification(message) {
+  // Existing logic from ExplorationScenario
+}
+
+showNextPrompt() {
+  // Existing logic from ExplorationScenario
+}
+
+// Add entity management methods
+createEnemyBuilding(buildingType, position, scale = 1.0) {
+  // Existing logic from ExplorationScenario
+}
+
+spawnEnemyUnitsAroundPosition(position, count) {
+  // Generalized version
+}
+
+spawnRandomEnemyUnits(count, area = {}) {
+  // Generalized version with configurable area
+}
+
+// Add utility methods
+isPlayerEntity(entityId) {
+  // Existing logic from ExplorationScenario
+}
+
+// Add objective marker system
+addObjectiveMarker(position, type = 'default') {
+  // Generalized version of addBeaconIndicator
+}
+
+updateObjectiveMarkers(deltaTime) {
+  // Generalized version of updateBeaconIndicator
+}
+```
+
+## Benefits of Refactoring
+
+1. **Reduced Code Duplication**: Multiple scenarios can leverage the same infrastructure code.
+
+2. **Improved Maintainability**: Bug fixes in the base functionality will apply to all scenarios.
+
+3. **Standardized Interfaces**: Creates a more consistent API for creating new scenarios.
+
+4. **Enhanced Modularity**: Makes it easier to create variations of scenarios by combining different features.
+
+5. **Simplified Scenario Development**: New scenarios can focus on unique gameplay mechanics rather than reimplementing infrastructure.
+
+## Implementation Considerations
+
+1. **Parameterization**: Methods need to be generalized with appropriate parameters, defaulting to the current implementation but allowing customization.
+
+2. **Backwards Compatibility**: Ensure existing scenarios still work with the refactored base class.
+
+3. **Documentation**: Add clear documentation for how to use and extend the base scenario functionality.
+
+4. **Progressive Refactoring**: Consider implementing this refactoring in phases rather than all at once to minimize the risk of breaking existing scenarios.
+
+The urban feature creation (`addUrbanFeatures()`) and specialized enemy/beacon placement would remain in the exploration scenario as they're specific to that gameplay experience, but they'd use the generalized infrastructure provided by the enhanced base scenario.
