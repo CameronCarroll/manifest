@@ -10,6 +10,15 @@ class MovementSystem {
   }
 
   moveEntity(entityId, destination, speed, targetEntityId = null, attackMove = false, formationOffset = null) {
+    // Add check for sniper in aim mode - prevent movement
+    if (this.entityManager.gameState && this.entityManager.gameState.entities.has(entityId)) {
+      const entity = this.entityManager.gameState.entities.get(entityId);
+      if (entity.customProperties && entity.customProperties.isAiming) {
+        console.log(`Cannot move entity ${entityId} - sniper is in aim mode`);
+        return false;
+      }
+    }
+  
     // Add entity to moving entities list with destination
     if (this.entityManager.hasComponent(entityId, 'position')) {
       // Check if the entity is a building - buildings should be stationary

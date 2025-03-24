@@ -331,8 +331,11 @@ class GameController {
       } else {
         console.warn('Animation system not available for combat system');
       }
+      
+      // Set systems reference for combat system
+      this.systems.combat.setSystemsReference(this.systems);
     }
-
+  
     // Initialize collision system before movement
     if (this.systems.collision) {
       console.log('Initializing collision system');
@@ -364,6 +367,12 @@ class GameController {
     if (this.systems.objectives) {
       console.log('Initializing objectives system');
       this.systems.objectives.initialize();
+    }
+    
+    // Initialize ability system and ensure it has systems reference
+    if (this.systems.ability) {
+      console.log('Initializing ability system');
+      this.systems.ability.initialize();
     }
   
     console.log('All systems initialized successfully');

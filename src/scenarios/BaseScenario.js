@@ -881,13 +881,15 @@ class BaseScenario {
           canvasX, canvasY, canvasRadius
         );
         
+        // Change: Make center more completely clear for better visibility
         gradient.addColorStop(0, 'rgba(0, 0, 0, 1)'); // Full clear at center
-        gradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.9)'); // Start fade
+        gradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.95)'); // Almost full clear
+        gradient.addColorStop(0.85, 'rgba(0, 0, 0, 0.5)'); // Half fade
         gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); // No clearing at edge
         
         this.lowResFogContext.fillStyle = gradient;
       } else {
-        // Simple fill is much faster
+        // Simple fill is much faster - make fully visible
         this.lowResFogContext.fillStyle = 'rgba(0, 0, 0, 1)';
       }
       
@@ -924,7 +926,10 @@ class BaseScenario {
     
     // Apply explored but not visible overlay (if using memory of explored areas)
     if (this.fogOptions.rememberExplored) {
-      this.lowResFogContext.fillStyle = `rgba(0, 0, 0, ${this.fogOptions.exploredOpacity})`;
+      // Use a slightly higher opacity for explored areas to create better contrast
+      // between fully visible areas and just explored ones
+      const exploredOpacity = Math.min(0.65, this.fogOptions.exploredOpacity + 0.2);
+      this.lowResFogContext.fillStyle = `rgba(0, 0, 0, ${exploredOpacity})`;
       this.lowResFogContext.globalCompositeOperation = 'source-atop';
       this.lowResFogContext.fillRect(0, 0, this.lowResFogCanvas.width, this.lowResFogCanvas.height);
     }
@@ -969,6 +974,31 @@ class BaseScenario {
       this.fogLayer.visible = true;
     }
     
+    // Get the scene to initialize lighting effects
+    const { scene } = this.systems.render.sceneManager.getActiveScene();
+    if (scene) {
+      // Initialize the fog of war lighting system
+      this.updateSceneLighting(scene);
+      
+      // Create a ground plane that will be affected by fog and lighting
+      if (!this.fogGround && this.fogOptions.groundPlane) {
+        const groundGeometry = new THREE.PlaneGeometry(this.mapWidth, this.mapHeight);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+          color: 0x444444,
+          roughness: 0.8,
+          metalness: 0.2,
+          transparent: true,
+          opacity: 0.6
+        });
+        
+        this.fogGround = new THREE.Mesh(groundGeometry, groundMaterial);
+        this.fogGround.rotation.x = -Math.PI / 2;
+        this.fogGround.position.y = 0.05; // Slightly above actual ground
+        this.fogGround.renderOrder = 1; // Render after normal ground
+        scene.add(this.fogGround);
+      }
+    }
+    
     return true;
   }
 
@@ -1007,9 +1037,13 @@ class BaseScenario {
   updateEntityVisibility() {
     if (!this.fogOfWar || !this.fogLayer) {return;}
   
+    // Get the active scene to manage lights
+    const { scene } = this.systems.render.sceneManager.getActiveScene();
+    if (!scene) return;
+    
     // Process all non-player entities with render components
     this.entityManager.gameState.entities.forEach((entity, entityId) => {
-    // Skip player entities, they should always be visible
+      // Skip player entities, they should always be visible
       if (this.isPlayerEntity(entityId)) {return;}
     
       // Only process entities with position and render components
@@ -1021,26 +1055,123 @@ class BaseScenario {
       const pos = this.entityManager.getComponent(entityId, 'position');
       const render = this.entityManager.getComponent(entityId, 'render');
     
-      // Check if the entity position is in fog
-      const isVisible = this.isPositionVisible(pos);
+      // Get visibility information with detail level
+      const visibilityResult = this.getPositionVisibilityDetail(pos);
     
-      // Update render visibility
-      render.visible = isVisible;
-    });
-  }
+      // Update render visibility based on visibility type
+      if (visibilityResult.fullyVisible) {
+        // Fully visible - show at full brightness
+        render.visible = true;
 
-  // Helper method to check if a position is visible (not in fog)
-  isPositionVisible(position) {
-    if (!this.fogOfWar) {return true;}
+        // If we have mesh in render system, set its visibility directly
+        const mesh = this.systems.render.meshes.get(entityId);
+        if (mesh) {
+          mesh.visible = true;
+          
+          // Reset any materials to their original state
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(mat => {
+              if (mat.originalColor) {
+                mat.color.set(mat.originalColor);
+              }
+              if (mat.opacity !== undefined) {
+                mat.opacity = 1.0;
+              }
+            });
+          } else if (mesh.material) {
+            if (mesh.material.originalColor) {
+              mesh.material.color.set(mesh.material.originalColor);
+            }
+            if (mesh.material.opacity !== undefined) {
+              mesh.material.opacity = 1.0;
+            }
+          }
+        }
+        
+      } else if (visibilityResult.explored) {
+        // Explored but not in direct sight - show darkened
+        render.visible = true;
+        
+        // Apply darkening effect through the mesh materials directly
+        const mesh = this.systems.render.meshes.get(entityId);
+        if (mesh) {
+          mesh.visible = true;
+          
+          // Darken all materials for this mesh
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach(mat => {
+              // Store original color if not saved
+              if (!mat.originalColor) {
+                mat.originalColor = mat.color.clone();
+              }
+              // Apply dark blue tint with low opacity for "explored" look
+              mat.color.set(0x001133);
+              mat.opacity = 0.7;
+              mat.transparent = true;
+            });
+          } else if (mesh.material) {
+            // Store original color if not saved
+            if (!mesh.material.originalColor) {
+              mesh.material.originalColor = mesh.material.color.clone();
+            }
+            // Apply dark blue tint with low opacity for "explored" look
+            mesh.material.color.set(0x001133);
+            mesh.material.opacity = 0.7;
+            mesh.material.transparent = true;
+          }
+        }
+      } else {
+        // Not visible at all - completely hidden
+        render.visible = false;
+        
+        // Also hide the actual mesh
+        const mesh = this.systems.render.meshes.get(entityId);
+        if (mesh) {
+          mesh.visible = false;
+        }
+      }
+    });
+    
+    // Make sure to update the scene lighting based on fog of war
+    this.updateSceneLighting(scene);
+  }
   
-    // Get all player unit positions
+  // New method to control scene lighting based on fog of war
+  updateSceneLighting(scene) {
+    if (!this.fogOfWar) return;
+    
+    // Make sure we have a scene light to control
+    if (!this._sceneFogLights) {
+      // Create lighting system for fog of war
+      this._sceneFogLights = {
+        ambient: new THREE.AmbientLight(0xffffff, 1.0), // Bright ambient for visible areas
+        explored: new THREE.DirectionalLight(0x2244ff, 0.3) // Blue-tinted directional for explored areas
+      };
+      
+      // Add lights to scene
+      scene.add(this._sceneFogLights.ambient);
+      scene.add(this._sceneFogLights.explored);
+      
+      // Position the directional light
+      this._sceneFogLights.explored.position.set(0, 50, 0);
+      this._sceneFogLights.explored.target.position.set(0, 0, 0);
+      scene.add(this._sceneFogLights.explored.target);
+    }
+  }
+  
+  // Helper method that returns more detailed visibility information
+  getPositionVisibilityDetail(position) {
+    if (!this.fogOfWar) {
+      return { fullyVisible: true, explored: true };
+    }
+  
+    // Check for direct visibility from player units
     for (const [entityId, entity] of this.entityManager.gameState.entities) {
-      // Only consider player entities for fog of war visibility
       if (this.isPlayerEntity(entityId) && 
           this.entityManager.hasComponent(entityId, 'position')) {
         
         const unitPos = this.entityManager.getComponent(entityId, 'position');
-      
+        
         // Calculate distance to this unit
         const dx = position.x - unitPos.x;
         const dz = position.z - unitPos.z;
@@ -1055,9 +1186,9 @@ class BaseScenario {
           }
         }
       
-        // If within sight radius, position is visible
+        // If within sight radius, position is fully visible
         if (distance <= sightRadius) {
-          return true;
+          return { fullyVisible: true, explored: true };
         }
       }
     }
@@ -1066,17 +1197,28 @@ class BaseScenario {
     if (this.fogOptions.rememberExplored && this.exploredGrid) {
       const gridResolution = 4; // Match the grid resolution from initialization
       const gridX = Math.floor((position.x + this.mapWidth/2) * gridResolution);
-      const gridY = Math.floor((position.z + this.mapHeight/2) * gridResolution);
+      // Use correct Y coordinate calculation to match the one used in updateFogOfWar
+      const gridY = Math.floor((this.mapHeight - (position.z + this.mapHeight/2)) * gridResolution);
     
       // Ensure within grid bounds
       if (gridX >= 0 && gridX < this.exploredGrid.length && 
           gridY >= 0 && gridY < this.exploredGrid[0].length) {
-        // If area is explored, return semi-visible (true for now, could be enhanced)
-        return this.exploredGrid[gridX][gridY];
+        // If the area is explored, it's semi-visible
+        if (this.exploredGrid[gridX][gridY]) {
+          return { fullyVisible: false, explored: true };
+        }
       }
     }
   
-    return false;
+    // Not visible at all
+    return { fullyVisible: false, explored: false };
+  }
+
+  // Helper method to check if a position is visible (not in fog)
+  isPositionVisible(position) {
+    const result = this.getPositionVisibilityDetail(position);
+    // Return true for both fully visible and explored areas
+    return result.fullyVisible || result.explored;
   }
 
   // Add this method to BaseScenario.js
@@ -1242,10 +1384,11 @@ class BaseScenario {
             // Proportional fade based on distance from edge
               const dist = Math.sqrt(distSquared);
               const fade = Math.max(0, 1 - dist / texRadius);
-              alpha = Math.floor(255 * (1 - fade * 0.9)); // Keep a bit of fog even at center
+              // Change: Use much lower alpha (more transparent) in direct sight areas
+              alpha = Math.floor(255 * (1 - fade * 0.95)); // Almost completely clear at center
             } else {
-            // Simple visibility - much faster
-              alpha = this.fogOptions.exploredOpacity * 255;
+            // Simple visibility - much faster - make fully visible areas clearer
+              alpha = Math.floor(255 * 0.1); // Very low fog in direct sight (10% opacity)
             }
           
             // Set pixel alpha (fog opacity)
@@ -1292,6 +1435,8 @@ class BaseScenario {
     if (enabled === this.fogOptions.enableAdvancedFog) {return;}
   
     this.fogOptions.enableAdvancedFog = enabled;
+    // Store previous state to restore entity visibility
+    const wasOptimized = !enabled;
   
     if (enabled) {
       console.log('Using higher quality fog of war (may impact performance)');
@@ -1301,12 +1446,16 @@ class BaseScenario {
       console.log('Using optimized fog of war for better performance');
       this.fogOptions.updateFrequency = 0.25;
       this.fogOptions.useGradients = false;
+      
+      // IMPORTANT: In optimized mode, we still want to see units in explored areas
+      // Force a full entity visibility update to restore proper visibility
+      this._forceVisibilityRefresh = true;
     }
   }
 
   // Add this method to automatically adjust fog quality based on performance
   autoAdjustFogQuality() {
-  // Track frame rate over time
+    // Track frame rate over time
     if (!this._fpsHistory) {
       this._fpsHistory = [];
       this._lastFpsCheck = Date.now();
@@ -1335,12 +1484,24 @@ class BaseScenario {
       // Get average FPS
       const avgFps = this._fpsHistory.reduce((sum, val) => sum + val, 0) / this._fpsHistory.length;
     
+      // Check if we need to force visibility refresh due to a mode switch
+      if (this._forceVisibilityRefresh) {
+        // Force update all entity visibility
+        this.updateEntityVisibility();
+        // Reset flag
+        this._forceVisibilityRefresh = false;
+      }
+      
       // Adjust fog quality based on FPS
       if (avgFps < 30) {
-      // Poor performance - optimize fog
+        // Poor performance - optimize fog
         if (this.fogOptions.enableAdvancedFog) {
           console.log(`Low FPS detected (${avgFps.toFixed(1)}), optimizing fog of war`);
           this.toggleOptimizedFog(false);
+          
+          // Important: After switching to optimized mode, update entity visibility
+          // to make sure units still appear in explored areas
+          this.updateEntityVisibility();
         }
       
         // If still bad, increase update interval

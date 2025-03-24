@@ -122,7 +122,7 @@ class AbilitySystem {
   // In the activateSniperAim method
 
   activateSniperAim(entityId) {
-  // Check if entity is a sniper
+    // Check if entity is a sniper
     const isSniper = this.isSniperUnit(entityId);
     if (!isSniper) {return false;}
   
@@ -130,14 +130,14 @@ class AbilitySystem {
   
     // Check if ability is already active - if so, deactivate it
     if (this.activeAbilities.has(entityId) && 
-      this.activeAbilities.get(entityId).type === 'sniper_aim') {
+        this.activeAbilities.get(entityId).type === 'sniper_aim') {
       console.log(`Deactivating sniper aim for ${entityId}`);
       this.cancelAbility(entityId);
-    
+      
       // Set cooldown to prevent instant reactivation
       const cooldownKey = `${entityId}_sniper_aim`;
       this.abilityCooldowns.set(cooldownKey, 0.5); // Half-second cooldown for toggling
-    
+      
       return true;
     }
   
@@ -164,14 +164,29 @@ class AbilitySystem {
       lineOfSight: lineOfSight,
       lastFireTime: 0,
       cooldown: 1.5, // Time between shots
-      maxRange: 15,
-      direction: position.rotation
+      maxRange: 25, // Increased significantly beyond normal vision range
+      direction: position.rotation,
+      isImmobilized: true // Flag to indicate sniper cannot move while aiming
     });
+  
+    // Add a custom property to the entity to mark as a sniper in aim mode
+    // This will be checked by other systems to prevent auto-attacks and movement
+    if (this.entityManager.gameState) {
+      // Store the original entity data if needed
+      const entity = this.entityManager.gameState.entities.get(entityId) || {};
+      if (!entity.customProperties) {
+        entity.customProperties = {};
+      }
+      entity.customProperties.isAiming = true;
+      entity.customProperties.noAutoAttack = true;
+      this.entityManager.gameState.entities.set(entityId, entity);
+    }
   
     return true;
   }
     
   // Update sniper aim ability
+  // Update updateSniperAim to check for fog of war visibility
   updateSniperAim(entityId, abilityData, deltaTime) {
     // Get entity position
     const position = this.entityManager.getComponent(entityId, 'position');
@@ -190,38 +205,46 @@ class AbilitySystem {
         // Fire at enemy
         console.log(`Sniper ${entityId} firing at ${enemyHit}`);
           
-        if (this.systems.combat) {
-          this.systems.combat.startAttack(entityId, enemyHit);
+        // Add safety check before calling combat system
+        if (this.systems && this.systems.combat) {
+          try {
+            this.systems.combat.startAttack(entityId, enemyHit);
+          } catch (error) {
+            console.error('Error starting attack from ability:', error);
+          }
+        } else {
+          console.warn('Combat system not available for sniper shot');
         }
           
-        // Reset fire timer
+        // Reset fire timer regardless of whether attack succeeded
         abilityData.lastFireTime = 0;
       }
     }
   }
     
   // Create sniper line of sight visualization
+  // Update the sniper line of sight creation to increase max range
   createSniperLineOfSight(entityId, position) {
-    // Get the scene from the render system
+  // Get the scene from the render system
     const { scene } = this.systems.render.sceneManager.getActiveScene();
     if (!scene) {
       console.error('No scene available to create sniper line of sight');
       return null;
     }
-    
+  
     // Calculate direction vector
     const direction = {
       x: Math.sin(position.rotation),
       z: Math.cos(position.rotation)
     };
-    
-    // Create line geometry
-    const maxRange = 15; // Maximum sniper range
+  
+    // Create line geometry with much longer range
+    const maxRange = 25; // Maximum sniper range (increased from 15)
     const lineGeometry = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(0, 0.5, 0), // Slightly above ground
       new THREE.Vector3(direction.x * maxRange, 0.5, direction.z * maxRange)
     ]);
-    
+  
     // Create line material (red, semi-transparent)
     const lineMaterial = new THREE.LineBasicMaterial({
       color: 0xff0000,
@@ -229,20 +252,21 @@ class AbilitySystem {
       opacity: 0.7,
       linewidth: 3 // Note: LineBasicMaterial ignores linewidth in WebGL
     });
-    
+  
     // Create line and add to scene
     const line = new THREE.Line(lineGeometry, lineMaterial);
     line.position.set(position.x, 0.5, position.z);
-    
+  
     // Store entityId in userData for debugging
     line.userData.ownerId = entityId;
     line.userData.type = 'sniperLineOfSight';
-    
+    line.userData.maxRange = maxRange;
+  
     console.log(`Creating line of sight for ${entityId} at (${position.x}, ${position.z})`);
-    
+  
     // Add to scene
     scene.add(line);
-    
+  
     return line;
   }
     
@@ -273,68 +297,102 @@ class AbilitySystem {
   }
     
   // Check for enemies crossing the sniper's line of sight
+  // Update checkSniperLineOfSightForEnemies to check for fog of war visibility
   checkSniperLineOfSightForEnemies(entityId, abilityData, position) {
     const { maxRange, direction } = abilityData;
-      
+    
     // Get direction vector
     const dirX = Math.sin(direction);
     const dirZ = Math.cos(direction);
-      
+    
     // Find potential targets
     let nearestTarget = null;
     let nearestDistance = maxRange;
-      
+    
     this.entityManager.gameState.entities.forEach((entity, potentialTargetId) => {
-      // Skip self
+    // Skip self
       if (potentialTargetId === entityId) {return;}
-        
+      
       // Check if entity has position and health components
       if (!this.entityManager.hasComponent(potentialTargetId, 'position') ||
-            !this.entityManager.hasComponent(potentialTargetId, 'health') ||
-            !this.entityManager.hasComponent(potentialTargetId, 'faction')) {
+          !this.entityManager.hasComponent(potentialTargetId, 'health') ||
+          !this.entityManager.hasComponent(potentialTargetId, 'faction')) {
         return;
       }
-        
+      
       // Check if entity is an enemy
       const targetFaction = this.entityManager.getComponent(potentialTargetId, 'faction');
       const entityFaction = this.entityManager.getComponent(entityId, 'faction');
-        
+      
       if (targetFaction.faction === entityFaction.faction) {
         return; // Skip allies
       }
-        
+      
       // Get target position
       const targetPos = this.entityManager.getComponent(potentialTargetId, 'position');
-        
+      
       // Calculate vector to target
       const dx = targetPos.x - position.x;
       const dz = targetPos.z - position.z;
-        
+      
       // Calculate distance
       const distance = Math.sqrt(dx * dx + dz * dz);
-        
+      
       // Skip if outside max range
       if (distance > maxRange) {return;}
-        
+      
       // Calculate angle between sniper direction and target direction
       const targetDir = Math.atan2(dx, dz);
       let angleDiff = Math.abs(targetDir - direction);
-        
+      
       // Handle angle wrapping
       if (angleDiff > Math.PI) {
         angleDiff = 2 * Math.PI - angleDiff;
       }
-        
+      
       // Check if target is within a small angle of the line of sight
       const maxAngle = 0.1; // About 5.7 degrees
-        
+      
       if (angleDiff <= maxAngle && distance < nearestDistance) {
-        nearestTarget = potentialTargetId;
-        nearestDistance = distance;
+      // NEW: Check if target is visible (not in fog of war)
+        if (this.isTargetVisible(potentialTargetId)) {
+          nearestTarget = potentialTargetId;
+          nearestDistance = distance;
+        }
       }
     });
-      
+    
     return nearestTarget;
+  }
+
+  // Add a helper method to check if a target is visible (not in fog of war)
+  isTargetVisible(targetId) {
+  // If no fog of war is active, all targets are visible
+    if (!this.entityManager.gameState.activeScenario || 
+      !this.entityManager.gameState.activeScenario.fogOfWar) {
+      return true;
+    }
+  
+    // Get target position
+    if (!this.entityManager.hasComponent(targetId, 'position')) {
+      return false;
+    }
+  
+    const targetPos = this.entityManager.getComponent(targetId, 'position');
+  
+    // Use the scenario's visibility check function if available
+    if (this.entityManager.gameState.activeScenario.isPositionVisible) {
+      return this.entityManager.gameState.activeScenario.isPositionVisible(targetPos);
+    }
+  
+    // Alternative: Check if target's render component is visible
+    if (this.entityManager.hasComponent(targetId, 'render')) {
+      const renderComp = this.entityManager.getComponent(targetId, 'render');
+      return renderComp.visible;
+    }
+  
+    // Default to true if we can't determine fog of war status
+    return true;
   }
     
   // Check if entity is a sniper unit
@@ -367,8 +425,18 @@ class AbilitySystem {
     switch (abilityData.type) {
     case 'sniper_aim':
       this.cleanupSniperAim(entityId, abilityData);
+      
+      // Remove custom properties
+      if (this.entityManager.gameState) {
+        const entity = this.entityManager.gameState.entities.get(entityId);
+        if (entity && entity.customProperties) {
+          entity.customProperties.isAiming = false;
+          entity.customProperties.noAutoAttack = false;
+          this.entityManager.gameState.entities.set(entityId, entity);
+        }
+      }
       break;
-        // Add other ability cleanup cases
+      // Add other ability cleanup cases
     }
       
     // Remove from active abilities

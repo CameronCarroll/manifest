@@ -6,45 +6,28 @@ class ProductionSystem {
     this.resourceSystem = resourceSystem;
     this.productionQueue = new Map(); // Maps producerId to production queue
     this.unitTypes = {
-      // Basic units
-      'worker': {
-        cost: { minerals: 50, gas: 0 },
-        buildTime: 5,
+      'sniper': {
+        cost: { minerals: 150, gas: 100 },
+        buildTime: 8,
         components: {
           position: { x: 0, y: 0, z: 0 },
-          health: { maxHealth: 50, armor: 0 },
-          faction: { faction: 'player', unitType: 'worker', attackType: 'melee', damageType: 'normal' },
-          render: { meshId: 'unit', scale: { x: 0.8, y: 0.8, z: 0.8 }, color: 0x00ff00 }
-        }
-      },
-      'marine': {
-        cost: { minerals: 50, gas: 0 },
-        buildTime: 5,
-        components: {
-          position: { x: 0, y: 0, z: 0 },
-          health: { maxHealth: 80, armor: 2 },
-          faction: { faction: 'player', unitType: 'assault', attackType: 'ranged', damageType: 'normal' },
-          render: { meshId: 'unit', scale: { x: 1, y: 1, z: 1 }, color: 0x0000ff }
-        }
-      },
-      'tank': {
-        cost: { minerals: 150, gas: 75 },
-        buildTime: 10,
-        components: {
-          position: { x: 0, y: 0, z: 0 },
-          health: { maxHealth: 160, armor: 8 },
-          faction: { faction: 'player', unitType: 'tank', attackType: 'ranged', damageType: 'explosive' },
-          render: { meshId: 'unit', scale: { x: 1.5, y: 1.2, z: 1.5 }, color: 0x444488 }
-        }
-      },
-      'medic': {
-        cost: { minerals: 75, gas: 50 },
-        buildTime: 7,
-        components: {
-          position: { x: 0, y: 0, z: 0 },
-          health: { maxHealth: 70, armor: 1 },
-          faction: { faction: 'player', unitType: 'support', attackType: 'none', damageType: 'normal' },
-          render: { meshId: 'unit', scale: { x: 0.9, y: 1.1, z: 0.9 }, color: 0xffffff }
+          health: { maxHealth: 60, armor: 1 },
+          faction: { 
+            faction: 'player', 
+            unitType: 'sniper', 
+            attackType: 'ranged', 
+            damageType: 'normal'
+          },
+          render: { 
+            meshId: 'unit', 
+            scale: { x: 0.9, y: 1, z: 0.9 }, 
+            color: 0x0000ff 
+          },
+          unitType: {
+            type: 'neon_assassin',
+            abilities: ['sniper_aim'],  // Only has the sniper aim ability
+            visualEffects: []
+          }
         }
       }
     };

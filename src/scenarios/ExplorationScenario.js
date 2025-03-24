@@ -36,10 +36,10 @@ class ExplorationScenario extends BaseScenario {
     // Optimized fog settings for ExplorationScenario constructor
     this.fogOptions = {
       sightRadius: 20,           // Better visibility in wasteland
-      exploredOpacity: 0.5,      // Darker explored areas
+      exploredOpacity: 0.7,      // Darker explored areas (increased from 0.5 for better contrast)
       unexploredOpacity: 0.95,   // Nearly opaque unexplored areas
-      updateFrequency: 0.25,     // Update 4 times per second (was 0.1)
-      fogColor: 0x000022,        // Dark blue fog for mystical feel
+      updateFrequency: 0.5,     // Update 4 times per second (was 0.1)
+      fogColor: 0x000033,        // Dark blue fog for mystical feel (slightly brighter)
       fadeEdgeWidth: 0.4,        // Wider fade at edges
       rememberExplored: true,    // Remember areas you've seen
       resolution: 2,             // Lower resolution (was 3)
@@ -48,9 +48,10 @@ class ExplorationScenario extends BaseScenario {
       useWebGL: true,            // Try to use faster WebGL rendering
       maxUnitsPerFrame: 3,       // Process max 3 units per frame
       visibilityCheckFrequency: 0.5,  // Check visibility twice per second
-      enableAdvancedFog: false,  // Start with optimized fog
+      enableAdvancedFog: true,   // Enable advanced fog for better visuals
       lowResScale: 6,            // Even lower resolution for processing
-      useGradients: false        // Disable gradients for better performance
+      useGradients: true,        // Enable gradients for better fog visual distinction
+      groundPlane: true          // Add the ground plane effect for explored areas
     };
   }
   
@@ -548,12 +549,28 @@ class ExplorationScenario extends BaseScenario {
     // Update objective progress
     this.updateObjectiveProgress();
 
-    // Update entity visibility based on fog of war
+    // Update entity visibility based on fog of war - ensure we do this every frame
+    // to maintain visibility in explored areas even when using optimized fog
     if (this.fogOfWar) {
-      this.updateEntityVisibility();
+      // Update more frequently than default to keep entities visible in explored areas
+      this.visibilityCheckTimer += deltaTime;
+      if (this.visibilityCheckTimer >= 0.3) { // More frequent than default 0.5
+        this.visibilityCheckTimer = 0;
+        this.updateEntityVisibility();
+      }
     }
-
-    this.autoAdjustFogQuality();
+    
+    // Handle adaptive performance but with constraints on visibility
+    if (this._performanceCheckTimer === undefined) {
+      this._performanceCheckTimer = 0;
+    }
+    
+    this._performanceCheckTimer += deltaTime;
+    // Check performance less often to prevent rapid switching
+    if (this._performanceCheckTimer >= 3.0) {
+      this._performanceCheckTimer = 0;
+      this.autoAdjustFogQuality();
+    }
   }
   
   updateObjectiveProgress() {

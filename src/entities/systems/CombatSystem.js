@@ -17,7 +17,7 @@ const ATTACK_COOLDOWNS = {
 const BASE_DAMAGE = {
   DEFAULT: 10,
   ASSAULT: 15,
-  SNIPER: 25,
+  SNIPER: 250,
   SUPPORT: 5
 };
 
@@ -34,12 +34,19 @@ class CombatSystem {
     this.DEFAULT_ATTACK_COOLDOWN = ATTACK_COOLDOWNS.DEFAULT;
     this.movementSystem = movementSystem;
     this.animationSystem = null; // Will be set during game initialization
-    
+    this.systems = null; // Will be set later via setSystemsReference
+
     // For damage feedback
     this.damageEvents = [];
     
     // Debug flag
     this.debug = true;
+
+    // Add a new method to set the systems reference
+  }
+
+  setSystemsReference(systems) {
+    this.systems = systems;
   }
 
   initialize() {
@@ -60,6 +67,21 @@ class CombatSystem {
 
   // Start an attack from one entity to another
   startAttack(attackerId, targetId) {
+    // Check if attacker is a sniper with no-auto-attack property
+    if (this.entityManager.gameState && this.entityManager.gameState.entities.has(attackerId)) {
+      const entity = this.entityManager.gameState.entities.get(attackerId);
+      if (entity.customProperties && entity.customProperties.noAutoAttack) {
+        // Check if this attack was initiated by the ability system (allowed)
+        // We'll detect this by checking the call stack or a flag that was set
+        const abilityActivated = this.isAttackFromAbility(attackerId);
+        
+        if (!abilityActivated) {
+          console.log(`Prevented auto-attack for sniper unit ${attackerId}`);
+          return false;
+        }
+      }
+    }
+  
     // Check components - we need position on both, and health on target
     if (!this.entityManager.hasComponent(attackerId, 'position') ||
         !this.entityManager.hasComponent(attackerId, 'faction') ||
@@ -97,11 +119,11 @@ class CombatSystem {
       damageType: attackerFaction.damageType || 'normal',
       lastDamageTime: 0 // Track when damage was last applied
     });
-
+  
     if (this.debug) {
       console.log(`Starting attack from ${attackerId} (${attackerFaction.unitType}) to ${targetId} using ${attackerFaction.attackType} attack`);
     }
-
+  
     // Trigger animation when attack starts
     if (this.animationSystem && typeof this.animationSystem.startAttackAnimation === 'function') {
       if (this.debug) {
@@ -117,6 +139,32 @@ class CombatSystem {
     }
   
     return true;
+  }
+
+  // Helper method to determine if an attack was initiated by the ability system
+  // This is a simple implementation, we'd need a proper method in a real system
+  isAttackFromAbility(entityId) {
+  // The error occurred because we tried to access systems through gameState
+  // Instead, we should use the systems object that was passed to the constructor
+  
+    // Check if we have an ability system reference
+    if (!this.systems) {
+      return false; // No systems reference available
+    }
+  
+    const abilitySystem = this.systems.ability;
+    if (!abilitySystem) {
+      return false; // No ability system found
+    }
+  
+    // Check if entity has an active ability
+    if (abilitySystem.activeAbilities && abilitySystem.activeAbilities.has(entityId)) {
+      const abilityData = abilitySystem.activeAbilities.get(entityId);
+      // If this is a sniper aim ability that's currently active, allow the attack
+      return abilityData.type === 'sniper_aim';
+    }
+  
+    return false;
   }
 
   // Stop an entity from attacking
@@ -151,10 +199,6 @@ class CombatSystem {
     // Get attacker's attack range (could be based on unit type or weapon)
     const attackerFaction = this.entityManager.getComponent(attackerId, 'faction');
     const attackRange = this.getAttackRange(attackerFaction.unitType, attackerFaction.attackType);
-    
-    if (this.debug && attackerFaction.unitType === 'sniper') {
-      console.log(`Sniper attack check: Distance=${distance.toFixed(2)}, Range=${attackRange}, In range=${distance <= attackRange}`);
-    }
     
     return distance <= attackRange;
   }
