@@ -612,15 +612,15 @@ class GameController {
         overlay.innerHTML = `
           <strong>Component Counts:</strong><br>
           ${Object.entries(componentCounts)
-            .map(([type, count]) => `${type}: ${count}`)
-            .join('<br>')
-          }
+    .map(([type, count]) => `${type}: ${count}`)
+    .join('<br>')
+}
           <br><br>
           <strong>Entity Types:</strong><br>
           ${Object.entries(entityTypes)
-            .map(([type, count]) => `${type}: ${count}`)
-            .join('<br>')
-          }
+    .map(([type, count]) => `${type}: ${count}`)
+    .join('<br>')
+}
           <br><br>
           <strong>FPS:</strong> ${Math.round(1 / this.gameState.deltaTime)}
         `;

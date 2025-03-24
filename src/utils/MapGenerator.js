@@ -147,12 +147,12 @@ class MapGenerator {
   // Get base color for biome type
   getBiomeBaseColor(biomeType) {
     switch(biomeType) {
-      case 'reclaimed_urban': return 0x606060; // Concrete gray
-      case 'techno_organic_forest': return 0x305030; // Dark green
-      case 'crystal_wastes': return 0xa0a0c0; // Light purple-blue
-      case 'nanite_swamps': return 0x405060; // Blue-gray
-      case 'solar_fields': return 0xa0a060; // Yellow-brown
-      default: return 0x3a7c5f; // Default green
+    case 'reclaimed_urban': return 0x606060; // Concrete gray
+    case 'techno_organic_forest': return 0x305030; // Dark green
+    case 'crystal_wastes': return 0xa0a0c0; // Light purple-blue
+    case 'nanite_swamps': return 0x405060; // Blue-gray
+    case 'solar_fields': return 0xa0a060; // Yellow-brown
+    default: return 0x3a7c5f; // Default green
     }
   }
   

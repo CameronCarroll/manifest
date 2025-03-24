@@ -76,7 +76,7 @@ class AnimationSystem {
   
   // Set up animation state transitions
   setupAnimationStateTransitions() {
-    if (!this.animationFactory) return;
+    if (!this.animationFactory) {return;}
     
     // Define state transitions (could be expanded as needed)
     this.animationFactory.stateTransitions = {
@@ -113,7 +113,7 @@ class AnimationSystem {
   
   // Set up combat damage event handling
   setupCombatDamageEventHandling() {
-    if (!this.systems.combat) return;
+    if (!this.systems.combat) {return;}
     
     // Hook into damage events if they exist
     const originalApplyDamage = this.systems.combat.applyDamage;

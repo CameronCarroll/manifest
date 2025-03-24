@@ -262,7 +262,7 @@ class ModelLoader {
   
   // Optimize a model for performance
   optimizeModel(model) {
-    if (!model) return;
+    if (!model) {return;}
     
     try {
       // Traverse the model hierarchy
