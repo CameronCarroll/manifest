@@ -8,9 +8,16 @@ import * as THREE from 'three';
 class TerrainFactory {
   constructor(scene, textureLoader) {
     this.scene = scene;
-    this.textureLoader = textureLoader;
+    // Initialize texture loader if not provided
+    this.textureLoader = textureLoader || new THREE.TextureLoader();
     this.textures = new Map();
     this.debug = false;
+    
+    // Set up texture loader with correct base path and cross-origin settings
+    if (this.textureLoader) {
+      // Do not set path here as it causes issues with the actual path - we'll handle this in loadTexture
+      this.textureLoader.setCrossOrigin('anonymous');
+    }
   }
 
   // Create a terrain texture based on type
@@ -105,18 +112,53 @@ class TerrainFactory {
   // Load a texture with error handling
   async loadTexture(path) {
     return new Promise((resolve, reject) => {
+      // Fix path issues by always using relative paths for dev server
+      let texturePath = path;
+      
+      // Remove the leading slash if it exists
+      if (texturePath.startsWith('/')) {
+        texturePath = texturePath.substring(1);
+      }
+      
+      // Make path relative to server root
+      if (!texturePath.startsWith('assets/')) {
+        texturePath = 'assets/' + texturePath.replace('/assets/', '');
+      }
+      
+      if (this.debug) {
+        console.log(`Loading texture from: ${texturePath}`);
+      }
+        
       try {
+        // Add timeout for loading to prevent hanging
+        const loadingTimeout = setTimeout(() => {
+          console.warn(`Texture loading timed out for ${texturePath}, creating procedural fallback`);
+          resolve(this.createProceduralTextureImage(path));
+        }, 5000); // 5 second timeout
+        
         this.textureLoader.load(
-          path,
-          texture => resolve(texture),
-          undefined,
+          texturePath,
+          texture => {
+            clearTimeout(loadingTimeout);
+            if (this.debug) {
+              console.log(`Successfully loaded texture: ${texturePath}`);
+            }
+            
+            // Configure texture properties
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            
+            resolve(texture);
+          },
+          undefined, // onProgress is not used here
           error => {
-            console.warn(`Failed to load texture ${path}, creating procedural fallback`);
+            clearTimeout(loadingTimeout);
+            console.warn(`Failed to load texture ${texturePath}, creating procedural fallback. Error:`, error);
             resolve(this.createProceduralTextureImage(path));
           }
         );
       } catch (error) {
-        console.warn(`Error in texture loading for ${path}:`, error);
+        console.warn(`Error in texture loading for ${texturePath}:`, error);
         resolve(this.createProceduralTextureImage(path));
       }
     });
@@ -277,32 +319,32 @@ class TerrainFactory {
     let object;
     
     switch (objectType) {
-      case 'server_monolith':
-        object = this.createServerMonolith();
-        break;
-      case 'floating_crystal':
-        object = this.createFloatingCrystal();
-        break;
-      case 'corrupted_machinery':
-        object = this.createCorruptedMachinery();
-        break;
-      case 'circuit_tree':
-        object = this.createCircuitTree();
-        break;
-      case 'holographic_ruin':
-        object = this.createHolographicRuin();
-        break;
-      case 'energy_geyser':
-        object = this.createEnergyGeyser();
-        break;
-      case 'rock':
-        object = this.createRock();
-        break;
-      case 'hill':
-        object = this.createHill();
-        break;
-      default:
-        object = this.createRock(); // Default fallback
+    case 'server_monolith':
+      object = this.createServerMonolith();
+      break;
+    case 'floating_crystal':
+      object = this.createFloatingCrystal();
+      break;
+    case 'corrupted_machinery':
+      object = this.createCorruptedMachinery();
+      break;
+    case 'circuit_tree':
+      object = this.createCircuitTree();
+      break;
+    case 'holographic_ruin':
+      object = this.createHolographicRuin();
+      break;
+    case 'energy_geyser':
+      object = this.createEnergyGeyser();
+      break;
+    case 'rock':
+      object = this.createRock();
+      break;
+    case 'hill':
+      object = this.createHill();
+      break;
+    default:
+      object = this.createRock(); // Default fallback
     }
     
     // Set position
@@ -1129,6 +1171,230 @@ class TerrainFactory {
       rock.scale.multiplyScalar(0.5); // Make rocks smaller
       
       group.add(rock);
+    }
+    
+    return group;
+  }
+  
+  // Create a resource model
+  createResourceModel(entityId, renderComponent, resourceType) {
+    const group = new THREE.Group();
+    
+    // Define colors for different resource types
+    const colors = {
+      crystal: 0x88aaff,
+      gas: 0x00ffaa,
+      biomass: 0x66aa33,
+      tech: 0xff6600,
+      default: 0xffffff
+    };
+    
+    const resourceColor = colors[resourceType] || colors.default;
+    
+    // Create resource model based on type
+    if (resourceType === 'crystal') {
+      this.createCrystalResource(group, resourceColor, renderComponent.opacity || 1);
+    } else if (resourceType === 'gas') {
+      this.createGasResource(group, resourceColor, renderComponent.opacity || 1);
+    } else if (resourceType === 'biomass') {
+      this.createBiomassResource(group, resourceColor, renderComponent.opacity || 1);
+    } else if (resourceType === 'tech') {
+      this.createTechResource(group, resourceColor, renderComponent.opacity || 1);
+    } else {
+      // Default resource
+      this.createBasicResource(group, resourceColor, renderComponent.opacity || 1);
+    }
+    
+    return group;
+  }
+  
+  // Create a basic resource
+  createBasicResource(group, color, opacity) {
+    const geometry = new THREE.CylinderGeometry(0.7, 0.7, 0.3, 8);
+    const material = new THREE.MeshPhongMaterial({
+      color: color,
+      shininess: 70,
+      opacity: opacity,
+      transparent: opacity < 1
+    });
+    
+    const resource = new THREE.Mesh(geometry, material);
+    resource.rotation.x = Math.PI / 2; // Lay flat
+    group.add(resource);
+    
+    return group;
+  }
+  
+  // Create a crystal resource
+  createCrystalResource(group, color, opacity) {
+    // Create a cluster of crystal shards
+    for (let i = 0; i < 5; i++) {
+      const size = 0.3 + Math.random() * 0.3;
+      const geometry = new THREE.ConeGeometry(size * 0.3, size, 5, 1);
+      
+      // Randomize geometry for more natural look
+      const positionAttribute = geometry.getAttribute('position');
+      const vertex = new THREE.Vector3();
+      
+      for (let j = 0; j < positionAttribute.count; j++) {
+        vertex.fromBufferAttribute(positionAttribute, j);
+        
+        // Add random variation to each vertex
+        vertex.x += (Math.random() * 2 - 1) * 0.05;
+        vertex.y += (Math.random() * 2 - 1) * 0.05;
+        vertex.z += (Math.random() * 2 - 1) * 0.05;
+        
+        positionAttribute.setXYZ(j, vertex.x, vertex.y, vertex.z);
+      }
+      
+      geometry.computeVertexNormals();
+      
+      const material = new THREE.MeshPhongMaterial({
+        color: color,
+        emissive: color,
+        emissiveIntensity: 0.2,
+        shininess: 90,
+        opacity: opacity,
+        transparent: opacity < 1
+      });
+      
+      const crystal = new THREE.Mesh(geometry, material);
+      
+      // Random position and rotation
+      const angle = Math.random() * Math.PI * 2;
+      const radius = Math.random() * 0.5;
+      
+      crystal.position.set(
+        Math.sin(angle) * radius,
+        (Math.random() * 0.3),
+        Math.cos(angle) * radius
+      );
+      
+      crystal.rotation.x = (Math.random() * 0.5) - 0.25;
+      crystal.rotation.y = Math.random() * Math.PI * 2;
+      crystal.rotation.z = (Math.random() * 0.5) - 0.25;
+      
+      group.add(crystal);
+    }
+    
+    return group;
+  }
+  
+  // Create a gas resource
+  createGasResource(group, color, opacity) {
+    // Create a gas vent
+    const baseGeometry = new THREE.CylinderGeometry(0.5, 0.7, 0.3, 8);
+    const baseMaterial = new THREE.MeshPhongMaterial({
+      color: 0x555555,
+      shininess: 10,
+      opacity: opacity,
+      transparent: opacity < 1
+    });
+    
+    const base = new THREE.Mesh(baseGeometry, baseMaterial);
+    base.position.y = 0.05;
+    group.add(base);
+    
+    // Create gas cloud
+    const cloudGeometry = new THREE.SphereGeometry(0.6, 8, 8);
+    const cloudMaterial = new THREE.MeshBasicMaterial({
+      color: color,
+      transparent: true,
+      opacity: 0.5 * opacity
+      // Note: MeshBasicMaterial doesn't support emissive property
+    });
+    
+    const cloud = new THREE.Mesh(cloudGeometry, cloudMaterial);
+    cloud.position.y = 0.5;
+    group.add(cloud);
+    
+    return group;
+  }
+  
+  // Create a biomass resource
+  createBiomassResource(group, color, opacity) {
+    // Create a plant-like structure
+    const stemGeometry = new THREE.CylinderGeometry(0.1, 0.2, 0.8, 8);
+    const stemMaterial = new THREE.MeshPhongMaterial({
+      color: 0x225522,
+      shininess: 5,
+      opacity: opacity,
+      transparent: opacity < 1
+    });
+    
+    const stem = new THREE.Mesh(stemGeometry, stemMaterial);
+    stem.position.y = 0.4;
+    group.add(stem);
+    
+    // Add several leaves
+    for (let i = 0; i < 4; i++) {
+      const leafGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+      leafGeometry.scale(1, 0.3, 1);
+      
+      const leafMaterial = new THREE.MeshPhongMaterial({
+        color: color,
+        shininess: 10,
+        opacity: opacity,
+        transparent: opacity < 1
+      });
+      
+      const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+      
+      const angle = i * Math.PI / 2;
+      leaf.position.set(
+        Math.sin(angle) * 0.4,
+        0.5,
+        Math.cos(angle) * 0.4
+      );
+      
+      leaf.rotation.x = Math.PI / 4;
+      leaf.rotation.y = angle;
+      
+      group.add(leaf);
+    }
+    
+    return group;
+  }
+  
+  // Create a tech resource
+  createTechResource(group, color, opacity) {
+    // Create a tech scrap pile
+    const baseGeometry = new THREE.BoxGeometry(1, 0.2, 1);
+    const baseMaterial = new THREE.MeshPhongMaterial({
+      color: 0x333333,
+      shininess: 20,
+      opacity: opacity,
+      transparent: opacity < 1
+    });
+    
+    const base = new THREE.Mesh(baseGeometry, baseMaterial);
+    base.position.y = 0.1;
+    group.add(base);
+    
+    // Add tech components
+    for (let i = 0; i < 6; i++) {
+      const componentGeometry = new THREE.BoxGeometry(0.2, 0.1, 0.3);
+      const componentMaterial = new THREE.MeshPhongMaterial({
+        color: i % 2 === 0 ? color : 0x888888,
+        emissive: i % 2 === 0 ? color : 0,
+        emissiveIntensity: 0.3,
+        shininess: 80,
+        opacity: opacity,
+        transparent: opacity < 1
+      });
+      
+      const component = new THREE.Mesh(componentGeometry, componentMaterial);
+      
+      // Random position on base
+      component.position.set(
+        (Math.random() * 0.6) - 0.3,
+        0.25 + (i * 0.05),
+        (Math.random() * 0.6) - 0.3
+      );
+      
+      component.rotation.y = Math.random() * Math.PI;
+      
+      group.add(component);
     }
     
     return group;

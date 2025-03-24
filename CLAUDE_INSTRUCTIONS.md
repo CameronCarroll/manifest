@@ -1,42 +1,52 @@
-● InputManager › command handling › handleCommand should move selected entities and target enemies when found
-    ReferenceError: commands is not defined
-      1062 |
-      1063 |       // Add simple command object for undo/redo
-    > 1064 |       commands.push({
-           |       ^
-      1065 |         execute: () => true,
-      1066 |         undo: () => true
-      1067 |       });
-      at InputManager.commands [as handleCommand] (src/utils/InputManager.js:1064:7)
-      at Object.handleCommand (tests/unit/utils/InputManager.test.js:518:20)
-  ● InputManager › command handling › executeCommands adds commands to undoStack and clears redoStack
-    TypeError: Cannot read properties of undefined (reading 'push')
-      1083 |
-      1084 |     // Add to undo stack
-    > 1085 |     this.undoStack.push(commands);
-           |                    ^
-      1086 |   }
-      1087 |
-      1088 |   // Undo/Redo methods
-      at InputManager.push [as executeCommands] (src/utils/InputManager.js:1085:20)
-      at Object.executeCommands (tests/unit/utils/InputManager.test.js:554:20)
-  ● InputManager › undo/redo functionality › undo executes command undo methods in reverse order
-    TypeError: Cannot read properties of undefined (reading 'push')
-      568 |       
-      569 |       // Add to undoStack
-    > 570 |       inputManager.undoStack.push(commands);
-          |                              ^
-      571 |       
-      572 |       // Call undo
-      573 |       const result = inputManager.undo();
-      at Object.push (tests/unit/utils/InputManager.test.js:570:30)
-  ● InputManager › undo/redo functionality › redo executes command execute methods in original order
-    TypeError: Cannot read properties of undefined (reading 'push')
-      602 |       
-      603 |       // Add to redoStack
-    > 604 |       inputManager.redoStack.push(commands);
-          |                              ^
-      605 |       
-      606 |       // Call redo
-      607 |       const result = inputManager.redo();
-      at Object.push (tests/unit/utils/InputManager.test.js:604:30)
+# Work Packages for New Graphics Extensions Implementation
+
+Overall goal: Integrate new extended graphics system (See GRAPHICS_EXTENSION_DOCS.md) with existing game engine / codebase. The user will be testing with ExplorationScenario.js, which is designed to use the new asset system.
+
+## 1. Component Registration
+- Register the new `UnitTypeComponent` and `BuildingTypeComponent` in `GameController.js`
+- Add them to the initialization sequence similar to existing components
+- Ensure component managers are properly constructed before being registered
+
+## 2. Texture Loading System
+- Fix the `TextureLoader` initialization in `TerrainFactory`
+- Implement proper fallback mechanisms for missing textures
+- Ensure texture loading is asynchronous with proper error handling
+- Set up asset paths correctly for development and production
+
+## 3. Model Factory Integration
+- Connect the `ModelFactory` to the `RenderSystem` properly
+- Ensure the `createResourceModel` and other factory methods exist and work correctly
+- Add proper error handling for when specific model methods aren't available
+- Implement model caching to improve performance
+
+## 4. Animation System Configuration
+- Properly connect the `AnimationFactory` to the `AnimationSystem`
+- Ensure animation state transitions are correctly handled
+- Fix animation event propagation between systems
+- Implement proper lifecycle management for animations
+
+## 5. Terrain and Map Generation
+- Fix the `MapGenerator` to properly use the terrain factory
+- Implement environment object placement with collision detection
+- Create biome-specific terrain textures and features
+- Add appropriate terrain height variation and decoration
+
+## 6. Scenario Integration
+- Create a component registry system that works with both new and old components
+- Implement entity creation that uses appropriate component types based on availability
+- Create visual representations that work with both systems during transition
+- Ensure objective systems correctly reference entities
+
+## 7. Debug and Testing Tools
+- Add debug visualization toggles for new models and components
+- Create test scenarios for each new asset type
+- Implement performance monitoring for the new graphics systems
+- Add graceful fallbacks for when new components aren't available
+
+## 8. Asset Preparation
+- Create placeholder assets for development if needed
+- Implement procedural generation for testing before final assets are ready
+- Set up an asset loading queue with priorities
+- Add asset compression and optimization
+
+These work packages would need to be implemented sequentially, with Component Registration being the highest priority since it's causing the immediate errors. The implementation should focus on backward compatibility to ensure the game still works even if certain extension components aren't available.

@@ -79,38 +79,104 @@ class MapGenerator {
 
   // Generate terrain mesh
   async generateTerrain(options) {
-    // Determine terrain type based on biome
-    let terrainType;
-    
-    if (options.biomeType === 'mixed') {
-      // For mixed biome, choose a random terrain type
-      const terrainTypes = [
-        'reclaimed_urban',
-        'techno_organic_forest',
-        'crystal_wastes',
-        'nanite_swamps',
-        'solar_fields'
-      ];
-      terrainType = terrainTypes[Math.floor(Math.random() * terrainTypes.length)];
-    } else {
-      terrainType = options.biomeType;
+    try {
+      // Determine terrain type based on biome
+      let terrainType;
+      
+      if (options.biomeType === 'mixed') {
+        // For mixed biome, choose a random terrain type
+        const terrainTypes = [
+          'reclaimed_urban',
+          'techno_organic_forest',
+          'crystal_wastes',
+          'nanite_swamps',
+          'solar_fields'
+        ];
+        terrainType = terrainTypes[Math.floor(Math.random() * terrainTypes.length)];
+      } else {
+        terrainType = options.biomeType;
+      }
+      
+      if (this.debug) {
+        console.log(`MapGenerator: Creating terrain of type: ${terrainType}`);
+      }
+  
+      // Create terrain mesh with error handling
+      let terrain;
+      try {
+        terrain = await this.terrainFactory.createTerrainMesh(
+          terrainType,
+          options.width,
+          options.height,
+          Math.max(20, Math.floor(options.width / 5)), // Width segments
+          Math.max(20, Math.floor(options.height / 5)) // Height segments
+        );
+      } catch (error) {
+        console.error('Error creating terrain mesh:', error);
+        // Create a simple fallback terrain
+        const geometry = new THREE.PlaneGeometry(
+          options.width, 
+          options.height,
+          Math.max(20, Math.floor(options.width / 5)),
+          Math.max(20, Math.floor(options.height / 5))
+        );
+        const material = new THREE.MeshStandardMaterial({ 
+          color: this.getBiomeBaseColor(terrainType),
+          roughness: 0.8,
+          metalness: 0.2
+        });
+        terrain = new THREE.Mesh(geometry, material);
+        terrain.rotation.x = -Math.PI / 2; // Lay flat
+      }
+  
+      // Apply heightmap to terrain
+      this.applyHeightmapToTerrain(terrain, options);
+      
+      // Add some collision data to the terrain
+      terrain.userData.isGround = true;
+      
+      // Add to scene
+      this.scene.add(terrain);
+      return terrain;
+    } catch (error) {
+      console.error('Failed to generate terrain:', error);
+      return this.createFallbackTerrain(options);
     }
-
-    // Create terrain mesh
-    const terrain = await this.terrainFactory.createTerrainMesh(
-      terrainType,
-      options.width,
-      options.height,
-      Math.max(20, Math.floor(options.width / 5)), // Width segments
-      Math.max(20, Math.floor(options.height / 5)) // Height segments
+  }
+  
+  // Get base color for biome type
+  getBiomeBaseColor(biomeType) {
+    switch(biomeType) {
+      case 'reclaimed_urban': return 0x606060; // Concrete gray
+      case 'techno_organic_forest': return 0x305030; // Dark green
+      case 'crystal_wastes': return 0xa0a0c0; // Light purple-blue
+      case 'nanite_swamps': return 0x405060; // Blue-gray
+      case 'solar_fields': return 0xa0a060; // Yellow-brown
+      default: return 0x3a7c5f; // Default green
+    }
+  }
+  
+  // Create fallback terrain in case of errors
+  createFallbackTerrain(options) {
+    console.log('Creating fallback terrain due to generation failure');
+    
+    const groundGeometry = new THREE.PlaneGeometry(
+      options.width, 
+      options.height
     );
-
-    // Apply heightmap to terrain
-    this.applyHeightmapToTerrain(terrain, options);
-
-    // Add to scene
-    this.scene.add(terrain);
-    return terrain;
+    const groundMaterial = new THREE.MeshStandardMaterial({ 
+      color: this.getBiomeBaseColor(options.biomeType), 
+      roughness: 0.8,
+      metalness: 0.2
+    });
+    
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.1;
+    ground.userData.isGround = true;
+    
+    this.scene.add(ground);
+    return ground;
   }
 
   // Generate a heightmap for the terrain
@@ -205,7 +271,7 @@ class MapGenerator {
     geometry.computeVertexNormals();
   }
 
-  // Place environmental objects on the terrain
+  // Place environmental objects on the terrain with collision detection
   placeEnvironmentalObjects(options, heightmap) {
     const objectTypes = [
       'server_monolith',
@@ -226,28 +292,119 @@ class MapGenerator {
       console.log(`MapGenerator: Placing ${objectCount} environmental objects`);
     }
     
-    // Place objects
-    for (let i = 0; i < objectCount; i++) {
+    // Create a collision grid to prevent objects from overlapping
+    const gridCellSize = 5; // Grid cell size in world units
+    const gridWidth = Math.ceil(options.width / gridCellSize);
+    const gridHeight = Math.ceil(options.height / gridCellSize);
+    const collisionGrid = Array(gridWidth).fill().map(() => Array(gridHeight).fill(false));
+    
+    // Function to check if a position is clear for object placement
+    const isPositionClear = (x, z, objectSize = 2) => {
+      // Convert world position to grid cell
+      const gridX = Math.floor((x + options.width / 2) / gridCellSize);
+      const gridZ = Math.floor((z + options.height / 2) / gridCellSize);
+      
+      // Check nearby grid cells based on object size
+      const cellsToCheck = Math.ceil(objectSize / gridCellSize);
+      for (let dx = -cellsToCheck; dx <= cellsToCheck; dx++) {
+        for (let dz = -cellsToCheck; dz <= cellsToCheck; dz++) {
+          const checkX = gridX + dx;
+          const checkZ = gridZ + dz;
+          
+          // Skip if out of bounds
+          if (checkX < 0 || checkX >= gridWidth || checkZ < 0 || checkZ >= gridHeight) {
+            continue;
+          }
+          
+          // If cell is occupied, position is not clear
+          if (collisionGrid[checkX][checkZ]) {
+            return false;
+          }
+        }
+      }
+      
+      return true;
+    };
+    
+    // Function to mark position as occupied
+    const markPositionOccupied = (x, z, objectSize = 2) => {
+      const gridX = Math.floor((x + options.width / 2) / gridCellSize);
+      const gridZ = Math.floor((z + options.height / 2) / gridCellSize);
+      
+      const cellsToMark = Math.ceil(objectSize / gridCellSize);
+      for (let dx = -cellsToMark; dx <= cellsToMark; dx++) {
+        for (let dz = -cellsToMark; dz <= cellsToMark; dz++) {
+          const markX = gridX + dx;
+          const markZ = gridZ + dz;
+          
+          // Skip if out of bounds
+          if (markX < 0 || markX >= gridWidth || markZ < 0 || markZ >= gridHeight) {
+            continue;
+          }
+          
+          collisionGrid[markX][markZ] = true;
+        }
+      }
+    };
+    
+    // Place objects with collision detection
+    let placedObjects = 0;
+    let attempts = 0;
+    const maxAttempts = objectCount * 3; // Allow multiple attempts per desired object
+    
+    while (placedObjects < objectCount && attempts < maxAttempts) {
+      attempts++;
+      
       // Choose random object type with weighted probability
       const objectType = this.chooseObjectType(objectTypes, options.biomeType);
+      
+      // Determine object size based on type
+      let objectSize = 2; // Default
+      if (objectType === 'server_monolith' || objectType === 'hill') {
+        objectSize = 4;
+      } else if (objectType === 'floating_crystal' || objectType === 'energy_geyser') {
+        objectSize = 3;
+      }
       
       // Choose random position
       const x = Math.random() * options.width - options.width / 2;
       const z = Math.random() * options.height - options.height / 2;
       
+      // Check if position is clear for object placement
+      if (!isPositionClear(x, z, objectSize)) {
+        continue; // Try again at a different position
+      }
+      
       // Get height at position
       const height = this.getHeightAtPosition(x, z, options, heightmap);
       
-      // Create object
-      const object = this.terrainFactory.createEnvironmentalObject(objectType, {
-        x: x,
-        y: height,
-        z: z
-      });
-      
-      // Add to scene
-      this.scene.add(object);
-      this.mapObjects.push(object);
+      try {
+        // Create object
+        const object = this.terrainFactory.createEnvironmentalObject(objectType, {
+          x: x,
+          y: height,
+          z: z
+        });
+        
+        // Mark position as occupied
+        markPositionOccupied(x, z, objectSize);
+        
+        // Add to scene
+        this.scene.add(object);
+        this.mapObjects.push(object);
+        placedObjects++;
+        
+        // Add some variation to scale and rotation
+        object.rotation.y = Math.random() * Math.PI * 2;
+        const scaleVariation = 0.8 + Math.random() * 0.4;
+        object.scale.multiplyScalar(scaleVariation);
+      } catch (error) {
+        console.warn(`Error creating ${objectType} at (${x}, ${height}, ${z}):`, error);
+      }
+    }
+    
+    if (this.debug) {
+      console.log(`MapGenerator: Placed ${placedObjects} environmental objects after ${attempts} attempts`);
     }
   }
 
@@ -417,29 +574,53 @@ class MapGenerator {
       console.log(`MapGenerator: Creating ${resourceType} resource at (${position.x}, ${position.y}, ${position.z})`);
     }
     
-    // Create visual representation
-    const resourceObject = this.terrainFactory.createResourceModel(null, {
-      color: this.getResourceColor(resourceType),
-      opacity: 1
-    }, resourceType);
-    
-    resourceObject.position.set(position.x, position.y, position.z);
-    
-    // Add to scene
-    this.scene.add(resourceObject);
-    this.mapObjects.push(resourceObject);
-    
-    return resourceObject;
+    try {
+      // Create visual representation using the terrainFactory
+      const resourceObject = this.terrainFactory.createResourceModel(null, {
+        color: this.getResourceColor(resourceType),
+        opacity: 1
+      }, resourceType);
+      
+      if (!resourceObject) {
+        throw new Error(`Failed to create resource model for type: ${resourceType}`);
+      }
+      
+      // Set the position
+      resourceObject.position.set(position.x, position.y, position.z);
+      
+      // Add to scene
+      this.scene.add(resourceObject);
+      this.mapObjects.push(resourceObject);
+      
+      return resourceObject;
+    } catch (error) {
+      console.error(`Error creating resource entity for ${resourceType}:`, error);
+      
+      // Create a simple fallback resource
+      const geometry = new THREE.CylinderGeometry(0.5, 0.5, 0.3, 8);
+      const material = new THREE.MeshPhongMaterial({ 
+        color: this.getResourceColor(resourceType), 
+        shininess: 30 
+      });
+      const fallbackResource = new THREE.Mesh(geometry, material);
+      fallbackResource.rotation.x = Math.PI / 2; // Lay flat
+      fallbackResource.position.set(position.x, position.y, position.z);
+      
+      this.scene.add(fallbackResource);
+      this.mapObjects.push(fallbackResource);
+      
+      return fallbackResource;
+    }
   }
 
   // Get color for resource type
   getResourceColor(resourceType) {
     switch (resourceType) {
-      case 'crystal': return 0x88aaff;
-      case 'gas': return 0x00ffaa;
-      case 'biomass': return 0x66aa33;
-      case 'tech': return 0xff6600;
-      default: return 0xffffff;
+    case 'crystal': return 0x88aaff;
+    case 'gas': return 0x00ffaa;
+    case 'biomass': return 0x66aa33;
+    case 'tech': return 0xff6600;
+    default: return 0xffffff;
     }
   }
 

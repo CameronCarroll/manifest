@@ -13,6 +13,8 @@ import HealthComponent from '../entities/components/HealthComponent.js';
 import RenderComponent from '../entities/components/RenderComponent.js';
 import FactionComponent from '../entities/components/FactionComponent.js';
 import ResourceComponent from '../entities/components/ResourceComponent.js';
+import UnitTypeComponent from '../entities/components/UnitTypeComponent.js';
+import BuildingTypeComponent from '../entities/components/BuildingTypeComponent.js';
 
 // Systems
 import RenderSystem from '../entities/systems/RenderSystem.js';
@@ -74,12 +76,18 @@ class GameController {
     const renderManager = new RenderComponent();
     const factionManager = new FactionComponent();
     const resourceManager = new ResourceComponent();
+    const unitTypeManager = new UnitTypeComponent();
+    const buildingTypeManager = new BuildingTypeComponent();
     
     this.entityManager.registerComponentManager('position', positionManager);
     this.entityManager.registerComponentManager('health', healthManager);
     this.entityManager.registerComponentManager('render', renderManager);
     this.entityManager.registerComponentManager('faction', factionManager);
     this.entityManager.registerComponentManager('resource', resourceManager);
+    this.entityManager.registerComponentManager('unitType', unitTypeManager);
+    this.entityManager.registerComponentManager('buildingType', buildingTypeManager);
+    
+    console.log('Component managers initialized, including new unitType and buildingType components');
   }
 
   createSystems() {
@@ -500,6 +508,125 @@ class GameController {
     // Create new visualization
       const count = this.systems.collision.createDebugVisualization(scene);
       console.log(`Collision debug visualization enabled for ${count} entities`);
+      return true;
+    }
+  }
+  
+  // Toggle model debug visualization
+  toggleModelDebug() {
+    // Enable/disable model factory debugging
+    if (this.systems.render && this.systems.render.modelFactory) {
+      const modelFactory = this.systems.render.modelFactory;
+      modelFactory.debug = !modelFactory.debug;
+      console.log(`Model factory debug ${modelFactory.debug ? 'enabled' : 'disabled'}`);
+      return modelFactory.debug;
+    }
+    return false;
+  }
+  
+  // Toggle animation debug visualization
+  toggleAnimationDebug() {
+    // Enable/disable animation factory debugging
+    if (this.systems.animation && this.systems.animation.animationFactory) {
+      const animationFactory = this.systems.animation.animationFactory;
+      animationFactory.debug = !animationFactory.debug;
+      console.log(`Animation factory debug ${animationFactory.debug ? 'enabled' : 'disabled'}`);
+      
+      // Update debug flag in the animation system as well
+      this.systems.animation.debug = animationFactory.debug;
+      
+      return animationFactory.debug;
+    }
+    return false;
+  }
+  
+  // Toggle component debug information
+  toggleComponentDebug() {
+    // Create a debug overlay in the DOM to show component counts
+    const existingOverlay = document.getElementById('component-debug-overlay');
+    
+    if (existingOverlay) {
+      // Remove existing overlay
+      document.body.removeChild(existingOverlay);
+      console.log('Component debug overlay disabled');
+      
+      // Clear any interval that might be updating it
+      if (this._componentDebugInterval) {
+        clearInterval(this._componentDebugInterval);
+        this._componentDebugInterval = null;
+      }
+      
+      return false;
+    } else {
+      // Create new overlay
+      const overlay = document.createElement('div');
+      overlay.id = 'component-debug-overlay';
+      overlay.style.position = 'absolute';
+      overlay.style.top = '10px';
+      overlay.style.right = '10px';
+      overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      overlay.style.color = 'white';
+      overlay.style.padding = '10px';
+      overlay.style.fontFamily = 'monospace';
+      overlay.style.fontSize = '12px';
+      overlay.style.zIndex = '1000';
+      overlay.style.maxHeight = '80vh';
+      overlay.style.overflowY = 'auto';
+      
+      document.body.appendChild(overlay);
+      
+      // Update component counts every second
+      this._componentDebugInterval = setInterval(() => {
+        // Count components
+        const componentCounts = {};
+        
+        for (const [componentType, manager] of Object.entries(this.entityManager.componentManagers)) {
+          if (manager && manager.components) {
+            componentCounts[componentType] = manager.components.size;
+          }
+        }
+        
+        // Count entity types
+        const entityTypes = {
+          total: this.entityManager.gameState.entities.size,
+          units: 0,
+          buildings: 0,
+          resources: 0,
+          other: 0
+        };
+        
+        // Count specific types
+        this.entityManager.gameState.entities.forEach((entity, entityId) => {
+          if (this.entityManager.hasComponent(entityId, 'unitType')) {
+            entityTypes.units++;
+          } else if (this.entityManager.hasComponent(entityId, 'buildingType')) {
+            entityTypes.buildings++;
+          } else if (this.entityManager.hasComponent(entityId, 'resource')) {
+            entityTypes.resources++;
+          } else {
+            entityTypes.other++;
+          }
+        });
+        
+        // Update overlay content
+        overlay.innerHTML = `
+          <strong>Component Counts:</strong><br>
+          ${Object.entries(componentCounts)
+            .map(([type, count]) => `${type}: ${count}`)
+            .join('<br>')
+          }
+          <br><br>
+          <strong>Entity Types:</strong><br>
+          ${Object.entries(entityTypes)
+            .map(([type, count]) => `${type}: ${count}`)
+            .join('<br>')
+          }
+          <br><br>
+          <strong>FPS:</strong> ${Math.round(1 / this.gameState.deltaTime)}
+        `;
+      }, 1000);
+      
+      console.log('Component debug overlay enabled');
       return true;
     }
   }

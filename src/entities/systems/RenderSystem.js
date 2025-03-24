@@ -28,12 +28,27 @@ export default class RenderSystem {
       // Create health visualizer
       this.healthVisualizer = new HealthVisualizer(scene);
       
-      // Initialize model factory
-      this.modelFactory = new ModelFactory(scene, this.modelLoader);
+      // Initialize model factory with enhanced error handling
+      try {
+        this.modelFactory = new ModelFactory(scene, this.modelLoader);
+        
+        // Setup caching for model factory to improve performance
+        this.modelFactory.modelCache = new Map();
+        
+        if (this.debug) {
+          console.log('RenderSystem: Model factory initialized successfully with caching');
+        }
+      } catch (error) {
+        console.error('Failed to initialize model factory:', error);
+        // Create anyway to prevent null pointer errors
+        this.modelFactory = new ModelFactory(scene, this.modelLoader);
+      }
       
       if (this.debug) {
         console.log('RenderSystem: Selection indicator, health visualizer, and model factory created');
       }
+    } else {
+      console.error('RenderSystem: Cannot initialize - no active scene available');
     }
   }
 
@@ -110,68 +125,119 @@ export default class RenderSystem {
   createMesh(entityId, renderComponent, scene) {
     let mesh;
     
-    // Determine entity type and use appropriate factory method
-    if (renderComponent.meshId === 'unit') {
-      // Get faction and unit type data
-      const factionComponent = this.entityManager.getComponent(entityId, 'faction');
-      const faction = factionComponent ? factionComponent.faction : 'player';
-      
-      // Check for unit type component first
-      let unitType = 'basic';
-      if (this.entityManager.hasComponent(entityId, 'unitType')) {
-        unitType = this.entityManager.getComponent(entityId, 'unitType').type;
-      } else if (factionComponent) {
-        // Fall back to faction component unitType for backward compatibility
-        unitType = factionComponent.unitType || 'basic';
-      }
-      
-      // Create unit mesh using factory
-      mesh = this.modelFactory.createUnitModel(entityId, renderComponent, unitType, faction);
-      
-      // Register for animation if animation system exists
-      if (this.systems.animation && this.systems.animation.animationFactory) {
-        this.systems.animation.animationFactory.registerEntityForAnimation(entityId, mesh, unitType);
-      }
+    // Check if the model factory is available
+    if (!this.modelFactory) {
+      console.error('RenderSystem: Model factory not initialized, cannot create mesh for entity', entityId);
+      return;
     }
-    else if (renderComponent.meshId === 'building') {
-      // Get faction data
-      const factionComponent = this.entityManager.getComponent(entityId, 'faction');
-      const faction = factionComponent ? factionComponent.faction : 'player';
-      
-      // Check for building type component first
-      let buildingType = 'command_center';
-      if (this.entityManager.hasComponent(entityId, 'buildingType')) {
-        buildingType = this.entityManager.getComponent(entityId, 'buildingType').type;
+    
+    try {
+      // Determine entity type and use appropriate factory method
+      if (renderComponent.meshId === 'unit') {
+        // Get faction and unit type data
+        const factionComponent = this.entityManager.getComponent(entityId, 'faction');
+        const faction = factionComponent ? factionComponent.faction : 'player';
+        
+        // Use unit type component (no fallback needed since we're not supporting backward compatibility)
+        let unitType = 'basic';
+        if (this.entityManager.hasComponent(entityId, 'unitType')) {
+          unitType = this.entityManager.getComponent(entityId, 'unitType').type;
+        }
+        
+        // Create unit mesh using factory
+        const cacheKey = `unit_${unitType}_${faction}`;
+        
+        // Check cache first
+        if (this.modelFactory.modelCache.has(cacheKey)) {
+          // Clone from cache to improve performance
+          const cachedModel = this.modelFactory.modelCache.get(cacheKey);
+          mesh = cachedModel.clone();
+          if (this.debug) {
+            console.log(`Using cached model for ${unitType}`);
+          }
+        } else {
+          // Create new model and cache it
+          mesh = this.modelFactory.createUnitModel(entityId, renderComponent, unitType, faction);
+          this.modelFactory.modelCache.set(cacheKey, mesh.clone());
+        }
+        
+        // Register for animation if animation system exists
+        if (this.systems.animation && this.systems.animation.animationFactory) {
+          this.systems.animation.animationFactory.registerEntityForAnimation(entityId, mesh, unitType);
+        }
       }
-      
-      // Create building mesh using factory
-      mesh = this.modelFactory.createBuildingModel(entityId, renderComponent, buildingType, faction);
-      
-      // Register for animation if animation system exists
-      if (this.systems.animation && this.systems.animation.animationFactory) {
-        this.systems.animation.animationFactory.registerEntityForAnimation(entityId, mesh, buildingType);
+      else if (renderComponent.meshId === 'building') {
+        // Get faction data
+        const factionComponent = this.entityManager.getComponent(entityId, 'faction');
+        const faction = factionComponent ? factionComponent.faction : 'player';
+        
+        // Get building type from component
+        let buildingType = 'command_center';
+        if (this.entityManager.hasComponent(entityId, 'buildingType')) {
+          buildingType = this.entityManager.getComponent(entityId, 'buildingType').type;
+        }
+        
+        // Create building mesh using factory (with caching)
+        const cacheKey = `building_${buildingType}_${faction}`;
+        
+        // Check cache first
+        if (this.modelFactory.modelCache.has(cacheKey)) {
+          mesh = this.modelFactory.modelCache.get(cacheKey).clone();
+        } else {
+          mesh = this.modelFactory.createBuildingModel(entityId, renderComponent, buildingType, faction);
+          this.modelFactory.modelCache.set(cacheKey, mesh.clone());
+        }
+        
+        // Register for animation if animation system exists
+        if (this.systems.animation && this.systems.animation.animationFactory) {
+          this.systems.animation.animationFactory.registerEntityForAnimation(entityId, mesh, buildingType);
+        }
       }
-    }
-    else if (renderComponent.meshId === 'resource') {
-      // Get resource type
-      const resourceComponent = this.entityManager.getComponent(entityId, 'resource');
-      const resourceType = resourceComponent ? resourceComponent.type : 'basic';
-      
-      // Create resource mesh using factory
-      mesh = this.modelFactory.createResourceModel(entityId, renderComponent, resourceType);
-    }
-    else if (renderComponent.meshId === 'terrain') {
-      // Get terrain object type
-      const terrainType = renderComponent.terrainType || 'rock';
-      
-      // Create terrain object mesh using factory
-      mesh = this.modelFactory.createTerrainObjectModel(entityId, renderComponent, terrainType);
-    }
-    else {
-      // Default fallback for any other mesh types
+      else if (renderComponent.meshId === 'resource') {
+        // Get resource type
+        const resourceComponent = this.entityManager.getComponent(entityId, 'resource');
+        const resourceType = resourceComponent ? resourceComponent.type : 'basic';
+        
+        // Use caching for resources too
+        const cacheKey = `resource_${resourceType}`;
+        
+        if (this.modelFactory.modelCache.has(cacheKey)) {
+          mesh = this.modelFactory.modelCache.get(cacheKey).clone();
+        } else {
+          mesh = this.modelFactory.createResourceModel(entityId, renderComponent, resourceType);
+          this.modelFactory.modelCache.set(cacheKey, mesh.clone());
+        }
+      }
+      else if (renderComponent.meshId === 'terrain') {
+        // Get terrain object type
+        const terrainType = renderComponent.terrainType || 'rock';
+        
+        // Create terrain object mesh using factory (with caching)
+        const cacheKey = `terrain_${terrainType}`;
+        
+        if (this.modelFactory.modelCache.has(cacheKey)) {
+          mesh = this.modelFactory.modelCache.get(cacheKey).clone();
+        } else {
+          mesh = this.modelFactory.createTerrainObjectModel(entityId, renderComponent, terrainType);
+          this.modelFactory.modelCache.set(cacheKey, mesh.clone());
+        }
+      }
+      else {
+        // Default fallback for any other mesh types
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshPhongMaterial({ 
+          color: renderComponent.color || 0xffffff,
+          opacity: renderComponent.opacity || 1,
+          transparent: (renderComponent.opacity && renderComponent.opacity < 1)
+        });
+        mesh = new THREE.Mesh(geometry, material);
+      }
+    } catch (error) {
+      console.error('RenderSystem: Error creating mesh for entity', entityId, error);
+      // Create a simple placeholder mesh as fallback
       const geometry = new THREE.BoxGeometry(1, 1, 1);
       const material = new THREE.MeshPhongMaterial({ 
-        color: renderComponent.color || 0xffffff,
+        color: 0xff0000, // Red color to indicate error
         opacity: renderComponent.opacity || 1,
         transparent: (renderComponent.opacity && renderComponent.opacity < 1)
       });
@@ -187,6 +253,9 @@ export default class RenderSystem {
           renderComponent.scale.z
         );
       }
+      
+      // Store entity ID in mesh userData
+      mesh.userData.entityId = entityId;
       
       // Add to scene and store in meshes map
       scene.add(mesh);
@@ -205,7 +274,7 @@ export default class RenderSystem {
       }
       
       // Dispose of geometries and materials
-      if (mesh.geometry) mesh.geometry.dispose();
+      if (mesh.geometry) {mesh.geometry.dispose();}
       if (mesh.material) {
         if (Array.isArray(mesh.material)) {
           mesh.material.forEach(material => material.dispose());

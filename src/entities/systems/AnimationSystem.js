@@ -27,37 +27,126 @@ class AnimationSystem {
   initialize() {
     if (this.debug) {console.log('AnimationSystem: initializing');}
     
-    // Get the scene from the render system instead of directly from sceneManager
-    if (this.systems.render && this.systems.render.sceneManager) {
-      const { scene } = this.systems.render.sceneManager.getActiveScene();
-      if (scene) {
-        // Initialize animation factory
-        this.animationFactory = new AnimationFactory(scene);
-        
-        if (this.debug) {
-          console.log('AnimationSystem: Animation factory created');
+    try {
+      // Get the scene from the render system instead of directly from sceneManager
+      if (this.systems.render && this.systems.render.sceneManager) {
+        const { scene } = this.systems.render.sceneManager.getActiveScene();
+        if (scene) {
+          // Initialize animation factory
+          this.animationFactory = new AnimationFactory(scene);
+          
+          // Configure animation factory parameters
+          this.animationFactory.debug = this.debug;
+          
+          // Set up animation state transition handling
+          this.setupAnimationStateTransitions();
+          
+          if (this.debug) {
+            console.log('AnimationSystem: Animation factory created and configured');
+          }
         }
+      } else {
+        console.error('AnimationSystem: render system or sceneManager not available');
       }
-    } else {
-      console.error('AnimationSystem: render system or sceneManager not available');
-    }
-    
-    // Subscribe to combat events
-    if (this.systems.combat) {
-      // Store original startAttack method
-      const originalStartAttack = this.systems.combat.startAttack;
       
-      // Override with our version that triggers animations
-      this.systems.combat.startAttack = (attackerId, targetId) => {
-        const result = originalStartAttack.call(this.systems.combat, attackerId, targetId);
-        if (result) {
-          if (this.debug) {console.log(`AnimationSystem: Starting attack animation for ${attackerId} targeting ${targetId}`);}
-          this.startAttackAnimation(attackerId, targetId);
-        } else {
-          if (this.debug) {console.log(`AnimationSystem: Attack failed for ${attackerId} targeting ${targetId}`);}
+      // Subscribe to combat events
+      if (this.systems.combat) {
+        // Store original startAttack method
+        const originalStartAttack = this.systems.combat.startAttack;
+        
+        // Override with our version that triggers animations
+        this.systems.combat.startAttack = (attackerId, targetId) => {
+          const result = originalStartAttack.call(this.systems.combat, attackerId, targetId);
+          if (result) {
+            if (this.debug) {console.log(`AnimationSystem: Starting attack animation for ${attackerId} targeting ${targetId}`);}
+            this.startAttackAnimation(attackerId, targetId);
+          } else {
+            if (this.debug) {console.log(`AnimationSystem: Attack failed for ${attackerId} targeting ${targetId}`);}
+          }
+          return result;
+        };
+        
+        // Connect with combat damage events
+        this.setupCombatDamageEventHandling();
+      }
+    } catch (error) {
+      console.error('AnimationSystem: Error during initialization:', error);
+    }
+  }
+  
+  // Set up animation state transitions
+  setupAnimationStateTransitions() {
+    if (!this.animationFactory) return;
+    
+    // Define state transitions (could be expanded as needed)
+    this.animationFactory.stateTransitions = {
+      idle: {
+        to: ['attacking', 'moving', 'damaged', 'dying', 'healing'],
+        duration: 0.2 // seconds
+      },
+      attacking: {
+        to: ['idle', 'damaged', 'dying'],
+        duration: 0.3
+      },
+      moving: {
+        to: ['idle', 'attacking', 'damaged', 'dying'],
+        duration: 0.2
+      },
+      damaged: {
+        to: ['idle', 'attacking', 'moving', 'dying'],
+        duration: 0.3
+      },
+      healing: {
+        to: ['idle', 'attacking', 'moving', 'damaged'],
+        duration: 0.3
+      },
+      dying: {
+        to: [], // Terminal state
+        duration: 1.0
+      }
+    };
+    
+    if (this.debug) {
+      console.log('AnimationSystem: Animation state transitions configured');
+    }
+  }
+  
+  // Set up combat damage event handling
+  setupCombatDamageEventHandling() {
+    if (!this.systems.combat) return;
+    
+    // Hook into damage events if they exist
+    const originalApplyDamage = this.systems.combat.applyDamage;
+    if (originalApplyDamage) {
+      this.systems.combat.applyDamage = (targetId, damage, attackType, attackerId) => {
+        const result = originalApplyDamage.call(this.systems.combat, targetId, damage, attackType, attackerId);
+        
+        // If damage was successfully applied, trigger damage animation
+        if (result && this.animationFactory) {
+          // Create damage effect at target
+          this.animationFactory.createDamageEffect(targetId);
+          
+          // Set entity to damaged state briefly
+          this.animationFactory.setEntityState(targetId, 'damaged', {
+            damage: damage,
+            attackerId: attackerId,
+            attackType: attackType
+          });
+          
+          // After a delay, return to idle state if entity still exists
+          setTimeout(() => {
+            if (this.entityManager.hasComponent(targetId, 'health')) {
+              this.animationFactory.setEntityState(targetId, 'idle');
+            }
+          }, 500); // 500ms
         }
+        
         return result;
       };
+      
+      if (this.debug) {
+        console.log('AnimationSystem: Combat damage event handling set up');
+      }
     }
   }
   

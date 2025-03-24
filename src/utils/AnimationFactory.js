@@ -168,7 +168,7 @@ class AnimationFactory {
     // Create different particle effects based on entity type
     let particleColor = 0xff0000; // Default red for damage
     let particleSize = 0.05;
-    let particleLifetime = 1.0; // seconds
+    const particleLifetime = 1.0; // seconds
     
     // Customize effects based on entity type
     if (animData.type === 'techno_shaman') {
@@ -257,8 +257,8 @@ class AnimationFactory {
         }
         // Dispose of resources
         particles.children.forEach(particle => {
-          if (particle.geometry) particle.geometry.dispose();
-          if (particle.material) particle.material.dispose();
+          if (particle.geometry) {particle.geometry.dispose();}
+          if (particle.material) {particle.material.dispose();}
         });
       }
     };

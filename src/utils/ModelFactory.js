@@ -9,6 +9,7 @@ class ModelFactory {
   constructor(scene, modelLoader) {
     this.scene = scene;
     this.modelLoader = modelLoader;
+    this.modelCache = new Map(); // Add model caching
     this.debug = false;
   }
 
@@ -36,51 +37,51 @@ class ModelFactory {
 
     // Create model based on unit type
     switch(unitType) {
-      case 'techno_shaman':
-        this.createTechnoShamanModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'solar_knight':
-        this.createSolarKnightModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'neon_assassin':
-        this.createNeonAssassinModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'biohacker':
-        this.createBiohackerModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'scrap_golem':
-        this.createScrapGolemModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'eco_drone':
-        this.createEcoDroneModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'assault':
-        this.createAssaultUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'support':
-      case 'medic':
-        this.createSupportUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'sniper':
-        this.createSniperUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'tank':
-        this.createTankUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'worker':
-        this.createWorkerUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'heavy':
-        this.createHeavyUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'light':
-        this.createLightUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'specialist':
-        this.createSpecialistUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
-        break;
-      default:
-        this.createBasicUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+    case 'techno_shaman':
+      this.createTechnoShamanModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'solar_knight':
+      this.createSolarKnightModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'neon_assassin':
+      this.createNeonAssassinModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'biohacker':
+      this.createBiohackerModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'scrap_golem':
+      this.createScrapGolemModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'eco_drone':
+      this.createEcoDroneModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'assault':
+      this.createAssaultUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'support':
+    case 'medic':
+      this.createSupportUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'sniper':
+      this.createSniperUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'tank':
+      this.createTankUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'worker':
+      this.createWorkerUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'heavy':
+      this.createHeavyUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'light':
+      this.createLightUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'specialist':
+      this.createSpecialistUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
+      break;
+    default:
+      this.createBasicUnitModel(group, bodyMaterial, factionColor, renderComponent.opacity);
     }
     
     return group;
@@ -110,29 +111,29 @@ class ModelFactory {
 
     // Create model based on building type
     switch(buildingType) {
-      case 'arcane_reactor':
-        this.createArcaneReactorModel(group, buildingMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'reclaimed_sanctuary':
-        this.createReclaimedSanctuaryModel(group, buildingMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'bioforge':
-        this.createBioforgeModel(group, buildingMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'mana_well':
-        this.createManaWellModel(group, buildingMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'scavenger_outpost':
-        this.createScavengerOutpostModel(group, buildingMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'harmonic_tower':
-        this.createHarmonicTowerModel(group, buildingMaterial, factionColor, renderComponent.opacity);
-        break;
-      case 'command_center':
-        this.createCommandCenterModel(group, buildingMaterial, factionColor, renderComponent.opacity);
-        break;
-      default:
-        this.createBasicBuildingModel(group, buildingMaterial, factionColor, renderComponent.opacity);
+    case 'arcane_reactor':
+      this.createArcaneReactorModel(group, buildingMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'reclaimed_sanctuary':
+      this.createReclaimedSanctuaryModel(group, buildingMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'bioforge':
+      this.createBioforgeModel(group, buildingMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'mana_well':
+      this.createManaWellModel(group, buildingMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'scavenger_outpost':
+      this.createScavengerOutpostModel(group, buildingMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'harmonic_tower':
+      this.createHarmonicTowerModel(group, buildingMaterial, factionColor, renderComponent.opacity);
+      break;
+    case 'command_center':
+      this.createCommandCenterModel(group, buildingMaterial, factionColor, renderComponent.opacity);
+      break;
+    default:
+      this.createBasicBuildingModel(group, buildingMaterial, factionColor, renderComponent.opacity);
     }
     
     return group;
@@ -152,20 +153,20 @@ class ModelFactory {
     
     // Create model based on resource type
     switch(resourceType) {
-      case 'crystal':
-        this.createCrystalResourceModel(group, resourceMaterial, renderComponent.opacity);
-        break;
-      case 'gas':
-        this.createGasResourceModel(group, resourceMaterial, renderComponent.opacity);
-        break;
-      case 'biomass':
-        this.createBiomassResourceModel(group, resourceMaterial, renderComponent.opacity);
-        break;
-      case 'tech':
-        this.createTechResourceModel(group, resourceMaterial, renderComponent.opacity);
-        break;
-      default:
-        this.createBasicResourceModel(group, resourceMaterial, renderComponent.opacity);
+    case 'crystal':
+      this.createCrystalResourceModel(group, resourceMaterial, renderComponent.opacity);
+      break;
+    case 'gas':
+      this.createGasResourceModel(group, resourceMaterial, renderComponent.opacity);
+      break;
+    case 'biomass':
+      this.createBiomassResourceModel(group, resourceMaterial, renderComponent.opacity);
+      break;
+    case 'tech':
+      this.createTechResourceModel(group, resourceMaterial, renderComponent.opacity);
+      break;
+    default:
+      this.createBasicResourceModel(group, resourceMaterial, renderComponent.opacity);
     }
     
     return group;
@@ -185,32 +186,32 @@ class ModelFactory {
     
     // Create model based on terrain object type
     switch(objectType) {
-      case 'rock':
-        this.createRockModel(group, terrainMaterial, renderComponent.opacity);
-        break;
-      case 'hill':
-        this.createHillModel(group, terrainMaterial, renderComponent.opacity);
-        break;
-      case 'server_monolith':
-        this.createServerMonolithModel(group, terrainMaterial, renderComponent.opacity);
-        break;
-      case 'floating_crystal':
-        this.createFloatingCrystalModel(group, terrainMaterial, renderComponent.opacity);
-        break;
-      case 'corrupted_machine':
-        this.createCorruptedMachineModel(group, terrainMaterial, renderComponent.opacity);
-        break;
-      case 'circuit_tree':
-        this.createCircuitTreeModel(group, terrainMaterial, renderComponent.opacity);
-        break;
-      case 'holographic_ruin':
-        this.createHolographicRuinModel(group, terrainMaterial, renderComponent.opacity);
-        break;
-      case 'energy_geyser':
-        this.createEnergyGeyserModel(group, terrainMaterial, renderComponent.opacity);
-        break;
-      default:
-        this.createBasicTerrainObjectModel(group, terrainMaterial, renderComponent.opacity);
+    case 'rock':
+      this.createRockModel(group, terrainMaterial, renderComponent.opacity);
+      break;
+    case 'hill':
+      this.createHillModel(group, terrainMaterial, renderComponent.opacity);
+      break;
+    case 'server_monolith':
+      this.createServerMonolithModel(group, terrainMaterial, renderComponent.opacity);
+      break;
+    case 'floating_crystal':
+      this.createFloatingCrystalModel(group, terrainMaterial, renderComponent.opacity);
+      break;
+    case 'corrupted_machine':
+      this.createCorruptedMachineModel(group, terrainMaterial, renderComponent.opacity);
+      break;
+    case 'circuit_tree':
+      this.createCircuitTreeModel(group, terrainMaterial, renderComponent.opacity);
+      break;
+    case 'holographic_ruin':
+      this.createHolographicRuinModel(group, terrainMaterial, renderComponent.opacity);
+      break;
+    case 'energy_geyser':
+      this.createEnergyGeyserModel(group, terrainMaterial, renderComponent.opacity);
+      break;
+    default:
+      this.createBasicTerrainObjectModel(group, terrainMaterial, renderComponent.opacity);
     }
     
     return group;
