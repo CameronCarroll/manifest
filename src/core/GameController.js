@@ -118,6 +118,9 @@ class GameController {
     this.systems.spawn = new SpawnSystem(this.entityManager);
     console.log('Spawn system created:', this.systems.spawn);
     
+    this.systems.objectives = new ObjectiveSystem(this.entityManager);
+    console.log('Objectives system created:', this.systems.objectives);
+    
     console.log('Final systems object:', this.systems);
   }
 
@@ -341,6 +344,11 @@ class GameController {
     if (this.systems.spawn) {
       console.log('Initializing spawn system');
       this.systems.spawn.initialize();
+    }
+    
+    if (this.systems.objectives) {
+      console.log('Initializing objectives system');
+      this.systems.objectives.initialize();
     }
   
     console.log('All systems initialized successfully');

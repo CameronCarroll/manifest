@@ -156,8 +156,36 @@ class InputManager {
       return;
     }
 
-    // Left click - selection
+    // Left click - selection or attack-move if in attack-move mode
     if (event.button === 0) {
+      // If in attack-move mode, issue attack-move command instead of selection
+      if (this.isAttackMoveMode) {
+        const intersect = this.castRay();
+        if (intersect) {
+          // Check if we clicked on an enemy entity
+          const clickedEntityId = this.getEntityAtPosition(intersect.point);
+          
+          // If we clicked on an enemy entity, issue attack command
+          if (clickedEntityId && this.isEnemyEntity(clickedEntityId)) {
+            // Highlight the enemy target with the selection indicator ring
+            if (this.systems.render && this.systems.render.selectionIndicator) {
+              const enemyPos = this.entityManager.getComponent(clickedEntityId, 'position');
+              this.systems.render.selectionIndicator.highlightEnemyTarget(
+                clickedEntityId, 
+                enemyPos
+              );
+            }
+            this.issueAttackCommand(clickedEntityId);
+          } else {
+            // Issue attack-move command
+            this.issueAttackMoveCommand(intersect.point);
+          }
+          this.toggleAttackMoveMode(false); // Turn off attack-move mode after use
+          return;
+        }
+      }
+      
+      // Regular selection behavior when not in attack-move mode
       // Start selection
       this.startSelection(event);
 
@@ -933,6 +961,11 @@ class InputManager {
   completeSelection(event) {
     this.isSelecting = false;
     this.selectionBox.style.display = 'none';
+    
+    // Skip selection if in attack-move mode (handled by onMouseDown)
+    if (this.isAttackMoveMode) {
+      return;
+    }
 
     // If selection area is very small, treat as a single click
     const selectionWidth = Math.abs(this.selectionEnd.x - this.selectionStart.x);
@@ -1233,7 +1266,7 @@ class InputManager {
     }
   
     if (this.isAttackMoveMode) {
-      indicator.textContent = '⚔️ ATTACK-MOVE ⚔️';
+      indicator.textContent = '⚔️ ATTACK-MOVE (CLICK TO ENGAGE) ⚔️';
       indicator.style.display = 'block';
     } else {
       indicator.style.display = 'none';

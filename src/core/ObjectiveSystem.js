@@ -1,6 +1,6 @@
-// src/core/ObjectivesSystem.js
+// src/core/ObjectiveSystem.js
 
-class ObjectivesSystem {
+class ObjectiveSystem {
   constructor(entityManager) {
     this.entityManager = entityManager;
     this.winConditions = [];
@@ -12,6 +12,11 @@ class ObjectivesSystem {
       objectivesCompleted: 0,
       totalObjectives: 0
     };
+  }
+  
+  initialize() {
+    // Initialize system if needed
+    console.log('ObjectiveSystem initialized');
   }
     
   // Define a win condition for the game
@@ -253,4 +258,4 @@ class ObjectivesSystem {
   }
 }
   
-export default ObjectivesSystem;
+export default ObjectiveSystem;
