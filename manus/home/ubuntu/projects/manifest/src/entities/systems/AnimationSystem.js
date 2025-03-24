@@ -27,19 +27,14 @@ class AnimationSystem {
   initialize() {
     if (this.debug) {console.log('AnimationSystem: initializing');}
     
-    // Get the scene from the render system instead of directly from sceneManager
-    if (this.systems.render && this.systems.render.sceneManager) {
-      const { scene } = this.systems.render.sceneManager.getActiveScene();
-      if (scene) {
-        // Initialize animation factory
-        this.animationFactory = new AnimationFactory(scene);
-        
-        if (this.debug) {
-          console.log('AnimationSystem: Animation factory created');
-        }
+    const { scene } = this.systems.sceneManager.getActiveScene();
+    if (scene) {
+      // Initialize animation factory
+      this.animationFactory = new AnimationFactory(scene);
+      
+      if (this.debug) {
+        console.log('AnimationSystem: Animation factory created');
       }
-    } else {
-      console.error('AnimationSystem: render system or sceneManager not available');
     }
     
     // Subscribe to combat events

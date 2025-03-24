@@ -420,9 +420,12 @@ class InputManager {
       });
     }
 
-    // Update selection visualization
-    if (this.systems.render) {
-      this.systems.render.updateSelections(this.selectedEntities);
+    // Update selection visualization through selectionIndicator
+    if (this.systems.render && this.systems.render.selectionIndicator) {
+      this.systems.render.selectionIndicator.updateSelectionRings(
+        this.selectedEntities, 
+        this.entityManager
+      );
     }
   }
 
@@ -547,9 +550,12 @@ class InputManager {
       }
     });
 
-    // Update selection visualization
-    if (this.systems.render) {
-      this.systems.render.updateSelections(Array.from(this.selectedEntities));
+    // Update selection visualization through selectionIndicator
+    if (this.systems.render && this.systems.render.selectionIndicator) {
+      this.systems.render.selectionIndicator.updateSelectionRings(
+        this.selectedEntities, 
+        this.entityManager
+      );
     }
   }
 
@@ -1021,9 +1027,14 @@ class InputManager {
       });
     }
 
-    // Update selection visualization
-    if (this.systems.render) {
-      this.systems.render.updateSelections(this.selectedEntities);
+    // Update selection visualization through selectionIndicator
+    if (this.systems.render && this.systems.render.selectionIndicator) {
+      this.systems.render.selectionIndicator.updateSelectionRings(
+        this.selectedEntities, 
+        this.entityManager
+      );
+    } else if (DEBUG) {
+      console.warn('Selection indicator not available for box selection');
     }
   }
 
@@ -1113,9 +1124,12 @@ class InputManager {
   clearSelection() {
     this.selectedEntities.clear();
 
-    // Update selection visualization
-    if (this.systems.render) {
-      this.systems.render.updateSelections(this.selectedEntities);
+    // Update selection visualization through selectionIndicator
+    if (this.systems.render && this.systems.render.selectionIndicator) {
+      this.systems.render.selectionIndicator.updateSelectionRings(
+        this.selectedEntities, 
+        this.entityManager
+      );
     }
   }
 
