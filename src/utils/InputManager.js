@@ -315,6 +315,12 @@ class InputManager {
         console.log('Available systems:', this.systems);
       }
     }
+    // Handle ability hotkeys (1-4)
+    if (['1', '2', '3', '4'].includes(event.key)) {
+      if (this.systems.ability) {
+        return this.systems.ability.handleKeyPress(event.key, this.selectedEntities);
+      }
+    }
   // Arrow keys are handled by SceneManager's smooth camera movement system
   }
 

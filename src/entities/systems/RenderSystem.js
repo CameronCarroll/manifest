@@ -297,4 +297,57 @@ export default class RenderSystem {
       this.selectionIndicator.removeSelectionRing(entityId);
     }
   }
+
+  // Add method to handle ability visual effects
+  createAbilityEffect(entityId, type, data = {}) {
+    const mesh = this.meshes.get(entityId);
+    if (!mesh) {return null;}
+  
+    const { scene } = this.sceneManager.getActiveScene();
+    if (!scene) {return null;}
+  
+    switch (type) {
+    case 'sniper_beam':
+      // Create a beam effect for sniper
+      const beamGeometry = new THREE.CylinderGeometry(0.05, 0.05, data.length || 10, 8);
+      beamGeometry.rotateX(Math.PI / 2); // Make cylinder extend horizontally
+      
+      const beamMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0.7
+      });
+      
+      const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+      beam.position.set(0, 0.5, data.length / 2); // Extend forward from entity
+      
+      mesh.add(beam);
+      
+      // Store in userData for later cleanup
+      mesh.userData.abilityEffects = mesh.userData.abilityEffects || {};
+      mesh.userData.abilityEffects.sniperBeam = beam;
+      
+      return beam;
+    
+    // Add other ability effects as needed
+    }
+  
+    return null;
+  }
+
+  // Add method to remove ability effects
+  removeAbilityEffect(entityId, type) {
+    const mesh = this.meshes.get(entityId);
+    if (!mesh || !mesh.userData.abilityEffects) {return;}
+  
+    const effect = mesh.userData.abilityEffects[type];
+    if (effect) {
+      mesh.remove(effect);
+    
+      if (effect.geometry) {effect.geometry.dispose();}
+      if (effect.material) {effect.material.dispose();}
+    
+      delete mesh.userData.abilityEffects[type];
+    }
+  }
 }

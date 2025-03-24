@@ -695,7 +695,7 @@ class BaseScenario {
     case 'solar_knight':
       return ['shield_bash', 'solar_flare'];
     case 'neon_assassin':
-      return ['stealth', 'critical_strike'];
+      return ['sniper_aim'];
     case 'techno_shaman':
       return ['heal', 'drone_swarm'];
     case 'biohacker':
@@ -786,11 +786,11 @@ class BaseScenario {
   // Update fog of war using optimized method
   updateFogOfWar(deltaTime) {
     // Skip if fog of war is disabled or not initialized
-    if (!this.fogOfWar || !this.fogContext) return;
+    if (!this.fogOfWar || !this.fogContext) {return;}
     
     // Update timer and skip if it's not time to update yet - increase interval for better performance
     this.fogUpdateTimer += deltaTime;
-    if (this.fogUpdateTimer < this.fogOptions.updateFrequency) return;
+    if (this.fogUpdateTimer < this.fogOptions.updateFrequency) {return;}
     this.fogUpdateTimer = 0;
     
     // Use a downscaled version of the fog canvas for processing
@@ -822,7 +822,7 @@ class BaseScenario {
     const maxUnitsPerFrame = 5; // Limit how many units we process each frame
     
     this.entityManager.gameState.entities.forEach((entity, entityId) => {
-      if (processedUnits >= maxUnitsPerFrame) return;
+      if (processedUnits >= maxUnitsPerFrame) {return;}
       
       if (this.isPlayerEntity(entityId) && 
           this.entityManager.hasComponent(entityId, 'position')) {
@@ -1080,14 +1080,14 @@ class BaseScenario {
   }
 
   // Add this method to BaseScenario.js
-initializeWebGLFog() {
-  console.log('Initializing WebGL-based fog of war');
+  initializeWebGLFog() {
+    console.log('Initializing WebGL-based fog of war');
   
-  const { scene } = this.systems.render.sceneManager.getActiveScene();
-  if (!scene) return false;
+    const { scene } = this.systems.render.sceneManager.getActiveScene();
+    if (!scene) {return false;}
   
-  // Create a simple custom shader for the fog
-  const fogVertexShader = `
+    // Create a simple custom shader for the fog
+    const fogVertexShader = `
     varying vec2 vUv;
     void main() {
       vUv = uv;
@@ -1095,7 +1095,7 @@ initializeWebGLFog() {
     }
   `;
   
-  const fogFragmentShader = `
+    const fogFragmentShader = `
     uniform sampler2D fogTexture;
     varying vec2 vUv;
     void main() {
@@ -1104,258 +1104,258 @@ initializeWebGLFog() {
     }
   `;
   
-  // Create a data texture with black pixels
-  const size = 512; // Start with a smaller texture
-  const data = new Uint8Array(size * size * 4);
-  for (let i = 0; i < data.length; i += 4) {
-    data[i] = 0;     // R
-    data[i+1] = 0;   // G
-    data[i+2] = 0;   // B
-    data[i+3] = 255; // A (opaque)
+    // Create a data texture with black pixels
+    const size = 512; // Start with a smaller texture
+    const data = new Uint8Array(size * size * 4);
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 0;     // R
+      data[i+1] = 0;   // G
+      data[i+2] = 0;   // B
+      data[i+3] = 255; // A (opaque)
+    }
+  
+    // Create texture from the pixel data
+    this.fogDataTexture = new THREE.DataTexture(
+      data,
+      size,
+      size,
+      THREE.RGBAFormat,
+      THREE.UnsignedByteType
+    );
+    this.fogDataTexture.needsUpdate = true;
+  
+    // Create shader material using the texture
+    const fogMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        fogTexture: { value: this.fogDataTexture }
+      },
+      vertexShader: fogVertexShader,
+      fragmentShader: fogFragmentShader,
+      transparent: true,
+      depthWrite: false
+    });
+  
+    // Create the fog plane
+    const fogGeometry = new THREE.PlaneGeometry(this.mapWidth, this.mapHeight);
+    this.fogLayer = new THREE.Mesh(fogGeometry, fogMaterial);
+    this.fogLayer.rotation.x = -Math.PI / 2;
+    this.fogLayer.position.y = 1.0;
+    this.fogLayer.renderOrder = 1000;
+    scene.add(this.fogLayer);
+  
+    // Set up for WebGL fog updates
+    this.fogTextureSize = size;
+    this.fogTextureData = data;
+  
+    console.log('WebGL fog initialized');
+    return true;
   }
-  
-  // Create texture from the pixel data
-  this.fogDataTexture = new THREE.DataTexture(
-    data,
-    size,
-    size,
-    THREE.RGBAFormat,
-    THREE.UnsignedByteType
-  );
-  this.fogDataTexture.needsUpdate = true;
-  
-  // Create shader material using the texture
-  const fogMaterial = new THREE.ShaderMaterial({
-    uniforms: {
-      fogTexture: { value: this.fogDataTexture }
-    },
-    vertexShader: fogVertexShader,
-    fragmentShader: fogFragmentShader,
-    transparent: true,
-    depthWrite: false
-  });
-  
-  // Create the fog plane
-  const fogGeometry = new THREE.PlaneGeometry(this.mapWidth, this.mapHeight);
-  this.fogLayer = new THREE.Mesh(fogGeometry, fogMaterial);
-  this.fogLayer.rotation.x = -Math.PI / 2;
-  this.fogLayer.position.y = 1.0;
-  this.fogLayer.renderOrder = 1000;
-  scene.add(this.fogLayer);
-  
-  // Set up for WebGL fog updates
-  this.fogTextureSize = size;
-  this.fogTextureData = data;
-  
-  console.log('WebGL fog initialized');
-  return true;
-}
 
-// Add this method for updating WebGL fog
-updateWebGLFog(deltaTime) {
+  // Add this method for updating WebGL fog
+  updateWebGLFog(deltaTime) {
   // Skip if disabled or not initialized
-  if (!this.fogOfWar || !this.fogTextureData) return;
+    if (!this.fogOfWar || !this.fogTextureData) {return;}
   
-  // Update timer and skip if not time yet
-  this.fogUpdateTimer += deltaTime;
-  if (this.fogUpdateTimer < this.fogOptions.updateFrequency) return;
-  this.fogUpdateTimer = 0;
+    // Update timer and skip if not time yet
+    this.fogUpdateTimer += deltaTime;
+    if (this.fogUpdateTimer < this.fogOptions.updateFrequency) {return;}
+    this.fogUpdateTimer = 0;
   
-  // Get player units (limited by maxUnitsPerFrame)
-  const playerUnits = [];
-  let processedUnits = 0;
+    // Get player units (limited by maxUnitsPerFrame)
+    const playerUnits = [];
+    let processedUnits = 0;
   
-  this.entityManager.gameState.entities.forEach((entity, entityId) => {
-    if (processedUnits >= this.fogOptions.maxUnitsPerFrame) return;
+    this.entityManager.gameState.entities.forEach((entity, entityId) => {
+      if (processedUnits >= this.fogOptions.maxUnitsPerFrame) {return;}
     
-    if (this.isPlayerEntity(entityId) && 
+      if (this.isPlayerEntity(entityId) && 
         this.entityManager.hasComponent(entityId, 'position')) {
       
-      const pos = this.entityManager.getComponent(entityId, 'position');
-      let sightRadius = this.fogOptions.sightRadius;
+        const pos = this.entityManager.getComponent(entityId, 'position');
+        let sightRadius = this.fogOptions.sightRadius;
       
-      // Simplified sight radius calculation
-      if (this.entityManager.hasComponent(entityId, 'unitType')) {
-        const unitType = this.entityManager.getComponent(entityId, 'unitType').type;
-        if (unitType === 'neon_assassin' || unitType === 'sniper') {
-          sightRadius *= 1.5;
+        // Simplified sight radius calculation
+        if (this.entityManager.hasComponent(entityId, 'unitType')) {
+          const unitType = this.entityManager.getComponent(entityId, 'unitType').type;
+          if (unitType === 'neon_assassin' || unitType === 'sniper') {
+            sightRadius *= 1.5;
+          }
         }
-      }
       
-      playerUnits.push({
-        position: pos,
-        sightRadius: sightRadius
-      });
-      processedUnits++;
-    }
-  });
+        playerUnits.push({
+          position: pos,
+          sightRadius: sightRadius
+        });
+        processedUnits++;
+      }
+    });
   
-  // Update the texture data directly
-  const size = this.fogTextureSize;
-  const data = this.fogTextureData;
-  const gridResolution = 4; // Match grid resolution from initialization
+    // Update the texture data directly
+    const size = this.fogTextureSize;
+    const data = this.fogTextureData;
+    const gridResolution = 4; // Match grid resolution from initialization
   
-  // Fade previously explored areas if not using memory
-  if (!this.fogOptions.rememberExplored) {
-    const fadeSpeed = 0.9; // How quickly explored areas fade back to fog
-    for (let i = 0; i < data.length; i += 4) {
+    // Fade previously explored areas if not using memory
+    if (!this.fogOptions.rememberExplored) {
+      const fadeSpeed = 0.9; // How quickly explored areas fade back to fog
+      for (let i = 0; i < data.length; i += 4) {
       // Increase alpha (more fog) up to maximum
-      if (data[i+3] < 255) {
-        data[i+3] = Math.min(255, data[i+3] + Math.floor(fadeSpeed * 255 * deltaTime));
-      }
-    }
-  }
-  
-  // Reveal areas around units
-  for (const unit of playerUnits) {
-    const worldX = unit.position.x;
-    const worldZ = unit.position.z;
-    
-    // Convert world coordinates to texture coordinates
-    const texX = Math.floor((worldX + this.mapWidth/2) / this.mapWidth * size);
-    // Fix: Invert Z-axis for proper mapping to texture Y coordinate
-    const texY = Math.floor((this.mapHeight - (worldZ + this.mapHeight/2)) / this.mapHeight * size);
-    
-    // Calculate sight radius in texture space
-    const texRadius = Math.floor(unit.sightRadius / this.mapWidth * size);
-    
-    // Reveal circle around unit - simplified algorithm
-    const radiusSquared = texRadius * texRadius;
-    
-    // Only process a square region around the unit for efficiency
-    const minX = Math.max(0, texX - texRadius);
-    const maxX = Math.min(size - 1, texX + texRadius);
-    const minY = Math.max(0, texY - texRadius);
-    const maxY = Math.min(size - 1, texY + texRadius);
-    
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        // Check if pixel is within circle using distance squared
-        const dx = x - texX;
-        const dy = y - texY;
-        const distSquared = dx * dx + dy * dy;
-        
-        if (distSquared <= radiusSquared) {
-          // Calculate fade based on distance from center
-          let alpha;
-          if (this.fogOptions.enableAdvancedFog) {
-            // Proportional fade based on distance from edge
-            const dist = Math.sqrt(distSquared);
-            const fade = Math.max(0, 1 - dist / texRadius);
-            alpha = Math.floor(255 * (1 - fade * 0.9)); // Keep a bit of fog even at center
-          } else {
-            // Simple visibility - much faster
-            alpha = this.fogOptions.exploredOpacity * 255;
-          }
-          
-          // Set pixel alpha (fog opacity)
-          const idx = (y * size + x) * 4 + 3;
-          if (idx >= 0 && idx < data.length) {
-            data[idx] = Math.min(data[idx], alpha);
-          }
+        if (data[i+3] < 255) {
+          data[i+3] = Math.min(255, data[i+3] + Math.floor(fadeSpeed * 255 * deltaTime));
         }
       }
     }
+  
+    // Reveal areas around units
+    for (const unit of playerUnits) {
+      const worldX = unit.position.x;
+      const worldZ = unit.position.z;
     
-    // Update explored grid for memory
-    if (this.fogOptions.rememberExplored && this.exploredGrid) {
-      const gridCenterX = Math.floor((worldX + this.mapWidth/2) * gridResolution);
-      // Fix: Invert Z axis for grid coordinates to match canvas
-      const gridCenterY = Math.floor((this.mapHeight - (worldZ + this.mapHeight/2)) * gridResolution);
-      const gridRadius = Math.ceil(unit.sightRadius * gridResolution);
+      // Convert world coordinates to texture coordinates
+      const texX = Math.floor((worldX + this.mapWidth/2) / this.mapWidth * size);
+      // Fix: Invert Z-axis for proper mapping to texture Y coordinate
+      const texY = Math.floor((this.mapHeight - (worldZ + this.mapHeight/2)) / this.mapHeight * size);
+    
+      // Calculate sight radius in texture space
+      const texRadius = Math.floor(unit.sightRadius / this.mapWidth * size);
+    
+      // Reveal circle around unit - simplified algorithm
+      const radiusSquared = texRadius * texRadius;
+    
+      // Only process a square region around the unit for efficiency
+      const minX = Math.max(0, texX - texRadius);
+      const maxX = Math.min(size - 1, texX + texRadius);
+      const minY = Math.max(0, texY - texRadius);
+      const maxY = Math.min(size - 1, texY + texRadius);
+    
+      for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) {
+        // Check if pixel is within circle using distance squared
+          const dx = x - texX;
+          const dy = y - texY;
+          const distSquared = dx * dx + dy * dy;
+        
+          if (distSquared <= radiusSquared) {
+          // Calculate fade based on distance from center
+            let alpha;
+            if (this.fogOptions.enableAdvancedFog) {
+            // Proportional fade based on distance from edge
+              const dist = Math.sqrt(distSquared);
+              const fade = Math.max(0, 1 - dist / texRadius);
+              alpha = Math.floor(255 * (1 - fade * 0.9)); // Keep a bit of fog even at center
+            } else {
+            // Simple visibility - much faster
+              alpha = this.fogOptions.exploredOpacity * 255;
+            }
+          
+            // Set pixel alpha (fog opacity)
+            const idx = (y * size + x) * 4 + 3;
+            if (idx >= 0 && idx < data.length) {
+              data[idx] = Math.min(data[idx], alpha);
+            }
+          }
+        }
+      }
+    
+      // Update explored grid for memory
+      if (this.fogOptions.rememberExplored && this.exploredGrid) {
+        const gridCenterX = Math.floor((worldX + this.mapWidth/2) * gridResolution);
+        // Fix: Invert Z axis for grid coordinates to match canvas
+        const gridCenterY = Math.floor((this.mapHeight - (worldZ + this.mapHeight/2)) * gridResolution);
+        const gridRadius = Math.ceil(unit.sightRadius * gridResolution);
       
-      // Update the explored grid around this unit
-      for (let dx = -gridRadius; dx <= gridRadius; dx++) {
-        for (let dy = -gridRadius; dy <= gridRadius; dy++) {
+        // Update the explored grid around this unit
+        for (let dx = -gridRadius; dx <= gridRadius; dx++) {
+          for (let dy = -gridRadius; dy <= gridRadius; dy++) {
           // Check if within circle radius
-          if (dx*dx + dy*dy <= gridRadius*gridRadius) {
-            const gx = gridCenterX + dx;
-            const gy = gridCenterY + dy;
+            if (dx*dx + dy*dy <= gridRadius*gridRadius) {
+              const gx = gridCenterX + dx;
+              const gy = gridCenterY + dy;
             
-            // Ensure we're within grid bounds
-            if (gx >= 0 && gx < this.exploredGrid.length && 
+              // Ensure we're within grid bounds
+              if (gx >= 0 && gx < this.exploredGrid.length && 
                 gy >= 0 && gy < this.exploredGrid[0].length) {
-              this.exploredGrid[gx][gy] = true;
+                this.exploredGrid[gx][gy] = true;
+              }
             }
           }
         }
       }
     }
+  
+    // Update the texture
+    this.fogDataTexture.needsUpdate = true;
   }
-  
-  // Update the texture
-  this.fogDataTexture.needsUpdate = true;
-}
 
-// Create a toggle to switch between standard and optimized modes
-toggleOptimizedFog(enabled = true) {
-  if (enabled === this.fogOptions.enableAdvancedFog) return;
+  // Create a toggle to switch between standard and optimized modes
+  toggleOptimizedFog(enabled = true) {
+    if (enabled === this.fogOptions.enableAdvancedFog) {return;}
   
-  this.fogOptions.enableAdvancedFog = enabled;
+    this.fogOptions.enableAdvancedFog = enabled;
   
-  if (enabled) {
-    console.log('Using higher quality fog of war (may impact performance)');
-    this.fogOptions.updateFrequency = 0.1;
-    this.fogOptions.useGradients = true;
-  } else {
-    console.log('Using optimized fog of war for better performance');
-    this.fogOptions.updateFrequency = 0.25;
-    this.fogOptions.useGradients = false;
+    if (enabled) {
+      console.log('Using higher quality fog of war (may impact performance)');
+      this.fogOptions.updateFrequency = 0.1;
+      this.fogOptions.useGradients = true;
+    } else {
+      console.log('Using optimized fog of war for better performance');
+      this.fogOptions.updateFrequency = 0.25;
+      this.fogOptions.useGradients = false;
+    }
   }
-}
 
-// Add this method to automatically adjust fog quality based on performance
-autoAdjustFogQuality() {
+  // Add this method to automatically adjust fog quality based on performance
+  autoAdjustFogQuality() {
   // Track frame rate over time
-  if (!this._fpsHistory) {
-    this._fpsHistory = [];
-    this._lastFpsCheck = Date.now();
-    this._framesCount = 0;
-    return; // First call just initializes tracking
-  }
-  
-  // Count frames
-  this._framesCount++;
-  
-  // Check every second
-  const now = Date.now();
-  const elapsed = now - this._lastFpsCheck;
-  
-  if (elapsed >= 1000) {
-    const fps = Math.round(this._framesCount * 1000 / elapsed);
-    this._framesCount = 0;
-    this._lastFpsCheck = now;
-    
-    // Add to history (keep last 5 readings)
-    this._fpsHistory.push(fps);
-    if (this._fpsHistory.length > 5) {
-      this._fpsHistory.shift();
+    if (!this._fpsHistory) {
+      this._fpsHistory = [];
+      this._lastFpsCheck = Date.now();
+      this._framesCount = 0;
+      return; // First call just initializes tracking
     }
+  
+    // Count frames
+    this._framesCount++;
+  
+    // Check every second
+    const now = Date.now();
+    const elapsed = now - this._lastFpsCheck;
+  
+    if (elapsed >= 1000) {
+      const fps = Math.round(this._framesCount * 1000 / elapsed);
+      this._framesCount = 0;
+      this._lastFpsCheck = now;
     
-    // Get average FPS
-    const avgFps = this._fpsHistory.reduce((sum, val) => sum + val, 0) / this._fpsHistory.length;
+      // Add to history (keep last 5 readings)
+      this._fpsHistory.push(fps);
+      if (this._fpsHistory.length > 5) {
+        this._fpsHistory.shift();
+      }
     
-    // Adjust fog quality based on FPS
-    if (avgFps < 30) {
+      // Get average FPS
+      const avgFps = this._fpsHistory.reduce((sum, val) => sum + val, 0) / this._fpsHistory.length;
+    
+      // Adjust fog quality based on FPS
+      if (avgFps < 30) {
       // Poor performance - optimize fog
-      if (this.fogOptions.enableAdvancedFog) {
-        console.log(`Low FPS detected (${avgFps.toFixed(1)}), optimizing fog of war`);
-        this.toggleOptimizedFog(false);
-      }
+        if (this.fogOptions.enableAdvancedFog) {
+          console.log(`Low FPS detected (${avgFps.toFixed(1)}), optimizing fog of war`);
+          this.toggleOptimizedFog(false);
+        }
       
-      // If still bad, increase update interval
-      if (avgFps < 20 && this.fogOptions.updateFrequency < 0.4) {
-        this.fogOptions.updateFrequency += 0.1;
-        console.log(`Very low FPS, reducing fog update frequency to ${this.fogOptions.updateFrequency.toFixed(1)}s`);
+        // If still bad, increase update interval
+        if (avgFps < 20 && this.fogOptions.updateFrequency < 0.4) {
+          this.fogOptions.updateFrequency += 0.1;
+          console.log(`Very low FPS, reducing fog update frequency to ${this.fogOptions.updateFrequency.toFixed(1)}s`);
+        }
       }
-    }
-    // Optionally improve quality if FPS is very high
-    else if (avgFps > 55 && !this.fogOptions.enableAdvancedFog) {
-      console.log(`High FPS detected (${avgFps.toFixed(1)}), can enable advanced fog effects`);
-      this.toggleOptimizedFog(true);
+      // Optionally improve quality if FPS is very high
+      else if (avgFps > 55 && !this.fogOptions.enableAdvancedFog) {
+        console.log(`High FPS detected (${avgFps.toFixed(1)}), can enable advanced fog effects`);
+        this.toggleOptimizedFog(true);
+      }
     }
   }
-}
 }
   
 export default BaseScenario;

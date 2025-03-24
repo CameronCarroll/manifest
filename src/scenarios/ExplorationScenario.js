@@ -713,7 +713,7 @@ class ExplorationScenario extends BaseScenario {
     case 'solar_knight':
       return ['shield_bash', 'solar_flare'];
     case 'neon_assassin':
-      return ['stealth', 'critical_strike'];
+      return ['sniper_aim'];
     case 'techno_shaman':
       return ['heal', 'drone_swarm'];
     case 'biohacker':

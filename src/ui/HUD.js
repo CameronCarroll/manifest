@@ -21,6 +21,130 @@ class HUD {
       this.addActionButton('Attack', '#FF0000');
     }
   }
+
+  // Add ability UI
+  createAbilityUI() {
+    const abilityBar = document.createElement('div');
+    abilityBar.id = 'ability-bar';
+    abilityBar.style.position = 'absolute';
+    abilityBar.style.bottom = '10px';
+    abilityBar.style.left = '50%';
+    abilityBar.style.transform = 'translateX(-50%)';
+    abilityBar.style.display = 'flex';
+    abilityBar.style.gap = '10px';
+    abilityBar.style.zIndex = '10';
+  
+    // Create ability slots
+    for (let i = 1; i <= 4; i++) {
+      const abilitySlot = document.createElement('div');
+      abilitySlot.className = 'ability-slot';
+      abilitySlot.id = `ability-slot-${i}`;
+      abilitySlot.style.width = '50px';
+      abilitySlot.style.height = '50px';
+      abilitySlot.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      abilitySlot.style.border = '2px solid #666';
+      abilitySlot.style.borderRadius = '5px';
+      abilitySlot.style.display = 'flex';
+      abilitySlot.style.alignItems = 'center';
+      abilitySlot.style.justifyContent = 'center';
+      abilitySlot.style.color = 'white';
+      abilitySlot.style.fontSize = '12px';
+      abilitySlot.style.position = 'relative';
+    
+      // Add hotkey label
+      const hotkeyLabel = document.createElement('div');
+      hotkeyLabel.style.position = 'absolute';
+      hotkeyLabel.style.bottom = '2px';
+      hotkeyLabel.style.right = '2px';
+      hotkeyLabel.style.fontSize = '10px';
+      hotkeyLabel.textContent = i;
+    
+      abilitySlot.appendChild(hotkeyLabel);
+      abilityBar.appendChild(abilitySlot);
+    }
+  
+    document.body.appendChild(abilityBar);
+    this.abilityBar = abilityBar;
+  }
+
+  // Update ability UI based on selected entity
+  updateAbilityUI(selectedEntities, abilitySystem) {
+    if (!this.abilityBar) {return;}
+  
+    // If no entities selected, hide ability bar
+    if (selectedEntities.size === 0) {
+      this.abilityBar.style.display = 'none';
+      return;
+    }
+  
+    // Show ability bar
+    this.abilityBar.style.display = 'flex';
+  
+    // Get abilities for first selected entity (could enhance to show common abilities)
+    const entityId = Array.from(selectedEntities)[0];
+    const abilities = abilitySystem.getEntityAbilities(entityId);
+  
+    // Update ability slots
+    for (let i = 1; i <= 4; i++) {
+      const slot = document.getElementById(`ability-slot-${i}`);
+      if (!slot) {continue;}
+    
+      const abilityIndex = i - 1;
+      const ability = abilities[abilityIndex];
+    
+      if (ability) {
+      // Update slot with ability info
+        slot.style.border = '2px solid #4CAF50';
+      
+        // Clear previous content (except hotkey)
+        while (slot.childNodes.length > 1) {
+          slot.removeChild(slot.firstChild);
+        }
+      
+        // Add ability icon/name
+        const abilityName = document.createElement('div');
+        abilityName.style.fontSize = '10px';
+        abilityName.textContent = this.formatAbilityName(ability);
+      
+        // Insert before hotkey label
+        slot.insertBefore(abilityName, slot.firstChild);
+      
+        // Check cooldown
+        const cooldownKey = `${entityId}_${ability}`;
+        if (abilitySystem.abilityCooldowns.has(cooldownKey)) {
+          const cooldown = abilitySystem.abilityCooldowns.get(cooldownKey);
+        
+          // Add cooldown overlay
+          const cooldownOverlay = document.createElement('div');
+          cooldownOverlay.style.position = 'absolute';
+          cooldownOverlay.style.bottom = '0';
+          cooldownOverlay.style.left = '0';
+          cooldownOverlay.style.width = '100%';
+          cooldownOverlay.style.height = `${cooldown * 20}%`; // Scale based on max cooldown
+          cooldownOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+          cooldownOverlay.style.zIndex = '1';
+        
+          slot.appendChild(cooldownOverlay);
+        }
+      } else {
+      // Empty slot
+        slot.style.border = '2px solid #666';
+      
+        // Clear previous content (except hotkey)
+        while (slot.childNodes.length > 1) {
+          slot.removeChild(slot.firstChild);
+        }
+      }
+    }
+  }
+
+  // Format ability name for display
+  formatAbilityName(ability) {
+    return ability
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
   
   addActionButton(text, color) {
     const button = document.createElement('button');

@@ -24,6 +24,7 @@ import AISystem from '../entities/systems/AISystem.js';
 import SpawnSystem from '../entities/systems/SpawnSystem.js';
 import AnimationSystem from '../entities/systems/AnimationSystem.js'; // Add this line
 import CollisionSystem from '../entities/systems/CollisionSystem.js';
+import AbilitySystem from '../entities/systems/AbilitySystem.js';
 
 // Utilities
 import InputManager from '../utils/InputManager.js';
@@ -128,6 +129,9 @@ class GameController {
     
     this.systems.objectives = new ObjectiveSystem(this.entityManager);
     console.log('Objectives system created:', this.systems.objectives);
+
+    this.systems.ability = new AbilitySystem(this.entityManager, this.systems);
+    console.log('Ability system created:', this.systems.ability);
     
     console.log('Final systems object:', this.systems);
   }
@@ -400,6 +404,10 @@ class GameController {
       } else if (this.currentScenario.checkDefeat()) {
         this.endGame(false);
       }
+    }
+
+    if (this.systems.ability) {
+      this.systems.ability.update(deltaTime);
     }
   }
 
