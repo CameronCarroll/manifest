@@ -108,8 +108,14 @@ export default class RenderSystem {
         this.healthVisualizer.processDamageEvents(this.systems.combat.damageEvents);
       }
       
-      // Update health visualizations
-      this.healthVisualizer.update(deltaTime, this.entityManager, camera);
+      // Get active scenario reference for fog of war check
+      let activeScenario = null;
+      if (this.entityManager && this.entityManager.gameState && this.entityManager.gameState.activeScenario) {
+        activeScenario = this.entityManager.gameState.activeScenario;
+      }
+      
+      // Update health visualizations with scenario reference for fog of war
+      this.healthVisualizer.update(deltaTime, this.entityManager, camera, activeScenario);
     }
 
     if (this.selectionIndicator) {

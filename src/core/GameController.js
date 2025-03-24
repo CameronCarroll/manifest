@@ -195,6 +195,9 @@ class GameController {
       return false;
     }
     
+    // Store reference to the active scenario in gameState for other systems to access
+    this.gameState.activeScenario = this.currentScenario;
+    
     // Update UI visibility based on scenario features
     this.updateUIVisibility();
     

@@ -21,14 +21,37 @@ class ExplorationScenario extends BaseScenario {
     this.biomeType = 'crystal_wastes';
     
     // Mission settings
-    this.startPosition = { x: -this.mapWidth/2 + 20, z: 0 };
+    this.startPosition = { x: -this.mapWidth/2 + 0, z: 0 };
     this.beaconPosition = { x: this.mapWidth/2 - 20, z: 0 };
     
     // Enemy properties
     this.enemyBuildingCount = 3;
-    this.enemyUnitCount = 15;
+    this.enemyUnitCount = 5;
     this.mainEnemyBaseId = null;
     this.beaconId = null;
+
+    // Enable fog of war by default in this scenario
+    this.fogOfWar = true;
+    
+    // Optimized fog settings for ExplorationScenario constructor
+    this.fogOptions = {
+      sightRadius: 20,           // Better visibility in wasteland
+      exploredOpacity: 0.5,      // Darker explored areas
+      unexploredOpacity: 0.95,   // Nearly opaque unexplored areas
+      updateFrequency: 0.25,     // Update 4 times per second (was 0.1)
+      fogColor: 0x000022,        // Dark blue fog for mystical feel
+      fadeEdgeWidth: 0.4,        // Wider fade at edges
+      rememberExplored: true,    // Remember areas you've seen
+      resolution: 2,             // Lower resolution (was 3)
+      heightInfluence: true,
+      heightFactor: 0.3,         // Height provides better visibility
+      useWebGL: true,            // Try to use faster WebGL rendering
+      maxUnitsPerFrame: 3,       // Process max 3 units per frame
+      visibilityCheckFrequency: 0.5,  // Check visibility twice per second
+      enableAdvancedFog: false,  // Start with optimized fog
+      lowResScale: 6,            // Even lower resolution for processing
+      useGradients: false        // Disable gradients for better performance
+    };
   }
   
   async start() {
@@ -59,6 +82,17 @@ class ExplorationScenario extends BaseScenario {
       resourceDensity: 0.5,
       elevation: 1.2 // More dramatic terrain variation
     });
+
+    // When the map is ready, enable fog of war
+    if (this.fogOfWar) {
+      this.enableFogOfWar(this.fogOptions);
+      
+      // Add specific message about the foggy, dangerous wasteland
+      this.promptQueue.push({ 
+        message: 'The wasteland is shrouded in fog. Explore carefully to reveal the terrain.', 
+        timeout: 8000 
+      });
+    }
     
     // Add additional urban ruins - this is specific to exploration scenario
     this.addUrbanFeatures();
@@ -513,6 +547,13 @@ class ExplorationScenario extends BaseScenario {
     
     // Update objective progress
     this.updateObjectiveProgress();
+
+    // Update entity visibility based on fog of war
+    if (this.fogOfWar) {
+      this.updateEntityVisibility();
+    }
+
+    this.autoAdjustFogQuality();
   }
   
   updateObjectiveProgress() {
@@ -604,6 +645,11 @@ class ExplorationScenario extends BaseScenario {
         
         if (distance < 5) { // Within 5 units of the beacon
           reached = true;
+          
+          // Reveal the beacon area on the map when reached
+          if (this.fogOfWar) {
+            this.revealMapFeature(beaconPosition, 40);
+          }
         }
       }
     });
@@ -774,6 +820,60 @@ class ExplorationScenario extends BaseScenario {
       notification.style.transition = 'opacity 1s';
       notification.style.opacity = '0';
     }, 5000);
+  }
+  // Add to ExplorationScenario.js
+  revealMapFeature(position, radius = 30) {
+    if (!this.fogOfWar || !this.fogContext) {return;}
+  
+    // Convert world position to canvas coordinates
+    const canvasX = (position.x + this.mapWidth/2) * (this.fogCanvas.width / this.mapWidth);
+    // Fix: Invert the Z axis when mapping to canvas Y
+    const canvasY = (this.mapHeight - (position.z + this.mapHeight/2)) * (this.fogCanvas.height / this.mapHeight);
+    const canvasRadius = radius * (this.fogCanvas.width / this.mapWidth);
+  
+    // Create radial gradient for reveal effect
+    const gradient = this.fogContext.createRadialGradient(
+      canvasX, canvasY, 0,
+      canvasX, canvasY, canvasRadius
+    );
+  
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0)'); // Clear at center
+    gradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.1)'); // Semi-transparent at middle
+    gradient.addColorStop(1, 'rgba(0, 0, 0, ' + this.fogOptions.exploredOpacity + ')'); // Fade to explored opacity
+  
+    // Apply gradient using 'destination-out' to clear fog
+    this.fogContext.globalCompositeOperation = 'destination-out';
+    this.fogContext.fillStyle = gradient;
+    this.fogContext.beginPath();
+    this.fogContext.arc(canvasX, canvasY, canvasRadius, 0, Math.PI * 2);
+    this.fogContext.fill();
+  
+    // Reset composite operation
+    this.fogContext.globalCompositeOperation = 'source-over';
+  
+    // Mark area as explored in the grid
+    const gridResolution = 4;
+    const gridCenterX = Math.floor((position.x + this.mapWidth/2) * gridResolution);
+    // Fix: Invert Z axis for grid coordinates to match canvas
+    const gridCenterY = Math.floor((this.mapHeight - (position.z + this.mapHeight/2)) * gridResolution);
+    const gridRadius = Math.ceil(radius * gridResolution);
+  
+    for (let dx = -gridRadius; dx <= gridRadius; dx++) {
+      for (let dy = -gridRadius; dy <= gridRadius; dy++) {
+        if (dx*dx + dy*dy <= gridRadius*gridRadius) {
+          const gx = gridCenterX + dx;
+          const gy = gridCenterY + dy;
+        
+          if (gx >= 0 && gx < this.exploredGrid.length && 
+            gy >= 0 && gy < this.exploredGrid[0].length) {
+            this.exploredGrid[gx][gy] = true;
+          }
+        }
+      }
+    }
+  
+    // Update texture
+    this.fogTexture.needsUpdate = true;
   }
 }
 

@@ -192,14 +192,37 @@ class HealthVisualizer {
   }
   
   // Update all health visualizations
-  update(deltaTime, entityManager, camera) {
+  update(deltaTime, entityManager, camera, scenarioRef) {
     // Update health bars for all entities
     entityManager.gameState.entities.forEach((entity, entityId) => {
-      // Only show health bars for enemy entities
+      // Only show health bars for enemy entities that are visible (not in fog)
       if (entityManager.hasComponent(entityId, 'faction')) {
         const faction = entityManager.getComponent(entityId, 'faction');
+        
         if (faction.faction === 'enemy') {
-          this.updateHealthBar(entityId, entityManager);
+          // Check if we have a valid position component
+          if (entityManager.hasComponent(entityId, 'position')) {
+            const pos = entityManager.getComponent(entityId, 'position');
+            
+            // Check if entity is in fog (if fog of war is enabled)
+            let isVisible = true;
+            if (scenarioRef && scenarioRef.fogOfWar) {
+              isVisible = scenarioRef.isPositionVisible(pos);
+            }
+            
+            if (isVisible) {
+              // Entity is visible, show/update health bar
+              this.updateHealthBar(entityId, entityManager);
+            } else {
+              // Entity is in fog, hide health bar if it exists
+              if (this.healthBars.has(entityId)) {
+                const healthBar = this.healthBars.get(entityId);
+                if (healthBar && healthBar.group) {
+                  healthBar.group.visible = false;
+                }
+              }
+            }
+          }
         }
       }
     });
