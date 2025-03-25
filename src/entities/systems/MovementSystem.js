@@ -60,8 +60,33 @@ class MovementSystem {
         this.stopEntity(entityId);
         return;
       }
+
+      // Get map boundaries from the active scenario if available
+    let mapBounds = {
+      minX: -50, maxX: 50,
+      minZ: -50, maxZ: 50
+    };
     
-      const { destination, speed, targetEntityId, attackMove } = movementData;
+    // Try to get actual map bounds from the active scenario
+    if (this.entityManager.gameState.activeScenario) {
+      const scenario = this.entityManager.gameState.activeScenario;
+      mapBounds = {
+        minX: -scenario.mapWidth/2 + 1, // 1 unit buffer from edge
+        maxX: scenario.mapWidth/2 - 1,
+        minZ: -scenario.mapHeight/2 + 1,
+        maxZ: scenario.mapHeight/2 - 1
+      };
+    }
+    
+    // Get destination but enforce map boundaries
+    const { destination, speed, targetEntityId, attackMove } = movementData;
+    
+    // Check if the destination is outside map boundaries and adjust if needed
+    if (destination.x < mapBounds.minX) destination.x = mapBounds.minX;
+    if (destination.x > mapBounds.maxX) destination.x = mapBounds.maxX;
+    if (destination.z < mapBounds.minZ) destination.z = mapBounds.minZ;
+    if (destination.z > mapBounds.maxZ) destination.z = mapBounds.maxZ;
+    
     
       // Check if entity has target and is in range for attack
       if (targetEntityId && this.systems && this.systems.combat) {
@@ -154,12 +179,21 @@ class MovementSystem {
       const newX = positionComponent.x + dx * moveRatio + separationForce.x;
       const newZ = positionComponent.z + dz * moveRatio + separationForce.z;
     
+      // Enforce map boundaries on the final position
+      let finalX = newX;
+      let finalZ = newZ;
+
+      if (finalX < mapBounds.minX) finalX = mapBounds.minX;
+      if (finalX > mapBounds.maxX) finalX = mapBounds.maxX;
+      if (finalZ < mapBounds.minZ) finalZ = mapBounds.minZ;
+      if (finalZ > mapBounds.maxZ) finalZ = mapBounds.maxZ;
+
       // Check for collisions if we have a collision system
       if (this.systems && this.systems.collision) {
         const newPosition = {
-          x: newX,
+          x: finalX,
           y: positionComponent.y,
-          z: newZ
+          z: finalZ
         };
       
         // Check if move would cause a collision
@@ -184,13 +218,13 @@ class MovementSystem {
           positionComponent.z = validPosition.z;
         } else {
         // No collision, move to intended position
-          positionComponent.x = newX;
-          positionComponent.z = newZ;
+          positionComponent.x = finalX;
+          positionComponent.z = finalZ;
         }
       } else {
       // No collision system, just move
-        positionComponent.x = newX;
-        positionComponent.z = newZ;
+        positionComponent.x = finalX;
+        positionComponent.z = finalZ;
       }
     
       // Update rotation to face movement direction
