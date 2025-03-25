@@ -665,7 +665,7 @@ class BaseScenario {
     case 'biohacker':
       return { maxHealth: 110, currentHealth: 110, armor: 3, shield: 0, regeneration: 2 };
     case 'scrap_golem':
-      return { maxHealth: 300, currentHealth: 300, armor: 15, shield: 0, regeneration: 0 };
+      return { maxHealth: 400, currentHealth: 400, armor: 20, shield: 0, regeneration: 0 };
     default:
       return { maxHealth: 100, currentHealth: 100, armor: 5, shield: 0, regeneration: 0 };
     }

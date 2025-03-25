@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Manifest - RTS Combat Game</title>
+  <title>Manifest - Techno-Arcane Wasteland</title>
   <style>
     body {
       margin: 0;
       overflow: hidden;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       color: #e1e1e1;
+      background-color: #0a0a12;
     }
     #game-container {
       position: absolute;
@@ -23,17 +24,17 @@
       top: 10px;
       left: 10px;
       color: white;
-      text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
       pointer-events: none;
       z-index: 10;
     }
     .panel {
-      background-color: rgba(0, 0, 0, 0.7);
-      border: 1px solid #4CAF50;
-      border-radius: 8px;
+      background-color: rgba(15, 20, 30, 0.8);
+      border: 1px solid #00ccff;
+      border-radius: 4px;
       padding: 12px;
       margin-bottom: 10px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 0 10px rgba(0, 204, 255, 0.2);
       transition: height 0.3s ease, opacity 0.3s ease;
       overflow: hidden;
     }
@@ -43,15 +44,16 @@
       align-items: center;
       margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(76, 175, 80, 0.5);
+      border-bottom: 1px solid rgba(0, 204, 255, 0.5);
       user-select: none;
       cursor: pointer;
     }
     .panel-header h3 {
       margin: 0;
-      color: #4CAF50;
+      color: #00ccff;
       font-size: 16px;
-      font-weight: 600;
+      font-weight: 400;
+      letter-spacing: 1px;
     }
     .panel-header .toggle-btn {
       color: #e1e1e1;
@@ -67,41 +69,41 @@
       pointer-events: auto;
     }
     .panel-content {
-  transition: all 0.3s ease;
-  max-height: 500px;
-  overflow: hidden;
-  padding: 0;
-  margin: 0;
-}
+      transition: all 0.3s ease;
+      max-height: 500px;
+      overflow: hidden;
+      padding: 0;
+      margin: 0;
+    }
 
-.collapsed .panel-content {
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  margin-top: 0;
-  margin-bottom: 0;
-  visibility: hidden;
-}
+    .collapsed .panel-content {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      margin-top: 0;
+      margin-bottom: 0;
+      visibility: hidden;
+    }
 
-/* Also update the toggle button for better visibility */
-.panel-header .toggle-btn {
-  color: #e1e1e1;
-  font-size: 18px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  pointer-events: auto;
-  transition: transform 0.3s ease;
-}
+    /* Toggle button for panel */
+    .panel-header .toggle-btn {
+      color: #00ccff;
+      font-size: 18px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      pointer-events: auto;
+      transition: transform 0.3s ease;
+    }
 
-.collapsed .panel-header .toggle-btn {
-  transform: rotate(-90deg);
-}
+    .collapsed .panel-header .toggle-btn {
+      transform: rotate(-90deg);
+    }
     #controls-help {
       position: absolute;
       bottom: 10px;
@@ -117,8 +119,8 @@
       font-size: 14px;
     }
     #controls-help .key {
-      color: #4CAF50;
-      font-weight: 600;
+      color: #00ccff;
+      font-weight: 400;
       margin-right: 10px;
     }
     #resource-display {
@@ -142,7 +144,7 @@
     }
     #resource-display .resource-icon {
       margin-right: 6px;
-      color: #4CAF50;
+      color: #00ccff;
     }
     #objectives-display {
       position: absolute;
@@ -165,7 +167,7 @@
     .objective-icon {
       margin-right: 8px;
       font-size: 16px;
-      color: #4CAF50;
+      color: #00ccff;
     }
     .objective-text {
       flex-grow: 1;
@@ -174,14 +176,14 @@
     .objective-progress {
       width: 100%;
       height: 8px;
-      background-color: rgba(255, 255, 255, 0.2);
+      background-color: rgba(255, 255, 255, 0.1);
       border-radius: 4px;
       overflow: hidden;
       margin-top: 4px;
     }
     .objective-progress-fill {
       height: 100%;
-      background-color: #4CAF50;
+      background-color: #00ccff;
       border-radius: 4px;
       transition: width 0.3s ease;
     }
@@ -195,17 +197,18 @@
       z-index: 10;
     }
     .action-button {
-      background-color: rgba(0, 0, 0, 0.7);
+      background-color: rgba(15, 20, 30, 0.8);
       color: white;
-      border: 1px solid #4CAF50;
+      border: 1px solid #00ccff;
       padding: 10px;
-      border-radius: 5px;
+      border-radius: 4px;
       cursor: pointer;
-      transition: background-color 0.2s, transform 0.1s;
+      transition: all 0.2s ease;
     }
     .action-button:hover {
-      background-color: rgba(0, 100, 0, 0.7);
+      background-color: rgba(0, 204, 255, 0.2);
       transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 204, 255, 0.2);
     }
     .action-button:active {
       transform: translateY(1px);
@@ -216,7 +219,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(0, 0, 0, 0.8);
+      background-color: rgba(10, 10, 18, 0.8);
       display: none;
       flex-direction: column;
       justify-content: center;
@@ -229,45 +232,49 @@
       margin-top: 20px;
       padding: 12px 24px;
       font-size: 18px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 5px;
+      background-color: rgba(0, 0, 0, 0.5);
+      color: #00ccff;
+      border: 1px solid #00ccff;
+      border-radius: 4px;
       cursor: pointer;
-      transition: background-color 0.2s;
+      transition: all 0.3s ease;
     }
     #pause-overlay button:hover {
-      background-color: #3d8b40;
+      background-color: rgba(0, 204, 255, 0.2);
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 204, 255, 0.2);
     }
     
     /* Updated Selection Info Panel */
     #selection-info {
       max-width: 320px;
       width: 100%;
-      background-color: rgba(0, 0, 0, 0.6);
-      border-radius: 8px;
+      background-color: rgba(15, 20, 30, 0.8);
+      border-radius: 4px;
+      border: 1px solid rgba(0, 204, 255, 0.3);
       padding: 12px;
       margin-top: 10px;
       max-height: 400px;
       overflow-y: auto;
     }
     .selection-header {
-      font-weight: bold;
-      color: #4CAF50;
+      font-weight: 400;
+      color: #00ccff;
       font-size: 16px;
       margin-bottom: 10px;
+      letter-spacing: 1px;
     }
     .selected-unit {
       display: flex;
       flex-direction: column;
       margin-bottom: 12px;
       padding: 8px;
-      background-color: rgba(0, 0, 0, 0.4);
-      border-radius: 6px;
-      border-left: 3px solid #4CAF50;
+      background-color: rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      border-left: 2px solid #00ccff;
     }
     .unit-name {
-      font-weight: bold;
+      font-weight: 400;
       margin-bottom: 4px;
       display: flex;
       justify-content: space-between;
@@ -275,14 +282,14 @@
     .health-bar {
       width: 100%;
       height: 6px;
-      background-color: rgba(255, 0, 0, 0.3);
+      background-color: rgba(255, 51, 102, 0.3);
       border-radius: 3px;
       overflow: hidden;
       margin-top: 4px;
     }
     .health-fill {
       height: 100%;
-      background-color: #ff3333;
+      background-color: #ff3366;
       border-radius: 3px;
     }
     .unit-stats {
@@ -290,10 +297,10 @@
       justify-content: space-between;
       margin-top: 6px;
       font-size: 12px;
-      color: #cccccc;
+      color: #aaaaaa;
     }
     
-    /* New Ability Bar */
+    /* Updated Ability Bar */
     #ability-bar {
       position: absolute;
       bottom: 15px;
@@ -306,9 +313,9 @@
     .ability-slot {
       width: 50px;
       height: 50px;
-      background-color: rgba(0, 0, 0, 0.7);
-      border: 2px solid #444;
-      border-radius: 6px;
+      background-color: rgba(15, 20, 30, 0.8);
+      border: 1px solid #333;
+      border-radius: 4px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -317,14 +324,14 @@
       transition: all 0.2s ease;
     }
     .ability-slot.empty {
-      opacity: 0.3;
+      opacity: 0.5;
     }
     .ability-slot.active {
-      border-color: #ff9933;
-      box-shadow: 0 0 10px rgba(255, 153, 51, 0.7);
+      border-color: #00ccff;
+      box-shadow: 0 0 10px rgba(0, 204, 255, 0.4);
     }
     .ability-slot.cooldown {
-      border-color: #777;
+      border-color: #555;
     }
     .ability-name {
       font-size: 10px;
@@ -335,23 +342,23 @@
     .ability-icon {
       width: 32px;
       height: 32px;
-      background-color: #333;
+      background-color: rgba(0, 0, 0, 0.3);
       border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 20px;
-      color: #4CAF50;
+      color: #00ccff;
     }
     .ability-hotkey {
       position: absolute;
       bottom: 2px;
       right: 2px;
       font-size: 10px;
-      background-color: rgba(0, 0, 0, 0.7);
+      background-color: rgba(0, 0, 0, 0.5);
       padding: 2px 4px;
-      border-radius: 3px;
-      color: #fff;
+      border-radius: 2px;
+      color: #aaa;
     }
     .cooldown-overlay {
       position: absolute;
@@ -362,7 +369,7 @@
       border-radius: 0 0 4px 4px;
       text-align: center;
       font-size: 10px;
-      color: #ff6666;
+      color: #ff3366;
     }
     
     /* Responsive rules for smaller screens */
@@ -383,7 +390,7 @@
   <div id="game-container"></div>
   
   <div id="ui-overlay">
-    <h2>Manifest - RTS Combat Vibes</h2>
+    <h2>Manifest</h2>
     <div id="selection-info"></div>
   </div>
   
@@ -418,7 +425,7 @@
         <span class="action">Stop selected units</span>
       </div>
       <div class="control-item">
-        <span class="key">Mouse Wheel Click & Drag, or Arrow Keys</span>
+        <span class="key">Arrow Keys</span>
         <span class="action">Move camera</span>
       </div>
       <div class="control-item">
@@ -428,6 +435,10 @@
       <div class="control-item">
         <span class="key">ESC</span>
         <span class="action">Clear selection</span>
+      </div>
+      <div class="control-item">
+        <span class="key">Middle Mouse & Drag</span>
+        <span class="action">Pan camera</span>
       </div>
     </div>
   </div>

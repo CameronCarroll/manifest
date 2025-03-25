@@ -13,9 +13,9 @@ class MenuSystem {
     this.menuContainer.style.flexDirection = 'column';
     this.menuContainer.style.justifyContent = 'center';
     this.menuContainer.style.alignItems = 'center';
-    this.menuContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.92)'; // Increased opacity
+    this.menuContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.85)'; // More transparency
     this.menuContainer.style.color = 'white';
-    this.menuContainer.style.fontFamily = '"Courier New", Courier, monospace'; // Retro font
+    this.menuContainer.style.fontFamily = '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif'; // Modern font
     this.menuContainer.style.zIndex = '1000';
     document.body.appendChild(this.menuContainer);
 
@@ -36,43 +36,46 @@ class MenuSystem {
         text-align: center; 
         max-width: 600px; 
         padding: 30px;
-        background-color: rgba(40, 40, 40, 0.8);
-        border: 4px solid #FFD700;
-        border-radius: 15px;
+        background-color: rgba(15, 20, 30, 0.9);
+        border: 2px solid #00ccff;
+        border-radius: 6px;
+        box-shadow: 0 0 20px rgba(0, 204, 255, 0.3);
       ">
         <h1 style="
           font-size: 52px; 
           margin-bottom: 10px; 
-          text-transform: uppercase; 
           letter-spacing: 3px;
-          color: #FFD700;
-          text-shadow: 4px 4px 0px #FF5500;
-        ">RTS Combat</h1>
+          color: #ffffff;
+          text-shadow: 0 0 10px #00ccff, 0 0 20px #00ccff;
+          font-weight: 300;
+        ">MANIFEST</h1>
         
         <div style="
           width: 80%;
-          height: 4px;
-          background: linear-gradient(90deg, transparent, #FF5500, #FFD700, #FF5500, transparent);
+          height: 3px;
+          background: linear-gradient(90deg, transparent, #00ccff, #ffffff, #00ccff, transparent);
           margin: 0 auto 20px auto;
         "></div>
         
         <p style="
-          font-size: 18px; 
+          font-size: 16px; 
           margin-bottom: 30px;
-          color: #F5F5F5;
-          line-height: 1.5;
+          color: #cccccc;
+          line-height: 1.6;
         ">
-          Command your forces to victory! Build units, gather resources,
-          and defeat enemy waves to win.
+          Navigate the desolate wasteland with your two-man squad - a precision Neon Assassin and 
+          resilient Scrap Golem. Reach the mysterious techno-arcane beacon while avoiding
+          hostile forces that guard this forgotten realm.
         </p>
         
         <div style="margin-bottom: 30px;">
           <h2 style="
-            color: #FF5500; 
-            font-size: 24px; 
+            color: #00ccff; 
+            font-size: 20px; 
             margin-bottom: 15px;
-            text-transform: uppercase;
-          ">SELECT SCENARIO</h2>
+            font-weight: 400;
+            letter-spacing: 1px;
+          ">SELECT MISSION</h2>
           <div id="scenario-list" style="text-align: left;">
             ${scenarioOptionsHTML || '<p>No scenarios available</p>'}
           </div>
@@ -85,20 +88,19 @@ class MenuSystem {
           margin-bottom: 20px;
         ">
           <div style="
-            color: #FFD700;
+            color: #00ccff;
             margin-right: 15px;
-            font-size: 18px;
+            font-size: 16px;
           ">Edge Scrolling:</div>
           
           <button id="edge-scroll-toggle" style="
-            background-color: ${this.edgeScrollingEnabled ? '#00FF00' : '#FF0000'};
-            color: black;
-            border: 2px solid #FFD700;
-            border-radius: 20px;
+            background-color: ${this.edgeScrollingEnabled ? 'rgba(0, 204, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)'};
+            color: ${this.edgeScrollingEnabled ? '#ffffff' : '#999999'};
+            border: 1px solid #00ccff;
+            border-radius: 4px;
             padding: 8px 20px;
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: bold;
-            text-transform: uppercase;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-weight: 400;
             cursor: pointer;
             transition: all 0.3s ease;
             outline: none;
@@ -109,24 +111,32 @@ class MenuSystem {
         
         <div style="
           margin-top: 40px; 
-          font-size: 16px; 
+          font-size: 14px; 
           text-align: left;
-          background-color: rgba(0, 0, 0, 0.3);
+          background-color: rgba(0, 0, 0, 0.4);
           padding: 15px;
-          border-radius: 10px;
+          border-radius: 4px;
+          border: 1px solid rgba(0, 204, 255, 0.3);
         ">
           <h3 style="
-            color: #FFD700; 
+            color: #00ccff; 
             margin-top: 0; 
-            border-bottom: 2px solid #FF5500;
             padding-bottom: 5px;
+            font-weight: 400;
+            letter-spacing: 1px;
           ">CONTROLS:</h3>
-          <p>- Left-click to select units</p>
-          <p>- Shift + Left-click to add to selection</p>
-          <p>- Right-click to move selected units</p>
-          <p>- Right-click on enemy to attack</p>
-          <p>- WASD or arrow keys to move camera</p>
-          <p>- Middle mouse button drag to pan camera</p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <p>Left-click: Select units</p>
+            <p>Right-click: Move selected units</p>
+            <p>Shift + Left-click: Add to selection</p>
+            <p>Right-click on enemy: Attack</p>
+            <p>Arrow keys: Move camera</p>
+            <p>Mouse wheel: Zoom camera</p>
+            <p>1-4: Use abilities</p>
+            <p>S: Stop selected units</p>
+            <p>ESC: Clear selection</p>
+            <p>Middle mouse & drag: Pan camera</p>
+          </div>
         </div>
       </div>
     `;
@@ -138,7 +148,8 @@ class MenuSystem {
       
       // Update button appearance
       edgeScrollToggle.textContent = this.edgeScrollingEnabled ? 'ON' : 'OFF';
-      edgeScrollToggle.style.backgroundColor = this.edgeScrollingEnabled ? '#00FF00' : '#FF0000';
+      edgeScrollToggle.style.backgroundColor = this.edgeScrollingEnabled ? 'rgba(0, 204, 255, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+      edgeScrollToggle.style.color = this.edgeScrollingEnabled ? '#ffffff' : '#999999';
 
       // Play UI sound
       this.playUISound();
@@ -149,13 +160,15 @@ class MenuSystem {
     scenarioOptionElements.forEach(option => {
       // Add hover effect
       option.addEventListener('mouseover', () => {
-        option.style.backgroundColor = 'rgba(60, 60, 60, 0.7)';
+        option.style.backgroundColor = 'rgba(0, 204, 255, 0.1)';
         option.style.transform = 'translateY(-2px)';
+        option.style.boxShadow = '0 5px 15px rgba(0, 204, 255, 0.2)';
       });
       
       option.addEventListener('mouseout', () => {
-        option.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        option.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
         option.style.transform = 'translateY(0)';
+        option.style.boxShadow = 'none';
       });
       
       // Add click handler
@@ -184,16 +197,16 @@ class MenuSystem {
       
       return `
         <div class="scenario-option" data-scenario-id="${scenarioId}" style="
-          background-color: rgba(0, 0, 0, 0.5);
-          border: 2px solid #FFD700;
-          border-radius: 10px;
-          padding: 10px;
+          background-color: rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(0, 204, 255, 0.5);
+          border-radius: 4px;
+          padding: 12px;
           margin: 8px 0;
           cursor: pointer;
-          transition: transform 0.2s, background-color 0.2s;
+          transition: all 0.2s ease;
         ">
-          <h3 style="margin: 0 0 5px 0; color: #FFD700;">${scenarioName}</h3>
-          <p style="margin: 0; font-size: 14px;">${scenarioDesc}</p>
+          <h3 style="margin: 0 0 5px 0; color: #ffffff; font-weight: 400;">${scenarioName}</h3>
+          <p style="margin: 0; font-size: 14px; color: #aaaaaa;">${scenarioDesc}</p>
         </div>
       `;
     }).join('');
@@ -222,53 +235,53 @@ class MenuSystem {
         text-align: center; 
         max-width: 600px;
         padding: 30px;
-        background-color: rgba(40, 40, 40, 0.8);
-        border: 4px solid #FFD700;
-        border-radius: 15px;
+        background-color: rgba(15, 20, 30, 0.9);
+        border: 2px solid ${playerWon ? '#00ccff' : '#ff3366'};
+        border-radius: 6px;
+        box-shadow: 0 0 20px ${playerWon ? 'rgba(0, 204, 255, 0.3)' : 'rgba(255, 51, 102, 0.3)'};
       ">
         <h1 style="
           font-size: 52px; 
           margin-bottom: 20px;
-          text-transform: uppercase; 
           letter-spacing: 3px;
-          color: ${playerWon ? '#FFD700' : '#FF5500'};
-          text-shadow: 4px 4px 0px ${playerWon ? '#FF5500' : '#990000'};
+          color: ${playerWon ? '#ffffff' : '#ff3366'};
+          text-shadow: 0 0 10px ${playerWon ? '#00ccff' : '#ff3366'};
+          font-weight: 300;
         ">
-          ${playerWon ? 'Victory!' : 'Defeat!'}
+          ${playerWon ? 'MISSION COMPLETE' : 'MISSION FAILED'}
         </h1>
         
         <div style="
           width: 80%;
-          height: 4px;
-          background: linear-gradient(90deg, transparent, #FF5500, #FFD700, #FF5500, transparent);
+          height: 3px;
+          background: linear-gradient(90deg, transparent, ${playerWon ? '#00ccff' : '#ff3366'}, #ffffff, ${playerWon ? '#00ccff' : '#ff3366'}, transparent);
           margin: 0 auto 20px auto;
         "></div>
         
         <p style="
           font-size: 18px; 
           margin-bottom: 30px;
-          color: #F5F5F5;
+          color: #cccccc;
           line-height: 1.5;
         ">
           ${playerWon ? 
-    'You have successfully defeated all enemy waves!' : 
-    'Your base has been destroyed. Better luck next time!'}
+            'Your team has successfully secured the techno-arcane beacon. The secrets of the wasteland are now within reach.' : 
+            'Your team has been lost to the wasteland. The beacon remains undisturbed, awaiting another expedition.'}
         </p>
         
         <button id="play-again-btn" style="
-          padding: 15px 30px; 
-          font-size: 24px; 
-          font-family: 'Courier New', Courier, monospace;
-          background-color: #FF5500; 
-          color: white; 
-          border: 3px solid #FFD700; 
-          border-radius: 5px;
+          padding: 12px 25px; 
+          font-size: 18px; 
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background-color: rgba(0, 0, 0, 0.5); 
+          color: ${playerWon ? '#00ccff' : '#ff3366'}; 
+          border: 1px solid ${playerWon ? '#00ccff' : '#ff3366'}; 
+          border-radius: 4px;
           cursor: pointer;
-          text-transform: uppercase;
-          letter-spacing: 2px;
-          transition: background-color 0.3s, transform 0.2s;
+          letter-spacing: 1px;
+          transition: all 0.3s ease;
         ">
-          Play Again
+          RETURN TO BASE
         </button>
       </div>
     `;
@@ -278,15 +291,15 @@ class MenuSystem {
     if (playAgainButton) {
       // Add hover effects
       playAgainButton.addEventListener('mouseover', () => {
-        playAgainButton.style.backgroundColor = '#FFD700';
-        playAgainButton.style.color = '#000';
+        playAgainButton.style.backgroundColor = playerWon ? 'rgba(0, 204, 255, 0.2)' : 'rgba(255, 51, 102, 0.2)';
         playAgainButton.style.transform = 'translateY(-3px)';
+        playAgainButton.style.boxShadow = `0 5px 15px ${playerWon ? 'rgba(0, 204, 255, 0.3)' : 'rgba(255, 51, 102, 0.3)'}`;
       });
       
       playAgainButton.addEventListener('mouseout', () => {
-        playAgainButton.style.backgroundColor = '#FF5500';
-        playAgainButton.style.color = '#FFF';
+        playAgainButton.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
         playAgainButton.style.transform = 'translateY(0)';
+        playAgainButton.style.boxShadow = 'none';
       });
       
       playAgainButton.addEventListener('click', () => {

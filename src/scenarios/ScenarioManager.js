@@ -9,8 +9,6 @@ class ScenarioManager {
     
     // Register available scenarios
     this.scenarios = {
-      'default': DefaultScenario,
-      'tutorial': TutorialScenario,
       'exploration': ExplorationScenario
     };
   }
