@@ -260,8 +260,8 @@ class ModelFactory {
       group.add(panel);
     }
     
-    // Staff with crystal
-    const staffGeometry = new THREE.CylinderGeometry(0.03, 0.03, 1.5, 6);
+    // Staff with crystal (make it more like a laser sword)
+    const staffGeometry = new THREE.CylinderGeometry(0.03, 0.03, 1.5, 8);
     const staffMaterial = new THREE.MeshPhongMaterial({
       color: 0x555555,
       opacity: opacity,
@@ -270,20 +270,19 @@ class ModelFactory {
     const staff = new THREE.Mesh(staffGeometry, staffMaterial);
     staff.position.set(0.4, 0.5, 0);
     group.add(staff);
-    
-    // Crystal at top of staff
-    const crystalGeometry = new THREE.OctahedronGeometry(0.12, 1);
-    const crystalMaterial = new THREE.MeshPhongMaterial({
-      color: 0x00FF99,
-      emissive: 0x00FF99,
-      emissiveIntensity: 0.7,
-      opacity: opacity,
+
+    // Energy blade (laser sword effect)
+    const bladeGeometry = new THREE.CylinderGeometry(0.04, 0.02, 1.0, 8);
+    const bladeMaterial = new THREE.MeshPhongMaterial({
+      color: 0x00ffaa,
+      emissive: 0x00ffaa,
+      emissiveIntensity: 0.9,
+      opacity: 0.8,
       transparent: true
     });
-    const crystal = new THREE.Mesh(crystalGeometry, crystalMaterial);
-    crystal.position.set(0.4, 1.3, 0);
-    crystal.rotation.y = Math.PI / 4;
-    group.add(crystal);
+    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+    blade.position.set(0, 0.8, 0); // Position at the end of the staff
+    staff.add(blade);
     
     // Small hovering drones
     const droneGeometry = new THREE.SphereGeometry(0.08, 8, 8);
@@ -534,71 +533,383 @@ class ModelFactory {
   // For brevity, I'll include stubs for the remaining methods
   
   createNeonAssassinModel(group, bodyMaterial, factionColor, opacity) {
-    // Slim, agile figure with tight-fitting suit
-    const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.4, 1.2, 8);
-    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    group.add(body);
+    // Create a more anatomical body instead of a simple cylinder
+    // First create a group for the body so we can add the shimmer effect to it all
+    const bodyGroup = new THREE.Group();
+    group.add(bodyGroup);
     
-    // Sleek helmet with targeting lenses
-    const helmetGeometry = new THREE.SphereGeometry(0.22, 8, 8);
-    const helmetMaterial = new THREE.MeshPhongMaterial({
+    // Torso - sleeker and more humanoid
+    const torsoGeometry = new THREE.CylinderGeometry(0.25, 0.3, 0.6, 8);
+    const torsoMaterial = new THREE.MeshPhongMaterial({
+      color: 0x111111, // Very dark for stealth suit
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 70 // High-tech glossy material
+    });
+    const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
+    torso.position.y = 0.3;
+    bodyGroup.add(torso);
+    
+    // Add tech lines to suit - glowing faction-colored circuitry
+    this.addTechLines(torso, factionColor, opacity);
+    
+    // Shoulders - angular and armored
+    const shoulderGeometry = new THREE.BoxGeometry(0.12, 0.1, 0.15);
+    const shoulderMaterial = new THREE.MeshPhongMaterial({
       color: 0x222222,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 50
+    });
+    
+    // Left shoulder
+    const leftShoulder = new THREE.Mesh(shoulderGeometry, shoulderMaterial);
+    leftShoulder.position.set(-0.3, 0.5, 0);
+    leftShoulder.rotation.z = -0.3; // Angle outward
+    bodyGroup.add(leftShoulder);
+    
+    // Right shoulder
+    const rightShoulder = new THREE.Mesh(shoulderGeometry, shoulderMaterial);
+    rightShoulder.position.set(0.3, 0.5, 0);
+    rightShoulder.rotation.z = 0.3; // Angle outward
+    bodyGroup.add(rightShoulder);
+    
+    // Arms - sleek and cybernetic
+    const upperArmGeometry = new THREE.CylinderGeometry(0.05, 0.04, 0.3, 6);
+    const armMaterial = new THREE.MeshPhongMaterial({
+      color: 0x111111,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 80
+    });
+    
+    // Left arm
+    const leftArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+    leftArm.position.set(-0.3, 0.35, 0);
+    leftArm.rotation.z = 0.2;
+    bodyGroup.add(leftArm);
+    
+    // Right arm
+    const rightArm = new THREE.Mesh(upperArmGeometry, armMaterial);
+    rightArm.position.set(0.3, 0.35, 0);
+    rightArm.rotation.z = -0.2;
+    bodyGroup.add(rightArm);
+    
+    // Legs - streamlined for mobility
+    const upperLegGeometry = new THREE.CylinderGeometry(0.1, 0.08, 0.4, 6);
+    const legMaterial = new THREE.MeshPhongMaterial({
+      color: 0x111111,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 60
+    });
+    
+    // Add tech armor plates to legs - angular shapes
+    const plateGeometry = new THREE.BoxGeometry(0.15, 0.1, 0.12);
+    const plateMaterial = new THREE.MeshPhongMaterial({
+      color: 0x333333,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 80
+    });
+    
+    // Left leg
+    const leftLeg = new THREE.Mesh(upperLegGeometry, legMaterial);
+    leftLeg.position.set(-0.15, -0.1, 0);
+    bodyGroup.add(leftLeg);
+    
+    const leftPlate = new THREE.Mesh(plateGeometry, plateMaterial);
+    leftPlate.position.set(-0.17, -0.05, 0.08);
+    leftPlate.rotation.x = 0.2;
+    bodyGroup.add(leftPlate);
+    
+    // Right leg
+    const rightLeg = new THREE.Mesh(upperLegGeometry, legMaterial);
+    rightLeg.position.set(0.15, -0.1, 0);
+    bodyGroup.add(rightLeg);
+    
+    const rightPlate = new THREE.Mesh(plateGeometry, plateMaterial);
+    rightPlate.position.set(0.17, -0.05, 0.08);
+    rightPlate.rotation.x = 0.2;
+    bodyGroup.add(rightPlate);
+    
+    // Lower legs - cybernetic and agile
+    const lowerLegGeometry = new THREE.CylinderGeometry(0.07, 0.05, 0.35, 6);
+    
+    // Left lower leg
+    const leftLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial);
+    leftLowerLeg.position.set(-0.15, -0.45, 0);
+    bodyGroup.add(leftLowerLeg);
+    
+    // Right lower leg
+    const rightLowerLeg = new THREE.Mesh(lowerLegGeometry, legMaterial);
+    rightLowerLeg.position.set(0.15, -0.45, 0);
+    bodyGroup.add(rightLowerLeg);
+    
+    // Helmet - redesigned with more details and visor
+    const helmetGroup = new THREE.Group();
+    helmetGroup.position.y = 0.7;
+    group.add(helmetGroup);
+    
+    // Base helmet shape - still sleek but more defined
+    const helmetGeometry = new THREE.SphereGeometry(0.2, 12, 12);
+    const helmetMaterial = new THREE.MeshPhongMaterial({
+      color: 0x111111,
       opacity: opacity,
       transparent: opacity < 1,
       shininess: 90
     });
     const helmet = new THREE.Mesh(helmetGeometry, helmetMaterial);
-    helmet.position.y = 0.8;
-    group.add(helmet);
+    helmet.scale.y = 1.1; // Elongate vertically
+    helmet.scale.z = 1.1; // Extend forward slightly
+    helmetGroup.add(helmet);
     
-    // Multiple targeting lenses
-    const lensGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+    // Visor - wide and angular
+    const visorGeometry = new THREE.BoxGeometry(0.35, 0.1, 0.05);
+    const visorMaterial = new THREE.MeshPhongMaterial({
+      color: factionColor,
+      emissive: factionColor,
+      emissiveIntensity: 0.4,
+      opacity: 0.7 * opacity,
+      transparent: true,
+      shininess: 100
+    });
+    const visor = new THREE.Mesh(visorGeometry, visorMaterial);
+    visor.position.set(0, 0.02, 0.15);
+    visor.rotation.x = 0.2; // Angle downward slightly
+    helmetGroup.add(visor);
+    
+    // Targeting lenses - more defined and technological
+    // Main targeting lens
+    const mainLensGeometry = new THREE.CylinderGeometry(0.04, 0.04, 0.05, 8);
     const lensMaterial = new THREE.MeshPhongMaterial({
       color: factionColor,
       emissive: factionColor,
       emissiveIntensity: 0.8,
       opacity: opacity,
+      transparent: true,
+      shininess: 100
+    });
+    
+    const mainLens = new THREE.Mesh(mainLensGeometry, lensMaterial);
+    mainLens.position.set(0.12, 0.1, 0.15);
+    mainLens.rotation.x = Math.PI/2;
+    helmetGroup.add(mainLens);
+    
+    // Lens glowing end
+    const lensGlowGeometry = new THREE.CircleGeometry(0.03, 8);
+    const lensGlowMaterial = new THREE.MeshBasicMaterial({
+      color: factionColor,
+      opacity: 0.9 * opacity,
       transparent: true
     });
     
-    // Main lens
-    const mainLens = new THREE.Mesh(lensGeometry, lensMaterial);
-    mainLens.position.set(0, 0.82, 0.18);
-    mainLens.scale.set(1, 0.7, 0.5);
-    group.add(mainLens);
+    const lensGlow = new THREE.Mesh(lensGlowGeometry, lensGlowMaterial);
+    lensGlow.position.set(0.12, 0.1, 0.175);
+    lensGlow.rotation.x = Math.PI/2;
+    helmetGroup.add(lensGlow);
     
-    // Secondary lenses
+    // Secondary smaller lenses
     for (let i = 0; i < 2; i++) {
-      const lens = new THREE.Mesh(lensGeometry, lensMaterial);
-      lens.position.set(
-        i === 0 ? 0.12 : -0.12,
-        0.85,
-        0.15
+      const smallLensGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.04, 6);
+      const smallLens = new THREE.Mesh(smallLensGeometry, lensMaterial);
+      smallLens.position.set(
+        i === 0 ? -0.15 : 0.15,
+        i === 0 ? 0.05 : -0.05,
+        0.16
       );
-      lens.scale.set(0.6, 0.4, 0.3);
-      group.add(lens);
+      smallLens.rotation.x = Math.PI/2;
+      helmetGroup.add(smallLens);
+      
+      // Small lens glow
+      const smallGlowGeometry = new THREE.CircleGeometry(0.015, 6);
+      const smallGlow = new THREE.Mesh(smallGlowGeometry, lensGlowMaterial);
+      smallGlow.position.set(
+        i === 0 ? -0.15 : 0.15,
+        i === 0 ? 0.05 : -0.05,
+        0.181
+      );
+      smallGlow.rotation.x = Math.PI/2;
+      helmetGroup.add(smallGlow);
     }
     
-    // Long energy rifle
-    const rifleBodyGeometry = new THREE.BoxGeometry(0.05, 0.05, 1.2);
+    // Angular armor pieces on helmet
+    const helmetPlateGeometry = new THREE.BoxGeometry(0.15, 0.08, 0.1);
+    const helmetPlateMaterial = new THREE.MeshPhongMaterial({
+      color: 0x222222,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 70
+    });
+    
+    // Top helmet plate
+    const topPlate = new THREE.Mesh(helmetPlateGeometry, helmetPlateMaterial);
+    topPlate.position.set(0, 0.16, 0);
+    topPlate.rotation.x = -0.3;
+    helmetGroup.add(topPlate);
+    
+    // Back helmet plate/antenna housing
+    const backPlate = new THREE.Mesh(helmetPlateGeometry, helmetPlateMaterial);
+    backPlate.scale.set(0.8, 1, 0.6);
+    backPlate.position.set(0, 0.05, -0.15);
+    helmetGroup.add(backPlate);
+    
+    // Small antenna
+    const antennaGeometry = new THREE.CylinderGeometry(0.01, 0.005, 0.15, 4);
+    const antennaMaterial = new THREE.MeshPhongMaterial({
+      color: 0x666666,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 80
+    });
+    const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+    antenna.position.set(0, 0.15, -0.15);
+    helmetGroup.add(antenna);
+    
+    // Antenna tip glow
+    const antennaTipGeometry = new THREE.SphereGeometry(0.01, 6, 6);
+    const antennaTipMaterial = new THREE.MeshBasicMaterial({
+      color: factionColor,
+      opacity: 0.9 * opacity,
+      transparent: true
+    });
+    const antennaTip = new THREE.Mesh(antennaTipGeometry, antennaTipMaterial);
+    antennaTip.position.y = 0.075;
+    antenna.add(antennaTip);
+    
+    // FIXED - Create right hand to hold the rifle
+    const handGeometry = new THREE.SphereGeometry(0.04, 8, 8);
+    const handMaterial = new THREE.MeshPhongMaterial({
+      color: 0x111111,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 60
+    });
+    const rightHand = new THREE.Mesh(handGeometry, handMaterial);
+    rightHand.position.set(0.5, 0.4, 0.1);
+    rightHand.scale.set(1, 0.8, 0.8); // Slightly flattened hand
+    bodyGroup.add(rightHand);
+    
+    // FIXED - Right forearm connecting to hand
+    const forearmGeometry = new THREE.CylinderGeometry(0.04, 0.05, 0.25, 6);
+    const rightForearm = new THREE.Mesh(forearmGeometry, armMaterial);
+    rightForearm.position.set(0.4, 0.4, 0.05);
+    rightForearm.rotation.z = Math.PI/2; // Horizontal
+    bodyGroup.add(rightForearm);
+    
+    // -------- RIFLE - COMPLETELY REDESIGNED FOR PROPER POSITIONING --------
+    // Create a rifle group that's positioned relative to the hand
+    const rifleGroup = new THREE.Group();
+    rifleGroup.position.set(0.6, 0.4, 0.1); // Position at the hand
+    group.add(rifleGroup);
+    
+    // Main rifle body
+    const rifleMainGeometry = new THREE.BoxGeometry(1.1, 0.06, 0.08);
     const rifleMaterial = new THREE.MeshPhongMaterial({
+      color: 0x222222,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 50
+    });
+    const rifleMain = new THREE.Mesh(rifleMainGeometry, rifleMaterial);
+    rifleMain.position.z = 0; // Center along the z-axis
+    rifleMain.position.x = 0.3; // Extended forward from hand
+    rifleGroup.add(rifleMain);
+    
+    // Rifle stock
+    const stockGeometry = new THREE.BoxGeometry(0.3, 0.1, 0.08);
+    const stockMaterial = new THREE.MeshPhongMaterial({
+      color: 0x111111,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 40
+    });
+    const stock = new THREE.Mesh(stockGeometry, stockMaterial);
+    stock.position.x = -0.4; // Behind the grip
+    stock.position.y = -0.03; // Slightly lower than main barrel
+    rifleGroup.add(stock);
+    
+    // Grip
+    const gripGeometry = new THREE.BoxGeometry(0.08, 0.12, 0.06);
+    const grip = new THREE.Mesh(gripGeometry, stockMaterial);
+    grip.position.x = -0.1;
+    grip.position.y = -0.08;
+    rifleGroup.add(grip);
+    
+    // Barrel/muzzle
+    const barrelGeometry = new THREE.CylinderGeometry(0.03, 0.04, 0.2, 8);
+    const barrelMaterial = new THREE.MeshPhongMaterial({
       color: 0x333333,
       opacity: opacity,
-      transparent: opacity < 1
+      transparent: opacity < 1,
+      shininess: 60
     });
-    const rifleBody = new THREE.Mesh(rifleBodyGeometry, rifleMaterial);
-    rifleBody.position.set(0.4, 0.4, 0);
-    rifleBody.rotation.y = Math.PI / 2;
-    group.add(rifleBody);
+    const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
+    barrel.rotation.z = Math.PI/2; // Align with rifle direction
+    barrel.position.x = 0.9; // At the front of the rifle
+    rifleGroup.add(barrel);
     
-    // Rifle scope
-    const scopeGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.2, 8);
-    const scope = new THREE.Mesh(scopeGeometry, rifleMaterial);
-    scope.position.set(0.4, 0.48, 0);
-    scope.rotation.z = Math.PI / 2;
-    group.add(scope);
+    // Barrel energy glow
+    const barrelGlowGeometry = new THREE.CircleGeometry(0.02, 8);
+    const barrelGlowMaterial = new THREE.MeshBasicMaterial({
+      color: factionColor,
+      opacity: 0.7 * opacity,
+      transparent: true
+    });
+    const barrelGlow = new THREE.Mesh(barrelGlowGeometry, barrelGlowMaterial);
+    barrelGlow.position.x = 1.0; // At the tip of the barrel
+    barrelGlow.rotation.y = Math.PI/2; // Face forward
+    rifleGroup.add(barrelGlow);
     
-    // Floating targeting components
+    // FIXED - Top-mounted scope (positioned on top of rifle)
+    const scopeGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.4, 8);
+    const scopeMaterial = new THREE.MeshPhongMaterial({
+      color: 0x111111,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 70
+    });
+    const scope = new THREE.Mesh(scopeGeometry, scopeMaterial);
+    scope.rotation.z = Math.PI/2; // Align with rifle direction
+    scope.position.x = 0.4; // Positioned along the barrel
+    scope.position.y = 0.06; // On TOP of the rifle
+    rifleGroup.add(scope);
+    
+    // FIXED - Scope lens (front)
+    const scopeLensGeometry = new THREE.CircleGeometry(0.015, 8);
+    const scopeLensMaterial = new THREE.MeshBasicMaterial({
+      color: factionColor,
+      opacity: 0.7 * opacity,
+      transparent: true
+    });
+    const scopeLens = new THREE.Mesh(scopeLensGeometry, scopeLensMaterial);
+    scopeLens.position.x = 0.6; // At front of scope
+    scopeLens.position.y = 0.06; // Match scope height
+    scopeLens.rotation.y = Math.PI/2; // Face forward
+    rifleGroup.add(scopeLens);
+    
+    // FIXED - Scope mounting brackets
+    const bracketGeometry = new THREE.BoxGeometry(0.05, 0.04, 0.03);
+    const bracketMaterial = new THREE.MeshPhongMaterial({
+      color: 0x333333,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 50
+    });
+    
+    // Front bracket
+    const frontBracket = new THREE.Mesh(bracketGeometry, bracketMaterial);
+    frontBracket.position.x = 0.55;
+    frontBracket.position.y = 0.03;
+    rifleGroup.add(frontBracket);
+    
+    // Rear bracket
+    const rearBracket = new THREE.Mesh(bracketGeometry, bracketMaterial);
+    rearBracket.position.x = 0.25;
+    rearBracket.position.y = 0.03;
+    rifleGroup.add(rearBracket);
+    
+    // FIXED - Targeting components properly positioned around rifle
     const targetCompGeometry = new THREE.RingGeometry(0.04, 0.05, 16);
     const targetCompMaterial = new THREE.MeshBasicMaterial({
       color: factionColor,
@@ -607,85 +918,252 @@ class ModelFactory {
       side: THREE.DoubleSide
     });
     
-    for (let i = 0; i < 2; i++) {
+    // Place targeting rings at logical positions around the rifle
+    for (let i = 0; i < 3; i++) {
       const targetComp = new THREE.Mesh(targetCompGeometry, targetCompMaterial);
-      targetComp.position.set(
-        0.4,
-        0.4,
-        i === 0 ? 0.4 : -0.4
-      );
-      targetComp.rotation.y = Math.PI / 2;
-      group.add(targetComp);
+      
+      // Different positions for each ring
+      if (i === 0) {
+        // Front targeting ring
+        targetComp.position.set(0.7, 0.1, 0);
+        targetComp.rotation.x = Math.PI/4;
+      } else if (i === 1) {
+        // Side targeting ring
+        targetComp.position.set(0.4, 0.0, 0.1);
+        targetComp.rotation.y = Math.PI/2;
+        targetComp.rotation.z = Math.PI/6;
+      } else {
+        // Top targeting ring near scope
+        targetComp.position.set(0.2, 0.12, 0);
+        targetComp.rotation.x = Math.PI/3;
+      }
+      
+      rifleGroup.add(targetComp);
       
       // Store animation parameters in userData
       targetComp.userData.floatParams = {
+        baseX: targetComp.position.x,
+        baseY: targetComp.position.y,
         baseZ: targetComp.position.z,
-        phase: i * Math.PI,
-        speed: 3 + Math.random()
+        phase: i * Math.PI / 1.5, // Offset phase for each ring
+        speed: 2 + Math.random() * 2
       };
     }
     
-    // Small jetpack
-    const jetpackGeometry = new THREE.BoxGeometry(0.25, 0.3, 0.15);
-    const jetpack = new THREE.Mesh(jetpackGeometry, rifleMaterial);
-    jetpack.position.set(0, 0.4, -0.25);
-    group.add(jetpack);
+    // Add connecting data lines between the targeting components
+    const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0.7, 0.1, 0),
+      new THREE.Vector3(0.4, 0.0, 0.1),
+      new THREE.Vector3(0.2, 0.12, 0)
+    ]);
     
-    // Jetpack thrusters
-    const thrusterGeometry = new THREE.CylinderGeometry(0.04, 0.06, 0.1, 8);
-    const thrusterMaterial = new THREE.MeshPhongMaterial({
-      color: 0x666666,
+    const lineMaterial = new THREE.LineBasicMaterial({
+      color: factionColor,
+      transparent: true,
+      opacity: 0.5 * opacity
+    });
+    
+    const dataLine = new THREE.Line(lineGeometry, lineMaterial);
+    rifleGroup.add(dataLine);
+    
+    // Enhanced jetpack with more detail
+    const jetpackGroup = new THREE.Group();
+    jetpackGroup.position.set(0, 0.4, -0.25);
+    group.add(jetpackGroup);
+    
+    // Main jetpack housing
+    const jetpackGeometry = new THREE.BoxGeometry(0.25, 0.3, 0.15);
+    const jetpackMaterial = new THREE.MeshPhongMaterial({
+      color: 0x222222,
       opacity: opacity,
-      transparent: opacity < 1
+      transparent: opacity < 1,
+      shininess: 50
+    });
+    const jetpack = new THREE.Mesh(jetpackGeometry, jetpackMaterial);
+    jetpackGroup.add(jetpack);
+    
+    // Jetpack details - add tech lines and vents
+    const jetVentGeometry = new THREE.BoxGeometry(0.07, 0.05, 0.02);
+    const jetVentMaterial = new THREE.MeshPhongMaterial({
+      color: 0x111111,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 80
+    });
+    
+    // Add vents on each side
+    for (let i = 0; i < 4; i++) {
+      const vent = new THREE.Mesh(jetVentGeometry, jetVentMaterial);
+      vent.position.set(
+        (i % 2 === 0 ? 0.1 : -0.1),
+        (i < 2 ? 0.08 : -0.08),
+        -0.08
+      );
+      jetpackGroup.add(vent);
+    }
+    
+    // Jetpack thrusters - enhanced
+    const thrusterGeometry = new THREE.CylinderGeometry(0.04, 0.06, 0.15, 8);
+    const thrusterMaterial = new THREE.MeshPhongMaterial({
+      color: 0x444444,
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 60
     });
     
     for (let i = 0; i < 2; i++) {
       const thruster = new THREE.Mesh(thrusterGeometry, thrusterMaterial);
       thruster.position.set(
         i === 0 ? 0.08 : -0.08,
-        0.25,
-        -0.3
+        -0.15,
+        -0.08
       );
-      group.add(thruster);
+      thruster.rotation.x = Math.PI / 8; // Angle slightly outward
+      jetpackGroup.add(thruster);
       
-      // Thruster glow
-      const glowGeometry = new THREE.SphereGeometry(0.03, 8, 8);
-      const glowMaterial = new THREE.MeshPhongMaterial({
+      // Enhanced thruster glow with interior and exterior components
+      // Inner glow
+      const innerGlowGeometry = new THREE.SphereGeometry(0.03, 8, 8);
+      const innerGlowMaterial = new THREE.MeshPhongMaterial({
         color: factionColor,
         emissive: factionColor,
         emissiveIntensity: 0.8,
-        opacity: 0.7,
+        opacity: 0.8 * opacity,
         transparent: true
       });
-      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-      glow.position.y = -0.06;
-      thruster.add(glow);
+      const innerGlow = new THREE.Mesh(innerGlowGeometry, innerGlowMaterial);
+      innerGlow.position.y = -0.08;
+      thruster.add(innerGlow);
+      
+      // Add trail effect (cone pointing backward)
+      const trailGeometry = new THREE.ConeGeometry(0.03, 0.15, 8);
+      const trailMaterial = new THREE.MeshBasicMaterial({
+        color: factionColor,
+        transparent: true,
+        opacity: 0.4 * opacity
+      });
+      const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+      trail.position.y = -0.15;
+      trail.rotation.x = Math.PI; // Point backward
+      thruster.add(trail);
+      
+      // Store animation parameters for thruster effects
+      thruster.userData.thrusterParams = {
+        baseOpacity: trailMaterial.opacity,
+        phase: i * Math.PI,
+        speed: 5 + Math.random() * 2
+      };
     }
     
-    // Add shimmer effect for partial invisibility
-    this.addShimmerEffect(body, factionColor, opacity);
+    // Add shimmer effect for partial invisibility/optical camo
+    this.addEnhancedShimmerEffect(bodyGroup, factionColor, opacity);
     
     return group;
   }
   
-  addShimmerEffect(mesh, color, opacity) {
-    // Add shimmer effect for partial invisibility
-    const shimmerMaterial = new THREE.MeshBasicMaterial({
+  // Helper method to add circuit-like tech lines to the assassin's suit
+  addTechLines(mesh, color, opacity) {
+    // Create circuit-pattern details on the body
+    const circuitMaterial = new THREE.MeshBasicMaterial({
+      color: color,
+      opacity: 0.6 * opacity,
+      transparent: true
+    });
+    
+    // Horizontal circuit rings
+    for (let i = 0; i < 3; i++) {
+      const ringGeometry = new THREE.TorusGeometry(0.26 - i * 0.03, 0.01, 8, 12);
+      const ring = new THREE.Mesh(ringGeometry, circuitMaterial);
+      ring.position.y = 0.1 + i * 0.2;
+      ring.rotation.x = Math.PI / 2;
+      mesh.add(ring);
+    }
+    
+    // Vertical circuit lines
+    for (let i = 0; i < 4; i++) {
+      const angle = i * Math.PI / 2;
+      const lineGeometry = new THREE.BoxGeometry(0.01, 0.6, 0.01);
+      const line = new THREE.Mesh(lineGeometry, circuitMaterial);
+      line.position.set(
+        Math.sin(angle) * 0.25,
+        0.3,
+        Math.cos(angle) * 0.25
+      );
+      mesh.add(line);
+      
+      // Add small connecting lines between vertical and horizontal
+      for (let j = 0; j < 2; j++) {
+        const connectorGeometry = new THREE.BoxGeometry(0.08, 0.01, 0.01);
+        const connector = new THREE.Mesh(connectorGeometry, circuitMaterial);
+        connector.position.set(
+          Math.sin(angle) * 0.2,
+          0.1 + j * 0.4,
+          Math.cos(angle) * 0.2
+        );
+        connector.rotation.z = angle;
+        mesh.add(connector);
+      }
+    }
+  }
+  
+  // Enhanced shimmer effect for optical camouflage
+  addEnhancedShimmerEffect(mesh, color, opacity) {
+    // Create more complex optical camo effect
+    // Outer wireframe shimmer
+    const shimmerMaterial1 = new THREE.MeshBasicMaterial({
       color: color,
       opacity: 0.2 * opacity,
       transparent: true,
-      wireframe: true
+      wireframe: true,
+      wireframeLinewidth: 1
     });
     
-    const shimmerGeometry = new THREE.CylinderGeometry(0.32, 0.42, 1.22, 16, 3);
-    const shimmer = new THREE.Mesh(shimmerGeometry, shimmerMaterial);
-    mesh.add(shimmer);
+    const shimmerGeometry1 = new THREE.CylinderGeometry(0.32, 0.42, 1.22, 12, 6);
+    const shimmer1 = new THREE.Mesh(shimmerGeometry1, shimmerMaterial1);
+    mesh.add(shimmer1);
     
-    // Store animation parameters in userData
-    shimmer.userData.shimmerParams = {
-      baseOpacity: shimmerMaterial.opacity,
+    // Inner subtle glow
+    const shimmerMaterial2 = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      opacity: 0.1 * opacity,
+      transparent: true,
+      side: THREE.BackSide // Inside glow
+    });
+    
+    const shimmerGeometry2 = new THREE.CylinderGeometry(0.3, 0.4, 1.2, 12, 2);
+    const shimmer2 = new THREE.Mesh(shimmerGeometry2, shimmerMaterial2);
+    mesh.add(shimmer2);
+    
+    // Add distortion wave effect along the body
+    const waveGeometry = new THREE.CylinderGeometry(0.31, 0.41, 0.1, 16, 1);
+    const waveMaterial = new THREE.MeshBasicMaterial({
+      color: color,
+      opacity: 0.3 * opacity,
+      transparent: true
+    });
+    
+    const wave = new THREE.Mesh(waveGeometry, waveMaterial);
+    wave.position.y = -0.3; // Start at bottom
+    mesh.add(wave);
+    
+    // Store animation parameters for optical shimmer effects
+    shimmer1.userData.shimmerParams = {
+      baseOpacity: shimmerMaterial1.opacity,
       phase: 0,
       speed: 2
+    };
+    
+    shimmer2.userData.shimmerParams = {
+      baseOpacity: shimmerMaterial2.opacity,
+      phase: Math.PI / 2, // Offset phase
+      speed: 1.5
+    };
+    
+    wave.userData.waveParams = {
+      baseY: wave.position.y,
+      phase: 0,
+      speed: 1.5,
+      distance: 1.2 // Total travel distance
     };
   }
   
@@ -696,10 +1174,462 @@ class ModelFactory {
     // Add biohacker-specific elements
   }
   
+  // In ModelFactory.js, add or enhance the createScrapGolemModel method:
+
   createScrapGolemModel(group, bodyMaterial, factionColor, opacity) {
-    // Implementation would go here
-    this.createBasicUnitModel(group, bodyMaterial, factionColor, opacity);
-    // Add scrap golem-specific elements
+    // Base torso - made from an industrial container
+    const torsoGeometry = new THREE.BoxGeometry(0.8, 0.7, 0.5);
+    const torsoMaterial = new THREE.MeshPhongMaterial({ 
+      color: 0x8B4513, // Rusty brown
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 5 // Very low shine for rusty metal
+    });
+    const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
+    torso.position.y = 0.4;
+    group.add(torso);
+    
+    // Add exposed machinery/gears to the torso
+    const gearGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.05, 8);
+    const gearMaterial = new THREE.MeshPhongMaterial({
+      color: 0xCCCCCC, // Silver metal
+      opacity: opacity,
+      transparent: opacity < 1,
+      shininess: 70
+    });
+    
+    // Add several gears in different positions
+    for (let i = 0; i < 3; i++) {
+      const gear = new THREE.Mesh(gearGeometry, gearMaterial);
+      gear.position.set(
+        -0.2 + i * 0.2,
+        0.5,
+        0.26 // Front of torso
+      );
+      gear.rotation.x = Math.PI / 2; // Rotate to face forward
+      torso.add(gear);
+    }
+    
+    // Add a glowing core with faction color
+    const coreGeometry = new THREE.SphereGeometry(0.12, 8, 8);
+    const coreMaterial = new THREE.MeshPhongMaterial({
+      color: factionColor,
+      emissive: factionColor,
+      emissiveIntensity: 0.8,
+      opacity: opacity * 0.9,
+      transparent: true
+    });
+    const core = new THREE.Mesh(coreGeometry, coreMaterial);
+    core.position.set(0, 0.4, 0.1);
+    group.add(core);
+    
+    // Chunky, mismatched legs made from scrap
+    // Left leg - hydraulic piston style
+    const leftLegUpper = this.createPistonLeg();
+    leftLegUpper.position.set(-0.3, 0, 0);
+    group.add(leftLegUpper);
+    
+    // Right leg - industrial container style
+    const rightLegUpper = this.createBoxLeg();
+    rightLegUpper.position.set(0.3, 0, 0);
+    group.add(rightLegUpper);
+    
+    // Mismatched arms
+    // Left arm - industrial claw
+    const leftArm = this.createClawArm(factionColor, opacity);
+    leftArm.position.set(-0.45, 0.5, 0);
+    leftArm.userData.isWeapon = false;
+    group.add(leftArm);
+    
+    // Right arm - heavy metal crusher/hammer
+    const rightArm = this.createCrusherArm(factionColor, opacity);
+    rightArm.position.set(0.45, 0.5, 0);
+    rightArm.userData.isWeapon = true;
+    rightArm.userData.originalPosition = { 
+      x: rightArm.position.x, 
+      y: rightArm.position.y, 
+      z: rightArm.position.z 
+    };
+    group.add(rightArm);
+    
+    // Head - old diving helmet style with asymmetric features
+    const head = this.createScrapHead(factionColor, opacity);
+    head.position.y = 0.85;
+    group.add(head);
+    
+    // Add pipes and wires connecting parts
+    this.addPipesAndWires(group, factionColor, opacity);
+    
+    return group;
+  }
+  
+  // Helper method to create a piston-style leg
+  createPistonLeg() {
+    const legGroup = new THREE.Group();
+    
+    // Upper section - cylinder
+    const upperLegGeometry = new THREE.CylinderGeometry(0.1, 0.08, 0.4, 6);
+    const upperLegMaterial = new THREE.MeshPhongMaterial({
+      color: 0x777777,
+      shininess: 30
+    });
+    const upperLeg = new THREE.Mesh(upperLegGeometry, upperLegMaterial);
+    upperLeg.position.y = -0.2;
+    legGroup.add(upperLeg);
+    
+    // Hydraulic piston
+    const pistonGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6);
+    const pistonMaterial = new THREE.MeshPhongMaterial({
+      color: 0xCCCCCC,
+      shininess: 80
+    });
+    const piston = new THREE.Mesh(pistonGeometry, pistonMaterial);
+    piston.position.set(0.06, -0.25, 0);
+    piston.rotation.z = 0.2;
+    legGroup.add(piston);
+    
+    // Foot - industrial clamp
+    const footGeometry = new THREE.BoxGeometry(0.2, 0.1, 0.3);
+    const footMaterial = new THREE.MeshPhongMaterial({
+      color: 0x555555,
+      shininess: 10
+    });
+    const foot = new THREE.Mesh(footGeometry, footMaterial);
+    foot.position.y = -0.45;
+    legGroup.add(foot);
+    
+    return legGroup;
+  }
+  
+  // Helper method to create a box-style leg
+  createBoxLeg() {
+    const legGroup = new THREE.Group();
+    
+    // Upper section - box
+    const upperLegGeometry = new THREE.BoxGeometry(0.15, 0.3, 0.2);
+    const upperLegMaterial = new THREE.MeshPhongMaterial({
+      color: 0x8B4513, // Match torso
+      shininess: 5
+    });
+    const upperLeg = new THREE.Mesh(upperLegGeometry, upperLegMaterial);
+    upperLeg.position.y = -0.15;
+    legGroup.add(upperLeg);
+    
+    // Joint
+    const jointGeometry = new THREE.SphereGeometry(0.06, 8, 8);
+    const jointMaterial = new THREE.MeshPhongMaterial({
+      color: 0x444444,
+      shininess: 40
+    });
+    const joint = new THREE.Mesh(jointGeometry, jointMaterial);
+    joint.position.y = -0.3;
+    legGroup.add(joint);
+    
+    // Lower section - jury-rigged pipes
+    const lowerLegGeometry = new THREE.CylinderGeometry(0.05, 0.08, 0.25, 6);
+    const lowerLegMaterial = new THREE.MeshPhongMaterial({
+      color: 0x666666,
+      shininess: 20
+    });
+    const lowerLeg = new THREE.Mesh(lowerLegGeometry, lowerLegMaterial);
+    lowerLeg.position.y = -0.45;
+    legGroup.add(lowerLeg);
+    
+    // Foot - heavy industrial plate
+    const footGeometry = new THREE.BoxGeometry(0.25, 0.06, 0.3);
+    const footMaterial = new THREE.MeshPhongMaterial({
+      color: 0x444444,
+      shininess: 10
+    });
+    const foot = new THREE.Mesh(footGeometry, footMaterial);
+    foot.position.y = -0.6;
+    legGroup.add(foot);
+    
+    return legGroup;
+  }
+  
+  // Helper method to create an industrial claw arm
+  createClawArm(factionColor, opacity) {
+    const armGroup = new THREE.Group();
+    
+    // Upper arm
+    const upperArmGeometry = new THREE.CylinderGeometry(0.08, 0.06, 0.4, 6);
+    const upperArmMaterial = new THREE.MeshPhongMaterial({
+      color: 0x777777,
+      shininess: 20
+    });
+    const upperArm = new THREE.Mesh(upperArmGeometry, upperArmMaterial);
+    upperArm.rotation.z = Math.PI / 2.5; // Angle outward
+    upperArm.position.x = -0.2;
+    armGroup.add(upperArm);
+    
+    // Elbow joint
+    const elbowGeometry = new THREE.SphereGeometry(0.06, 8, 8);
+    const elbowMaterial = new THREE.MeshPhongMaterial({
+      color: 0x444444,
+      shininess: 40
+    });
+    const elbow = new THREE.Mesh(elbowGeometry, elbowMaterial);
+    elbow.position.x = -0.4;
+    armGroup.add(elbow);
+    
+    // Forearm
+    const forearmGeometry = new THREE.CylinderGeometry(0.05, 0.07, 0.35, 6);
+    const forearmMaterial = new THREE.MeshPhongMaterial({
+      color: 0x666666,
+      shininess: 30
+    });
+    const forearm = new THREE.Mesh(forearmGeometry, forearmMaterial);
+    forearm.rotation.z = Math.PI / 2;
+    forearm.position.x = -0.6;
+    armGroup.add(forearm);
+    
+    // Claw base
+    const clawBaseGeometry = new THREE.CylinderGeometry(0.08, 0.06, 0.1, 6);
+    const clawBaseMaterial = new THREE.MeshPhongMaterial({
+      color: 0x444444,
+      shininess: 30
+    });
+    const clawBase = new THREE.Mesh(clawBaseGeometry, clawBaseMaterial);
+    clawBase.rotation.z = Math.PI / 2;
+    clawBase.position.x = -0.75;
+    armGroup.add(clawBase);
+    
+    // Claw prongs
+    for (let i = 0; i < 3; i++) {
+      const angle = (i * Math.PI * 2) / 3;
+      const clawProngGeometry = new THREE.BoxGeometry(0.15, 0.03, 0.03);
+      const clawProngMaterial = new THREE.MeshPhongMaterial({
+        color: 0x999999,
+        shininess: 70
+      });
+      const clawProng = new THREE.Mesh(clawProngGeometry, clawProngMaterial);
+      clawProng.position.set(
+        -0.83,
+        Math.sin(angle) * 0.06,
+        Math.cos(angle) * 0.06
+      );
+      clawProng.rotation.z = -0.3; // Angle the prongs forward
+      armGroup.add(clawProng);
+    }
+    
+    return armGroup;
+  }
+  
+  // Helper method to create a crusher/hammer arm
+  createCrusherArm(factionColor, opacity) {
+    const armGroup = new THREE.Group();
+    
+    // Upper arm - heavy duty
+    const upperArmGeometry = new THREE.BoxGeometry(0.15, 0.4, 0.2);
+    const upperArmMaterial = new THREE.MeshPhongMaterial({
+      color: 0x666666,
+      shininess: 20
+    });
+    const upperArm = new THREE.Mesh(upperArmGeometry, upperArmMaterial);
+    upperArm.rotation.z = -Math.PI / 3; // Angle outward
+    upperArm.position.set(0.15, -0.1, 0);
+    armGroup.add(upperArm);
+    
+    // Elbow - industrial joint
+    const elbowGeometry = new THREE.BoxGeometry(0.12, 0.12, 0.18);
+    const elbowMaterial = new THREE.MeshPhongMaterial({
+      color: 0x444444,
+      shininess: 10
+    });
+    const elbow = new THREE.Mesh(elbowGeometry, elbowMaterial);
+    elbow.position.set(0.3, -0.25, 0);
+    armGroup.add(elbow);
+    
+    // Forearm - piston type
+    const forearmGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.3, 6);
+    const forearmMaterial = new THREE.MeshPhongMaterial({
+      color: 0x777777,
+      shininess: 30
+    });
+    const forearm = new THREE.Mesh(forearmGeometry, forearmMaterial);
+    forearm.rotation.z = Math.PI / 2;
+    forearm.position.set(0.5, -0.25, 0);
+    armGroup.add(forearm);
+    
+    // Crusher weapon - heavy mass with faction energy
+    const crusherGeometry = new THREE.BoxGeometry(0.2, 0.25, 0.3);
+    const crusherMaterial = new THREE.MeshPhongMaterial({
+      color: 0x333333,
+      shininess: 5
+    });
+    const crusher = new THREE.Mesh(crusherGeometry, crusherMaterial);
+    crusher.position.set(0.7, -0.25, 0);
+    armGroup.add(crusher);
+    
+    // Energy parts on the crusher
+    const energyGeometry = new THREE.SphereGeometry(0.06, 8, 8);
+    const energyMaterial = new THREE.MeshPhongMaterial({
+      color: factionColor,
+      emissive: factionColor,
+      emissiveIntensity: 0.8,
+      opacity: 0.8 * opacity,
+      transparent: true
+    });
+    
+    // Add energy nodes on sides of crusher
+    for (let i = 0; i < 4; i++) {
+      const x = (i % 2) * 0.2 - 0.1; // -0.1 or 0.1
+      const z = Math.floor(i / 2) * 0.2 - 0.1; // -0.1 or 0.1
+      
+      const energyNode = new THREE.Mesh(energyGeometry, energyMaterial);
+      energyNode.position.set(0.7 + x, -0.25, z);
+      armGroup.add(energyNode);
+    }
+    
+    return armGroup;
+  }
+  
+  // Helper method to create a scrap diving helmet head
+  createScrapHead(factionColor, opacity) {
+    const headGroup = new THREE.Group();
+    
+    // Main helmet - slightly squashed sphere
+    const helmetGeometry = new THREE.SphereGeometry(0.25, 8, 8);
+    const helmetMaterial = new THREE.MeshPhongMaterial({
+      color: 0x8B4513, // Match torso
+      shininess: 10,
+      opacity: opacity,
+      transparent: opacity < 1
+    });
+    const helmet = new THREE.Mesh(helmetGeometry, helmetMaterial);
+    helmet.scale.y = 0.8; // Squash vertically
+    headGroup.add(helmet);
+    
+    // Viewport - glowing faction-colored "eye"
+    const viewportGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+    const viewportMaterial = new THREE.MeshPhongMaterial({
+      color: factionColor,
+      emissive: factionColor,
+      emissiveIntensity: 0.7,
+      opacity: 0.8 * opacity,
+      transparent: true
+    });
+    const viewport = new THREE.Mesh(viewportGeometry, viewportMaterial);
+    viewport.position.set(0, 0, 0.18);
+    viewport.scale.set(1, 0.7, 0.5); // Flatten into an oval
+    headGroup.add(viewport);
+    
+    // Asymmetric details - bolts, vents, and pipes
+    
+    // Bolts around the viewport
+    const boltGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.05, 6);
+    const boltMaterial = new THREE.MeshPhongMaterial({
+      color: 0xCCCCCC,
+      shininess: 80
+    });
+    
+    for (let i = 0; i < 5; i++) {
+      const angle = (i * Math.PI) / 2.5;
+      const boltDist = 0.15;
+      const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+      bolt.position.set(
+        Math.sin(angle) * boltDist,
+        Math.cos(angle) * boltDist,
+        0.18
+      );
+      bolt.rotation.x = Math.PI / 2;
+      headGroup.add(bolt);
+    }
+    
+    // Top vent - off-center
+    const ventGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.1, 6);
+    const ventMaterial = new THREE.MeshPhongMaterial({
+      color: 0x444444,
+      shininess: 20
+    });
+    const vent = new THREE.Mesh(ventGeometry, ventMaterial);
+    vent.position.set(0.1, 0.2, 0);
+    headGroup.add(vent);
+    
+    // Small side antenna
+    const antennaGeometry = new THREE.CylinderGeometry(0.01, 0.005, 0.2, 4);
+    const antennaMaterial = new THREE.MeshPhongMaterial({
+      color: 0x888888,
+      shininess: 50
+    });
+    const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+    antenna.position.set(-0.2, 0.15, 0);
+    antenna.rotation.z = 0.4;
+    headGroup.add(antenna);
+    
+    return headGroup;
+  }
+  
+  // Helper method to add pipes and wires connecting parts
+  addPipesAndWires(group, factionColor, opacity) {
+    // Add a few cables and pipes between body parts
+    
+    // Pipe from back to head
+    const pipeGeometry = new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0.5, -0.25), // Back of torso
+        new THREE.Vector3(0, 0.7, -0.2),
+        new THREE.Vector3(0, 0.8, -0.15)  // Back of head
+      ]),
+      5, // tube segments
+      0.03, // tube radius
+      8,   // radial segments
+      false // closed
+    );
+    
+    const pipeMaterial = new THREE.MeshPhongMaterial({
+      color: 0x444444,
+      shininess: 30
+    });
+    
+    const pipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
+    group.add(pipe);
+    
+    // Wire from torso to right arm with faction color
+    const wireGeometry = new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.2, 0.4, 0.1),  // Side of torso near core
+        new THREE.Vector3(0.3, 0.45, 0.05),
+        new THREE.Vector3(0.4, 0.4, 0)     // Inner elbow of right arm
+      ]),
+      5, // tube segments
+      0.02, // tube radius
+      6,   // radial segments
+      false // closed
+    );
+    
+    const wireMaterial = new THREE.MeshPhongMaterial({
+      color: factionColor,
+      emissive: factionColor,
+      emissiveIntensity: 0.3,
+      opacity: 0.8 * opacity,
+      transparent: true
+    });
+    
+    const wire = new THREE.Mesh(wireGeometry, wireMaterial);
+    group.add(wire);
+    
+    // Additional cable along left side
+    const cableGeometry = new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.2, 0.2, 0),   // Lower torso
+        new THREE.Vector3(-0.3, 0.1, 0),
+        new THREE.Vector3(-0.3, 0, 0.1)    // Upper leg
+      ]),
+      5, // tube segments
+      0.015, // tube radius
+      6,   // radial segments
+      false // closed
+    );
+    
+    const cableMaterial = new THREE.MeshPhongMaterial({
+      color: 0x222222,
+      shininess: 10
+    });
+    
+    const cable = new THREE.Mesh(cableGeometry, cableMaterial);
+    group.add(cable);
   }
   
   createEcoDroneModel(group, bodyMaterial, factionColor, opacity) {

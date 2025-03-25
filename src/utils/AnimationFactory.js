@@ -614,11 +614,161 @@ class AnimationFactory {
   }
   
   initScrapGolemAnimation(entityId, mesh) {
-    // Implementation would go here
+    // Find mechanical parts for animation
+    const movingParts = [];
+    mesh.traverse(child => {
+      if (child.userData.movablePart) {
+        movingParts.push(child);
+        // Store the original position/rotation
+        child.userData.basePosition = child.position.clone();
+        child.userData.baseRotation = child.rotation.clone();
+      }
+    });
+    
+    // Find glow elements for pulsing animation
+    const glowParts = [];
+    mesh.traverse(child => {
+      if (child.userData.glowPart) {
+        glowParts.push(child);
+        // Store original material properties
+        if (child.material) {
+          child.userData.baseEmissive = child.material.emissive ? child.material.emissive.clone() : new THREE.Color(0x000000);
+          child.userData.baseOpacity = child.material.opacity || 1.0;
+        }
+      }
+    });
+    
+    // Update animation data
+    const animData = this.animations.get(entityId);
+    if (animData) {
+      animData.movingParts = movingParts;
+      animData.glowParts = glowParts;
+      animData.attackAnimActive = false;
+      animData.attackAnimTime = 0;
+      this.animations.set(entityId, animData);
+      
+      if (this.debug) {
+        console.log(`ScrapGolem: Initialized animation for ${entityId} with ${movingParts.length} moving parts and ${glowParts.length} glow parts`);
+      }
+    }
   }
   
   updateScrapGolemAnimation(entityId, animData, deltaTime) {
-    // Implementation would go here
+    animData.time += deltaTime;
+    
+    // Animate mechanical parts with subtle movement
+    if (animData.movingParts && animData.movingParts.length > 0) {
+      animData.movingParts.forEach((part, index) => {
+        // Generate unique but consistent movement pattern for each part
+        const timeOffset = index * 0.5;
+        const cycleSpeed = 0.5 + (index % 3) * 0.2;
+        
+        // Apply small positional offsets
+        if (part.userData.basePosition) {
+          part.position.y = part.userData.basePosition.y + 
+                          Math.sin(animData.time * cycleSpeed + timeOffset) * 0.05;
+        }
+        
+        // Apply small rotational changes
+        if (part.userData.baseRotation) {
+          part.rotation.z = part.userData.baseRotation.z + 
+                          Math.sin(animData.time * cycleSpeed + timeOffset) * 0.1;
+        }
+      });
+    }
+    
+    // Animate glowing parts
+    if (animData.glowParts && animData.glowParts.length > 0) {
+      animData.glowParts.forEach((part, index) => {
+        if (part.material && part.userData.baseEmissive) {
+          // Pulsing emissive intensity
+          const pulseIntensity = 0.3 + Math.sin(animData.time * 2 + index * 0.5) * 0.2;
+          const baseColor = part.userData.baseEmissive;
+          
+          part.material.emissive.set(
+            baseColor.r + pulseIntensity,
+            baseColor.g + pulseIntensity,
+            baseColor.b + pulseIntensity
+          );
+        }
+      });
+    }
+    
+    // Handle attack animation if active
+    if (animData.state === 'attacking') {
+      if (!animData.attackAnimActive) {
+        // Start attack animation
+        animData.attackAnimActive = true;
+        animData.attackAnimTime = 0;
+        
+        // Enhance glow during attack
+        if (animData.glowParts) {
+          animData.glowParts.forEach(part => {
+            if (part.material) {
+              part.material.emissive.set(0.5, 0.2, 0.0); // Orange/red glow
+            }
+          });
+        }
+      } else {
+        // Update attack animation
+        animData.attackAnimTime += deltaTime;
+        
+        // Intensify movement during attack
+        if (animData.movingParts) {
+          animData.movingParts.forEach(part => {
+            // More pronounced movement
+            if (part.userData.basePosition) {
+              part.position.y = part.userData.basePosition.y + 
+                              Math.sin(animData.attackAnimTime * 8) * 0.12;
+            }
+            
+            if (part.userData.baseRotation) {
+              part.rotation.z = part.userData.baseRotation.z + 
+                              Math.sin(animData.attackAnimTime * 10) * 0.25;
+            }
+          });
+        }
+        
+        // End attack animation after 0.8 seconds
+        if (animData.attackAnimTime >= 0.8) {
+          animData.attackAnimActive = false;
+          animData.state = 'idle';
+          
+          // Reset glow
+          if (animData.glowParts) {
+            animData.glowParts.forEach(part => {
+              if (part.material && part.userData.baseEmissive) {
+                part.material.emissive.copy(part.userData.baseEmissive);
+              }
+            });
+          }
+        }
+      }
+    } else if (animData.attackAnimActive) {
+      // Reset attack animation if not in attacking state
+      animData.attackAnimActive = false;
+      
+      // Reset parts to normal animations
+      if (animData.movingParts) {
+        animData.movingParts.forEach(part => {
+          if (part.userData.basePosition) {
+            part.position.copy(part.userData.basePosition);
+          }
+          if (part.userData.baseRotation) {
+            part.rotation.copy(part.userData.baseRotation);
+          }
+        });
+      }
+      
+      // Reset glow
+      if (animData.glowParts) {
+        animData.glowParts.forEach(part => {
+          if (part.material && part.userData.baseEmissive) {
+            part.material.emissive.copy(part.userData.baseEmissive);
+          }
+        });
+      }
+    }
   }
   
   initEcoDroneAnimation(entityId, mesh) {

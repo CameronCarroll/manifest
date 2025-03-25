@@ -6,6 +6,7 @@ import SaveSystem from './SaveSystem.js';
 import SceneManager from './SceneManager.js';
 import EntityManager from './EntityManager.js';
 import ObjectiveSystem from './ObjectiveSystem.js';
+import AudioSystem from './AudioSystem.js';
 
 // Component Managers
 import PositionComponent from '../entities/components/PositionComponent.js';
@@ -43,6 +44,7 @@ class GameController {
     this.sceneManager = new SceneManager();
     this.entityManager = new EntityManager(this.gameState);
     this.modelLoader = new ModelLoader();
+    this.audioSystem = new AudioSystem();
     
     // Initialize component managers
     this.initializeComponentManagers();
@@ -266,6 +268,8 @@ class GameController {
       console.error('Failed to initialize systems');
       return;
     }
+
+    
     
     // Initialize input manager with edge scrolling preference from menu if available
     this.inputManager = new InputManager(
@@ -312,6 +316,8 @@ class GameController {
       console.log('Initializing render system');
       this.systems.render.initialize();
     }
+
+    this.initializeAudio();
   
     // Initialize animation system early
     if (this.systems.animation) {
@@ -649,6 +655,76 @@ class GameController {
       console.log('Component debug overlay enabled');
       return true;
     }
+  }
+
+  initializeAudio() {
+    console.log('Initializing audio system');
+    
+    // Check if audio system is available
+    if (!this.audioSystem) {
+      console.error('Audio system not available');
+      return;
+    }
+    
+    // Set up event to resume audio context on user interaction (required by browsers)
+    document.addEventListener('click', () => {
+      this.audioSystem.resumeAudio();
+    }, { once: true });
+    
+    // Load core sound effects
+    this.loadSoundAssets();
+    
+    // Expose audio system to window for debugging
+    if (window.game) {
+      window.game.audioSystem = this.audioSystem;
+    }
+  }
+
+  async loadSoundAssets() {
+    // Background music
+    await this.audioSystem.loadMusic('wasteland-ambience', 'assets/audio/music/wasteland-ambience.wav', {
+      volume: 0.1,
+      loop: true,
+      fadeIn: 2.0
+    });
+    
+    // Weapon sounds
+    await this.audioSystem.loadSound('sniper-shot', 'assets/audio/weapons/sniper-shot.wav', {
+      category: 'weapon',
+      volume: 0.8,
+      spatial: true
+    });
+    
+    await this.audioSystem.loadSound('laser-sword', 'assets/audio/weapons/laser-sword.wav', {
+      category: 'weapon',
+      volume: 0.7,
+      spatial: true
+    });
+    
+    // Ability sounds
+    await this.audioSystem.loadSound('ability-activate', 'assets/audio/abilities/ability-activate.wav', {
+      category: 'ability',
+      volume: 0.6,
+      spatial: true
+    });
+    
+    // UI sounds
+    await this.audioSystem.loadSound('ui-click', 'assets/audio/ui/ui-click.wav', {
+      category: 'ui',
+      volume: 0.5
+    });
+    
+    await this.audioSystem.loadSound('ui-hover', 'assets/audio/ui/ui-hover.wav', {
+      category: 'ui',
+      volume: 0.3
+    });
+    
+    // Start background music if we're in a scenario
+    if (this.currentScenario) {
+      this.audioSystem.playMusic('wasteland-ambience');
+    }
+    
+    console.log('Sound assets loaded successfully, including scrap golem sounds');
   }
 }
 

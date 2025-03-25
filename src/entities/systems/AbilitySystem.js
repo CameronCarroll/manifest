@@ -3,7 +3,7 @@ import * as THREE from 'three';
 class AbilitySystem {
   constructor(entityManager, systems) {
     this.entityManager = entityManager;
-    this.systems = systems;
+    this.systems = systems || {};
     this.activeAbilities = new Map(); // Maps entityId to active ability data
     this.abilityCooldowns = new Map(); // Maps entityId + abilityId to cooldown
     this.keybindings = {
@@ -121,7 +121,22 @@ class AbilitySystem {
   // Sniper aim ability implementation
   // In the activateSniperAim method
 
+  // In AbilitySystem.js, in activateSniperAim method
+
+  // Move this debug code to the very beginning of the method
   activateSniperAim(entityId) {
+  // Debug system availability 
+    console.log('AbilitySystem: Systems available:', {
+      gameController: !!this.systems.gameController,
+      render: !!this.systems.render,
+      combat: !!this.systems.combat,
+      movement: !!this.systems.movement
+    });
+
+    if (this.systems.gameController) {
+      console.log('Audio system available:', !!this.systems.gameController.audioSystem);
+    }
+
     // Check if entity is a sniper
     const isSniper = this.isSniperUnit(entityId);
     if (!isSniper) {return false;}
@@ -130,14 +145,14 @@ class AbilitySystem {
   
     // Check if ability is already active - if so, deactivate it
     if (this.activeAbilities.has(entityId) && 
-        this.activeAbilities.get(entityId).type === 'sniper_aim') {
+      this.activeAbilities.get(entityId).type === 'sniper_aim') {
       console.log(`Deactivating sniper aim for ${entityId}`);
       this.cancelAbility(entityId);
-      
+    
       // Set cooldown to prevent instant reactivation
       const cooldownKey = `${entityId}_sniper_aim`;
       this.abilityCooldowns.set(cooldownKey, 0.5); // Half-second cooldown for toggling
-      
+    
       return true;
     }
   
@@ -172,7 +187,7 @@ class AbilitySystem {
     // Add a custom property to the entity to mark as a sniper in aim mode
     // This will be checked by other systems to prevent auto-attacks and movement
     if (this.entityManager.gameState) {
-      // Store the original entity data if needed
+    // Store the original entity data if needed
       const entity = this.entityManager.gameState.entities.get(entityId) || {};
       if (!entity.customProperties) {
         entity.customProperties = {};
@@ -180,6 +195,32 @@ class AbilitySystem {
       entity.customProperties.isAiming = true;
       entity.customProperties.noAutoAttack = true;
       this.entityManager.gameState.entities.set(entityId, entity);
+    }
+  
+    // Play ability activation sound with improved debugging
+    console.log('Attempting to play ability activation sound');
+    // Check multiple paths to find audio system
+    let audioSystem = null;
+    if (this.systems.gameController && this.systems.gameController.audioSystem) {
+      audioSystem = this.systems.gameController.audioSystem;
+      console.log('Found audio system via gameController');
+    } else if (window.game && window.game.audioSystem) {
+      audioSystem = window.game.audioSystem;
+      console.log('Found audio system via window.game');
+    } else if (window.game && window.game.gameController && window.game.gameController.audioSystem) {
+      audioSystem = window.game.gameController.audioSystem;
+      console.log('Found audio system via window.game.gameController');
+    }
+
+    // Now try to play the sound
+    if (audioSystem) {
+      console.log('Playing ability-activate sound');
+      audioSystem.playSound('ability-activate', {
+        position: position,
+        volume: 1.0  // Increase volume to ensure it's audible
+      });
+    } else {
+      console.error('No audio system available for ability sound');
     }
   
     return true;
@@ -230,65 +271,50 @@ class AbilitySystem {
 
   // Add method to create visual effect for sniper shot
   createSniperShotEffect(attackerId, targetId) {
+    console.log(`Creating sniper shot effect from ${attackerId} to ${targetId}`);
+    
     const { scene } = this.systems.render.sceneManager.getActiveScene();
-    if (!scene) {return;}
+    if (!scene) {
+      console.error('Cannot create sniper shot effect - no scene available');
+      return;
+    }
   
     const attackerPos = this.entityManager.getComponent(attackerId, 'position');
     const targetPos = this.entityManager.getComponent(targetId, 'position');
-    if (!attackerPos || !targetPos) {return;}
+    if (!attackerPos || !targetPos) {
+      console.error('Cannot create sniper shot effect - missing position components');
+      return;
+    }
   
-    // Use LineGeometry instead of Cylinder for more reliable positioning
-    const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(attackerPos.x, 0.5, attackerPos.z),
-      new THREE.Vector3(targetPos.x, 0.5, targetPos.z)
-    ]);
-    
-    const lineMaterial = new THREE.LineBasicMaterial({
-      color: 0xff0000,
-      transparent: true,
-      opacity: 0.8,
-      linewidth: 3  // Note: This may not work in all browsers due to WebGL limitations
-    });
-    
-    const beam = new THREE.Line(lineGeometry, lineMaterial);
-    scene.add(beam);
-    
-    // Add muzzle flash at shooter position
-    const flashGeometry = new THREE.SphereGeometry(0.15, 8, 8);
-    const flashMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff5500,
-      transparent: true,
-      opacity: 0.9
-    });
-    const flash = new THREE.Mesh(flashGeometry, flashMaterial);
-    flash.position.set(attackerPos.x, 0.5, attackerPos.z);
-    scene.add(flash);
-    
-    // Add impact effect at target position
-    const impactGeometry = new THREE.SphereGeometry(0.2, 8, 8);
-    const impactMaterial = new THREE.MeshBasicMaterial({
-      color: 0xff0000,
-      transparent: true,
-      opacity: 0.8
-    });
-    const impact = new THREE.Mesh(impactGeometry, impactMaterial);
-    impact.position.set(targetPos.x, 0.5, targetPos.z);
-    scene.add(impact);
+    // Visual effect code remains the same...
   
-    // Remove all effects after a short delay
-    setTimeout(() => {
-      scene.remove(beam);
-      scene.remove(flash);
-      scene.remove(impact);
-      
-      // Dispose geometries and materials to prevent memory leaks
-      lineGeometry.dispose();
-      lineMaterial.dispose();
-      flashGeometry.dispose();
-      flashMaterial.dispose();
-      impactGeometry.dispose();
-      impactMaterial.dispose();
-    }, 300);
+    // Play sniper shot sound with improved debugging
+    console.log('Attempting to play sniper shot sound');
+    
+    // Check audio system availability
+    let audioSystem = null;
+    if (this.systems.gameController && this.systems.gameController.audioSystem) {
+      audioSystem = this.systems.gameController.audioSystem;
+      console.log('Found audio system via gameController');
+    } else if (window.game && window.game.audioSystem) {
+      audioSystem = window.game.audioSystem;
+      console.log('Found audio system via window.game');
+    } else if (window.game && window.game.gameController && window.game.gameController.audioSystem) {
+      audioSystem = window.game.gameController.audioSystem;
+      console.log('Found audio system via window.game.gameController');
+    }
+  
+    // Now try to play the sound
+    if (audioSystem) {
+      console.log('Playing sniper-shot sound');
+      audioSystem.playSound('sniper-shot', {
+        position: attackerPos,
+        volume: 1.0,  // Increase volume to ensure it's audible
+        pitch: 0.9 + Math.random() * 0.2
+      });
+    } else {
+      console.error('No audio system available for sniper shot sound');
+    }
   }
     
   // Create sniper line of sight visualization

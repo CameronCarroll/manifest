@@ -167,10 +167,18 @@ export default class RenderSystem {
           this.modelFactory.modelCache.set(cacheKey, mesh.clone());
         }
         
-        // Register for animation if animation system exists
-        if (this.systems.animation && this.systems.animation.animationFactory) {
-          this.systems.animation.animationFactory.registerEntityForAnimation(entityId, mesh, unitType);
-        }
+        // Replace it with this updated code:
+if (this.systems.animation && this.systems.animation.animationFactory) {
+  // Directly pass the unit type from the unitType component if available
+  let animationType = unitType;
+  if (this.entityManager.hasComponent(entityId, 'unitType')) {
+    // Get the more specific type from unitType component
+    animationType = this.entityManager.getComponent(entityId, 'unitType').type;
+  }
+  
+  console.log(`Registering animation for ${entityId} with type ${animationType}`);
+  this.systems.animation.animationFactory.registerEntityForAnimation(entityId, mesh, animationType);
+}
       }
       else if (renderComponent.meshId === 'building') {
         // Get faction data

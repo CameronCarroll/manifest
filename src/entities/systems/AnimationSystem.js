@@ -256,11 +256,13 @@ class AnimationSystem {
     if (!entityMesh) {return;}
     
     // Find and remove any existing weapon meshes
-    entityMesh.traverse(child => {
-      if (child.userData.isWeapon) {
-        entityMesh.remove(child);
-      }
-    });
+    if (entityMesh.children) {
+      entityMesh.traverse(child => {
+        if (child.userData.isWeapon) {
+          entityMesh.remove(child);
+        }
+      });
+    }
     
     // Clean up any existing particle systems
     const animData = this.animatingEntities.get(entityId);

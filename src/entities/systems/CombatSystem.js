@@ -373,7 +373,57 @@ class CombatSystem {
         
         // Apply damage to target
         const targetDestroyed = this.applyDamage(targetId, damageInfo);
-  
+        
+        // Play appropriate attack sound based on unit type
+        // In CombatSystem.js, update the sound playing condition:
+
+if (this.entityManager.hasComponent(attackerId, 'faction') && 
+this.systems && this.systems.gameController && 
+this.systems.gameController.audioSystem) {
+
+const faction = this.entityManager.getComponent(attackerId, 'faction');
+const attackerPos = this.entityManager.getComponent(attackerId, 'position');
+
+// Check for unitType component first (more specific)
+let unitSpecificType = null;
+if (this.entityManager.hasComponent(attackerId, 'unitType')) {
+unitSpecificType = this.entityManager.getComponent(attackerId, 'unitType').type;
+}
+
+// Use the specific unit type if available, otherwise fallback to faction.unitType
+const effectiveUnitType = unitSpecificType || faction.unitType;
+
+console.log(`Playing attack sound for ${attackerId}, unit type: ${effectiveUnitType}`);
+
+// Handle specific unit types
+if (effectiveUnitType === 'scrap_golem' || faction.unitType === 'heavy') {
+// Scrap golem uses laser sword
+console.log("Playing laser sword sound for scrap golem");
+if (this.systems.gameController && this.systems.gameController.audioSystem) {
+  this.systems.gameController.audioSystem.playSound('laser-sword', {
+    position: attackerPos,
+    volume: 0.8,
+    pitch: 0.7 + Math.random() * 0.2  // Lower pitch for heavier sound
+  });
+}
+} 
+else if (effectiveUnitType === 'neon_assassin' || faction.unitType === 'sniper') {
+// Neon assassin/sniper uses sniper shot
+if (!this.isAbilityShot(attackerId)) {
+  console.log("Playing sniper shot sound for normal attack");
+  if (this.systems.gameController && this.systems.gameController.audioSystem) {
+    this.systems.gameController.audioSystem.playSound('sniper-shot', {
+      position: attackerPos,
+      volume: 0.7,
+      pitch: 1.1 + Math.random() * 0.1
+    });
+  }
+} else {
+  console.log("Not playing sound - this is an ability shot handled elsewhere");
+}
+}
+}
+
         // Trigger animation
         if (this.animationSystem) {
           const attackerFaction = this.entityManager.getComponent(attackerId, 'faction');
@@ -452,6 +502,15 @@ class CombatSystem {
         this.damageEvents.splice(index, 1);
       }
     });
+  }
+
+  // Add this helper method to CombatSystem
+  isAbilityShot(entityId) {
+    // Check if this attack is from an active ability
+    return this.systems && 
+          this.systems.ability && 
+          this.systems.ability.activeAbilities && 
+          this.systems.ability.activeAbilities.has(entityId);
   }
 
   // For serialization

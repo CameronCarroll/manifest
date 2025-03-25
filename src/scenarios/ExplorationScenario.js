@@ -78,6 +78,14 @@ class ExplorationScenario extends BaseScenario {
 
     // Show first prompt on load
     this.showNextPrompt();
+
+    // Start background music if audio system is available
+    if (this.gameController.audioSystem) {
+      this.gameController.audioSystem.playMusic('wasteland-ambience', {
+        fadeIn: 3.0, // Longer fade-in for dramatic effect
+        volume: 0.4
+      });
+    }
     
     // Generate the procedural map using the base class method with specific options
     await this.generateProceduralMap({
@@ -921,6 +929,13 @@ class ExplorationScenario extends BaseScenario {
       notification.style.maxWidth = '80%';
       notification.style.border = '2px solid #4CAF50';
       document.body.appendChild(notification);
+    }
+
+    // Play notification sound
+    if (this.gameController.audioSystem) {
+      this.gameController.audioSystem.playSound('ui-click', {
+        volume: 0.5
+      });
     }
     
     notification.textContent = message;

@@ -139,6 +139,9 @@ class MenuSystem {
       // Update button appearance
       edgeScrollToggle.textContent = this.edgeScrollingEnabled ? 'ON' : 'OFF';
       edgeScrollToggle.style.backgroundColor = this.edgeScrollingEnabled ? '#00FF00' : '#FF0000';
+
+      // Play UI sound
+      this.playUISound();
     });
     
     // Add event listeners to scenario options
@@ -159,6 +162,7 @@ class MenuSystem {
       option.addEventListener('click', () => {
         if (this.onStartGame) {
           const scenarioId = option.getAttribute('data-scenario-id');
+          this.playUISound();
           this.onStartGame(scenarioId);
         }
       });
@@ -286,8 +290,15 @@ class MenuSystem {
       });
       
       playAgainButton.addEventListener('click', () => {
+        this.playUISound();
         this.showMainMenu();
       });
+    }
+  }
+
+  playUISound(sound = 'ui-click') {
+    if (window.game && window.game.gameController && window.game.gameController.audioSystem) {
+      window.game.gameController.audioSystem.playSound(sound);
     }
   }
 
