@@ -577,7 +577,7 @@ class ExplorationScenario extends BaseScenario {
     super.update(deltaTime);
     
     // Update objective progress
-    this.updateObjectiveProgress();
+    this.updateObjectiveProgress(deltaTime);
 
     // Update entity visibility based on fog of war - ensure we do this every frame
     // to maintain visibility in explored areas even when using optimized fog
@@ -665,8 +665,8 @@ class ExplorationScenario extends BaseScenario {
             closestDistance = distance;
           }
           
-          // Check if unit is close enough to the beacon (within 5 units)
-          if (distance < 5) {
+          // Check if unit is close enough to the beacon (more generous 10-unit radius)
+          if (distance < 10) {
             anyUnitAtBeacon = true;
             
             // Reveal the beacon area on the map
