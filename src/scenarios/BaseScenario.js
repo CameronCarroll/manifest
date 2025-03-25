@@ -1039,7 +1039,7 @@ class BaseScenario {
   
     // Get the active scene to manage lights
     const { scene } = this.systems.render.sceneManager.getActiveScene();
-    if (!scene) return;
+    if (!scene) {return;}
     
     // Process all non-player entities with render components
     this.entityManager.gameState.entities.forEach((entity, entityId) => {
@@ -1138,7 +1138,7 @@ class BaseScenario {
   
   // New method to control scene lighting based on fog of war
   updateSceneLighting(scene) {
-    if (!this.fogOfWar) return;
+    if (!this.fogOfWar) {return;}
     
     // Make sure we have a scene light to control
     if (!this._sceneFogLights) {

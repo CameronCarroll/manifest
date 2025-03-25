@@ -202,24 +202,73 @@ class AbilitySystem {
     if (abilityData.lastFireTime >= abilityData.cooldown) {
       const enemyHit = this.checkSniperLineOfSightForEnemies(entityId, abilityData, position);
       if (enemyHit) {
-        // Fire at enemy
-        console.log(`Sniper ${entityId} firing at ${enemyHit}`);
+        // Fire at enemy with special damage modifiers
+        console.log(`Sniper ${entityId} firing aimed shot at ${enemyHit}`);
           
-        // Add safety check before calling combat system
         if (this.systems && this.systems.combat) {
-          try {
-            this.systems.combat.startAttack(entityId, enemyHit);
-          } catch (error) {
-            console.error('Error starting attack from ability:', error);
-          }
-        } else {
-          console.warn('Combat system not available for sniper shot');
+          // Set up special damage parameters for aimed shot
+          const specialDamage = {
+            damageMultiplier: 10.0,  // 10x normal damage for aimed shot
+            ignoreArmor: true,       // Penetrates armor
+            isCritical: true,        // Always a critical hit
+            isAimedShot: true        // Mark as an aimed shot for combat system
+          };
+            
+          // Start the attack with special parameters
+          this.systems.combat.startAttack(entityId, enemyHit, specialDamage);
+            
+          // Set extended cooldown after firing
+          abilityData.lastFireTime = 0;
+          abilityData.cooldown = 5.0;  // 5 seconds between aimed shots
+            
+          // Create dramatic visual effect for the shot
+          this.createSniperShotEffect(entityId, enemyHit);
         }
-          
-        // Reset fire timer regardless of whether attack succeeded
-        abilityData.lastFireTime = 0;
       }
     }
+  }
+
+  // Add method to create visual effect for sniper shot
+  createSniperShotEffect(attackerId, targetId) {
+    const { scene } = this.systems.render.sceneManager.getActiveScene();
+    if (!scene) {return;}
+  
+    const attackerPos = this.entityManager.getComponent(attackerId, 'position');
+    const targetPos = this.entityManager.getComponent(targetId, 'position');
+    if (!attackerPos || !targetPos) {return;}
+  
+    // Create a beam effect
+    const beamGeometry = new THREE.CylinderGeometry(0.05, 0.05, 
+      Math.sqrt(Math.pow(targetPos.x - attackerPos.x, 2) + 
+              Math.pow(targetPos.z - attackerPos.z, 2)), 8);
+  
+    const beamMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      transparent: true,
+      opacity: 0.8
+    });
+  
+    const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+  
+    // Position and rotate beam to connect attacker and target
+    beam.position.set(
+      (attackerPos.x + targetPos.x) / 2,
+      0.5,
+      (attackerPos.z + targetPos.z) / 2
+    );
+  
+    // Calculate rotation to point at target
+    beam.rotation.y = Math.atan2(targetPos.x - attackerPos.x, targetPos.z - attackerPos.z);
+    beam.rotation.x = Math.PI / 2;
+  
+    scene.add(beam);
+  
+    // Remove beam after 0.2 seconds
+    setTimeout(() => {
+      scene.remove(beam);
+      beam.geometry.dispose();
+      beam.material.dispose();
+    }, 200);
   }
     
   // Create sniper line of sight visualization
@@ -310,7 +359,7 @@ class AbilitySystem {
     let nearestDistance = maxRange;
     
     this.entityManager.gameState.entities.forEach((entity, potentialTargetId) => {
-    // Skip self
+      // Skip self
       if (potentialTargetId === entityId) {return;}
       
       // Check if entity has position and health components
@@ -341,23 +390,36 @@ class AbilitySystem {
       // Skip if outside max range
       if (distance > maxRange) {return;}
       
-      // Calculate angle between sniper direction and target direction
-      const targetDir = Math.atan2(dx, dz);
-      let angleDiff = Math.abs(targetDir - direction);
+      // Calculate whether target is on or near the line of sight
+      // Using parametric line formula and point-to-line distance
       
-      // Handle angle wrapping
-      if (angleDiff > Math.PI) {
-        angleDiff = 2 * Math.PI - angleDiff;
-      }
+      // Calculate projection of point onto line
+      const t = (dx * dirX + dz * dirZ) / (dirX * dirX + dirZ * dirZ);
       
-      // Check if target is within a small angle of the line of sight
-      const maxAngle = 0.1; // About 5.7 degrees
+      // Skip if target is behind sniper
+      if (t < 0) {return;}
       
-      if (angleDiff <= maxAngle && distance < nearestDistance) {
-      // NEW: Check if target is visible (not in fog of war)
+      // Skip if target is beyond max range along line
+      if (t > maxRange) {return;}
+      
+      // Calculate closest point on line
+      const closestX = position.x + dirX * t;
+      const closestZ = position.z + dirZ * t;
+      
+      // Calculate distance from target to line
+      const lineDistX = targetPos.x - closestX;
+      const lineDistZ = targetPos.z - closestZ;
+      const lineDistance = Math.sqrt(lineDistX * lineDistX + lineDistZ * lineDistZ);
+      
+      // Width of targeting beam - wider makes it easier to hit targets
+      const beamWidth = 0.75;
+      
+      // Check if target is close enough to the line
+      if (lineDistance <= beamWidth && t < nearestDistance) {
+        // Check for fog of war visibility (if applicable)
         if (this.isTargetVisible(potentialTargetId)) {
           nearestTarget = potentialTargetId;
-          nearestDistance = distance;
+          nearestDistance = t; // Use distance along line, not direct distance
         }
       }
     });

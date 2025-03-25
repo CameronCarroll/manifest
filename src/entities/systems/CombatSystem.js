@@ -66,17 +66,17 @@ class CombatSystem {
   }
 
   // Start an attack from one entity to another
-  startAttack(attackerId, targetId) {
-    // Check if attacker is a sniper with no-auto-attack property
-    if (this.entityManager.gameState && this.entityManager.gameState.entities.has(attackerId)) {
-      const entity = this.entityManager.gameState.entities.get(attackerId);
-      if (entity.customProperties && entity.customProperties.noAutoAttack) {
-        // Check if this attack was initiated by the ability system (allowed)
-        // We'll detect this by checking the call stack or a flag that was set
+  startAttack(attackerId, targetId, specialParams = null) {
+    // Check if attacker is a special unit type that shouldn't auto-attack
+    if (this.entityManager.hasComponent(attackerId, 'unitType')) {
+      const unitType = this.entityManager.getComponent(attackerId, 'unitType');
+    
+      // Check if this unit has the noAutoAttack flag
+      if (unitType.type === 'neon_assassin' || unitType.type === 'scout') {
+      // Only allow attacks initiated by abilities
         const abilityActivated = this.isAttackFromAbility(attackerId);
-        
         if (!abilityActivated) {
-          console.log(`Prevented auto-attack for sniper unit ${attackerId}`);
+          console.log(`Prevented auto-attack for special unit ${attackerId}`);
           return false;
         }
       }
@@ -98,7 +98,8 @@ class CombatSystem {
       this.attackingEntities.set(attackerId, {
         targetId: targetId,
         attackType: 'ranged',
-        damageType: 'normal'
+        damageType: 'normal',
+        specialParams: specialParams
       });
       return true;
     }
@@ -141,29 +142,19 @@ class CombatSystem {
     return true;
   }
 
-  // Helper method to determine if an attack was initiated by the ability system
-  // This is a simple implementation, we'd need a proper method in a real system
   isAttackFromAbility(entityId) {
-  // The error occurred because we tried to access systems through gameState
-  // Instead, we should use the systems object that was passed to the constructor
-  
-    // Check if we have an ability system reference
-    if (!this.systems) {
-      return false; // No systems reference available
+    if (!this.systems || !this.systems.ability) {
+      return false;
     }
-  
-    const abilitySystem = this.systems.ability;
-    if (!abilitySystem) {
-      return false; // No ability system found
-    }
-  
+    
     // Check if entity has an active ability
+    const abilitySystem = this.systems.ability;
     if (abilitySystem.activeAbilities && abilitySystem.activeAbilities.has(entityId)) {
       const abilityData = abilitySystem.activeAbilities.get(entityId);
       // If this is a sniper aim ability that's currently active, allow the attack
       return abilityData.type === 'sniper_aim';
     }
-  
+    
     return false;
   }
 
@@ -224,7 +215,7 @@ class CombatSystem {
   }
 
   // Calculate damage based on attacker and defender stats
-  calculateDamage(attackerId, targetId, attackType, damageType) {
+  calculateDamage(attackerId, targetId, attackType, damageType, specialParams = null) {
     // Base damage depends on unit type
     const attackerFaction = this.entityManager.getComponent(attackerId, 'faction');
     let baseDamage = 10; // Default damage
@@ -241,6 +232,11 @@ class CombatSystem {
       break;
     default:
       baseDamage = 10;
+    }
+
+    // Handle special aimed shot from sniper
+    if (specialParams && specialParams.isAimedShot) {
+      baseDamage *= specialParams.damageMultiplier || 10.0;
     }
     
     // Check for critical hit
@@ -371,7 +367,8 @@ class CombatSystem {
           attackerId, 
           targetId, 
           attackData.attackType, 
-          attackData.damageType
+          attackData.damageType,
+          attackData.specialParams
         );
         
         // Apply damage to target
