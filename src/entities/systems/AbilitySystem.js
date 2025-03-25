@@ -201,28 +201,28 @@ class AbilitySystem {
     // Check for enemies crossing the line
     if (abilityData.lastFireTime >= abilityData.cooldown) {
       const enemyHit = this.checkSniperLineOfSightForEnemies(entityId, abilityData, position);
+      // Change the order to ensure visual effect happens first:
       if (enemyHit) {
-        // Fire at enemy with special damage modifiers
         console.log(`Sniper ${entityId} firing aimed shot at ${enemyHit}`);
-          
+    
         if (this.systems && this.systems.combat) {
           // Set up special damage parameters for aimed shot
           const specialDamage = {
-            damageMultiplier: 10.0,  // 10x normal damage for aimed shot
-            ignoreArmor: true,       // Penetrates armor
-            isCritical: true,        // Always a critical hit
-            isAimedShot: true        // Mark as an aimed shot for combat system
+            damageMultiplier: 10.0,
+            ignoreArmor: true,
+            isCritical: true,
+            isAimedShot: true
           };
-            
+    
+          // Create dramatic visual effect BEFORE starting the attack
+          this.createSniperShotEffect(entityId, enemyHit);
+    
           // Start the attack with special parameters
           this.systems.combat.startAttack(entityId, enemyHit, specialDamage);
-            
+      
           // Set extended cooldown after firing
           abilityData.lastFireTime = 0;
-          abilityData.cooldown = 5.0;  // 5 seconds between aimed shots
-            
-          // Create dramatic visual effect for the shot
-          this.createSniperShotEffect(entityId, enemyHit);
+          abilityData.cooldown = 5.0;
         }
       }
     }
@@ -237,38 +237,58 @@ class AbilitySystem {
     const targetPos = this.entityManager.getComponent(targetId, 'position');
     if (!attackerPos || !targetPos) {return;}
   
-    // Create a beam effect
-    const beamGeometry = new THREE.CylinderGeometry(0.05, 0.05, 
-      Math.sqrt(Math.pow(targetPos.x - attackerPos.x, 2) + 
-              Math.pow(targetPos.z - attackerPos.z, 2)), 8);
-  
-    const beamMaterial = new THREE.MeshBasicMaterial({
+    // Use LineGeometry instead of Cylinder for more reliable positioning
+    const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(attackerPos.x, 0.5, attackerPos.z),
+      new THREE.Vector3(targetPos.x, 0.5, targetPos.z)
+    ]);
+    
+    const lineMaterial = new THREE.LineBasicMaterial({
+      color: 0xff0000,
+      transparent: true,
+      opacity: 0.8,
+      linewidth: 3  // Note: This may not work in all browsers due to WebGL limitations
+    });
+    
+    const beam = new THREE.Line(lineGeometry, lineMaterial);
+    scene.add(beam);
+    
+    // Add muzzle flash at shooter position
+    const flashGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+    const flashMaterial = new THREE.MeshBasicMaterial({
+      color: 0xff5500,
+      transparent: true,
+      opacity: 0.9
+    });
+    const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+    flash.position.set(attackerPos.x, 0.5, attackerPos.z);
+    scene.add(flash);
+    
+    // Add impact effect at target position
+    const impactGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+    const impactMaterial = new THREE.MeshBasicMaterial({
       color: 0xff0000,
       transparent: true,
       opacity: 0.8
     });
+    const impact = new THREE.Mesh(impactGeometry, impactMaterial);
+    impact.position.set(targetPos.x, 0.5, targetPos.z);
+    scene.add(impact);
   
-    const beam = new THREE.Mesh(beamGeometry, beamMaterial);
-  
-    // Position and rotate beam to connect attacker and target
-    beam.position.set(
-      (attackerPos.x + targetPos.x) / 2,
-      0.5,
-      (attackerPos.z + targetPos.z) / 2
-    );
-  
-    // Calculate rotation to point at target
-    beam.rotation.y = Math.atan2(targetPos.x - attackerPos.x, targetPos.z - attackerPos.z);
-    beam.rotation.x = Math.PI / 2;
-  
-    scene.add(beam);
-  
-    // Remove beam after 0.2 seconds
+    // Remove all effects after a short delay
     setTimeout(() => {
       scene.remove(beam);
-      beam.geometry.dispose();
-      beam.material.dispose();
-    }, 200);
+      scene.remove(flash);
+      scene.remove(impact);
+      
+      // Dispose geometries and materials to prevent memory leaks
+      lineGeometry.dispose();
+      lineMaterial.dispose();
+      flashGeometry.dispose();
+      flashMaterial.dispose();
+      impactGeometry.dispose();
+      impactMaterial.dispose();
+    }, 300);
   }
     
   // Create sniper line of sight visualization
@@ -412,7 +432,7 @@ class AbilitySystem {
       const lineDistance = Math.sqrt(lineDistX * lineDistX + lineDistZ * lineDistZ);
       
       // Width of targeting beam - wider makes it easier to hit targets
-      const beamWidth = 0.75;
+      const beamWidth = 1.25;
       
       // Check if target is close enough to the line
       if (lineDistance <= beamWidth && t < nearestDistance) {

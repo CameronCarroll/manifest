@@ -762,8 +762,14 @@ class BaseScenario {
     
     // Create a canvas for dynamic fog texture
     this.fogCanvas = document.createElement('canvas');
-    this.fogCanvas.width = this.mapWidth * this.fogOptions.resolution;
-    this.fogCanvas.height = this.mapHeight * this.fogOptions.resolution;
+    
+    // Ensure dimensions are reasonable for performance
+    const canvasWidth = Math.floor(this.mapWidth * this.fogOptions.resolution);
+    const canvasHeight = Math.floor(this.mapHeight * this.fogOptions.resolution);
+    
+    this.fogCanvas.width = Math.min(2048, Math.max(256, canvasWidth));
+    this.fogCanvas.height = Math.min(2048, Math.max(256, canvasHeight));
+    
     this.fogContext = this.fogCanvas.getContext('2d');
     
     // Initialize canvas as fully black (fog)
@@ -779,7 +785,11 @@ class BaseScenario {
     this.fogLayer.material.map = this.fogTexture;
     this.fogLayer.material.needsUpdate = true;
     
-    console.log('Fog of war system initialized');
+    // Set initial fog values
+    this.fogUpdateTimer = this.fogOptions.updateFrequency;
+    this.lastFogUpdate = null;
+    
+    console.log(`Fog of war system initialized: canvas size ${this.fogCanvas.width}x${this.fogCanvas.height}`);
     return true;
   }
 
@@ -797,18 +807,22 @@ class BaseScenario {
     // This is the key optimization - we'll work on a smaller canvas
     if (!this.lowResFogCanvas) {
       // Create a lower resolution canvas for processing (1/4 the resolution)
+      const scaleFactor = this.fogOptions.lowResScale || 4;
       this.lowResFogCanvas = document.createElement('canvas');
-      this.lowResFogCanvas.width = this.fogCanvas.width / 4;
-      this.lowResFogCanvas.height = this.fogCanvas.height / 4;
+      this.lowResFogCanvas.width = Math.max(32, Math.floor(this.fogCanvas.width / scaleFactor));
+      this.lowResFogCanvas.height = Math.max(32, Math.floor(this.fogCanvas.height / scaleFactor));
       this.lowResFogContext = this.lowResFogCanvas.getContext('2d');
+      
+      console.log(`Created low-res fog canvas: ${this.lowResFogCanvas.width}x${this.lowResFogCanvas.height}`);
     }
     
-    // Clear the low-res canvas or start with unexplored fog
-    if (!this.fogOptions.rememberExplored) {
+    // On first update or if not remembering explored areas,
+    // prepare the low-res canvas by filling with black (fog)
+    if (!this.lastFogUpdate || !this.fogOptions.rememberExplored) {
       this.lowResFogContext.fillStyle = 'black';
       this.lowResFogContext.fillRect(0, 0, this.lowResFogCanvas.width, this.lowResFogCanvas.height);
-    } else if (!this.lastFogUpdate) {
-      // On first update, copy from the main canvas (scaled down)
+    } else {
+      // On subsequent updates, copy the main canvas (scaled down) to preserve explored areas
       this.lowResFogContext.drawImage(
         this.fogCanvas, 
         0, 0, this.fogCanvas.width, this.fogCanvas.height,
@@ -816,14 +830,10 @@ class BaseScenario {
       );
     }
     
-    // Get visible player units only - limit the number we process each frame
+    // Get ALL player units (don't limit them)
     const playerUnits = [];
-    let processedUnits = 0;
-    const maxUnitsPerFrame = 5; // Limit how many units we process each frame
     
     this.entityManager.gameState.entities.forEach((entity, entityId) => {
-      if (processedUnits >= maxUnitsPerFrame) {return;}
-      
       if (this.isPlayerEntity(entityId) && 
           this.entityManager.hasComponent(entityId, 'position')) {
         
@@ -842,96 +852,99 @@ class BaseScenario {
           position: pos,
           sightRadius: sightRadius
         });
-        
-        processedUnits++;
       }
     });
     
-    // Scale factors for converting world to canvas coordinates
-    const canvasScale = {
-      x: this.lowResFogCanvas.width / this.mapWidth,
-      y: this.lowResFogCanvas.height / this.mapHeight
-    };
-    
-    const gridResolution = 4; // Match grid resolution from initialization
-    
-    // Create fog cutouts around player units
-    for (const unit of playerUnits) {
-      const pos = unit.position;
+    // Process all player units to make sure fog of war clears properly
+    if (playerUnits.length > 0) {
+      // Scale factors for converting world to canvas coordinates
+      const canvasScale = {
+        x: this.lowResFogCanvas.width / this.mapWidth,
+        y: this.lowResFogCanvas.height / this.mapHeight
+      };
       
-      // Convert world position to low-res canvas coordinates
-      // Correct the mapping from world coordinates to canvas coordinates
-      const canvasX = (pos.x + this.mapWidth/2) * canvasScale.x;
-      // Fix: We need to invert the Z axis when mapping to canvas Y
-      const canvasY = (this.mapHeight - (pos.z + this.mapHeight/2)) * canvasScale.y;
-      const canvasRadius = unit.sightRadius * canvasScale.x;
+      const gridResolution = 4; // Match grid resolution from initialization
       
-      // Use a simpler circle reveal - avoid expensive gradients
-      this.lowResFogContext.globalCompositeOperation = 'destination-out';
-      
-      // Use a simple circle instead of a complex gradient
-      this.lowResFogContext.beginPath();
-      this.lowResFogContext.arc(canvasX, canvasY, canvasRadius, 0, Math.PI * 2);
-      
-      // Optional: Add a slight gradient at the edge for nicer visuals
-      if (this.fogOptions.useGradients) {
-        // Create radial gradient for sight radius
-        const gradient = this.lowResFogContext.createRadialGradient(
-          canvasX, canvasY, 0,
-          canvasX, canvasY, canvasRadius
-        );
+      // Create fog cutouts around player units
+      for (const unit of playerUnits) {
+        const pos = unit.position;
         
-        // Change: Make center more completely clear for better visibility
-        gradient.addColorStop(0, 'rgba(0, 0, 0, 1)'); // Full clear at center
-        gradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.95)'); // Almost full clear
-        gradient.addColorStop(0.85, 'rgba(0, 0, 0, 0.5)'); // Half fade
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); // No clearing at edge
+        // Convert world position to low-res canvas coordinates
+        // Correct the mapping from world coordinates to canvas coordinates
+        const canvasX = (pos.x + this.mapWidth/2) * canvasScale.x;
+        // Fix: We need to invert the Z axis when mapping to canvas Y
+        const canvasY = (this.mapHeight - (pos.z + this.mapHeight/2)) * canvasScale.y;
+        const canvasRadius = unit.sightRadius * canvasScale.x;
         
-        this.lowResFogContext.fillStyle = gradient;
-      } else {
-        // Simple fill is much faster - make fully visible
-        this.lowResFogContext.fillStyle = 'rgba(0, 0, 0, 1)';
-      }
-      
-      this.lowResFogContext.fill();
-      
-      // Update explored grid for memory
-      if (this.fogOptions.rememberExplored && this.exploredGrid) {
-        const gridCenterX = Math.floor((pos.x + this.mapWidth/2) * gridResolution);
-        // Fix: Invert Z axis for grid coordinates to match canvas
-        const gridCenterY = Math.floor((this.mapHeight - (pos.z + this.mapHeight/2)) * gridResolution);
-        const gridRadius = Math.ceil(unit.sightRadius * gridResolution);
+        // Ensure we use a minimum visible radius
+        const effectiveRadius = Math.max(3, canvasRadius);
         
-        // Update the explored grid around this unit
-        for (let dx = -gridRadius; dx <= gridRadius; dx++) {
-          for (let dy = -gridRadius; dy <= gridRadius; dy++) {
-            // Check if within circle radius
-            if (dx*dx + dy*dy <= gridRadius*gridRadius) {
-              const gx = gridCenterX + dx;
-              const gy = gridCenterY + dy;
-              
-              // Ensure we're within grid bounds
-              if (gx >= 0 && gx < this.exploredGrid.length && 
-                  gy >= 0 && gy < this.exploredGrid[0].length) {
-                this.exploredGrid[gx][gy] = true;
+        // Use a simpler circle reveal
+        this.lowResFogContext.globalCompositeOperation = 'destination-out';
+        
+        // Start the circle path
+        this.lowResFogContext.beginPath();
+        this.lowResFogContext.arc(canvasX, canvasY, effectiveRadius, 0, Math.PI * 2);
+        
+        // Add a slight gradient at the edge if enabled
+        if (this.fogOptions.useGradients) {
+          // Create radial gradient for sight radius
+          const gradient = this.lowResFogContext.createRadialGradient(
+            canvasX, canvasY, 0,
+            canvasX, canvasY, effectiveRadius
+          );
+          
+          // Make center more completely clear for better visibility
+          gradient.addColorStop(0, 'rgba(0, 0, 0, 1)'); // Full clear at center
+          gradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.95)'); // Almost full clear
+          gradient.addColorStop(0.85, 'rgba(0, 0, 0, 0.5)'); // Half fade
+          gradient.addColorStop(1, 'rgba(0, 0, 0, 0)'); // No clearing at edge
+          
+          this.lowResFogContext.fillStyle = gradient;
+        } else {
+          // Simple fill - make fully visible
+          this.lowResFogContext.fillStyle = 'rgba(0, 0, 0, 1)';
+        }
+        
+        this.lowResFogContext.fill();
+        
+        // Update explored grid for memory
+        if (this.fogOptions.rememberExplored && this.exploredGrid) {
+          const gridCenterX = Math.floor((pos.x + this.mapWidth/2) * gridResolution);
+          // Fix: Invert Z axis for grid coordinates to match canvas
+          const gridCenterY = Math.floor((this.mapHeight - (pos.z + this.mapHeight/2)) * gridResolution);
+          const gridRadius = Math.ceil(unit.sightRadius * gridResolution);
+          
+          // Update the explored grid around this unit
+          for (let dx = -gridRadius; dx <= gridRadius; dx++) {
+            for (let dy = -gridRadius; dy <= gridRadius; dy++) {
+              // Check if within circle radius
+              if (dx*dx + dy*dy <= gridRadius*gridRadius) {
+                const gx = gridCenterX + dx;
+                const gy = gridCenterY + dy;
+                
+                // Ensure we're within grid bounds
+                if (gx >= 0 && gx < this.exploredGrid.length && 
+                    gy >= 0 && gy < this.exploredGrid[0].length) {
+                  this.exploredGrid[gx][gy] = true;
+                }
               }
             }
           }
         }
       }
-    }
-    
-    // Reset composite operation
-    this.lowResFogContext.globalCompositeOperation = 'source-over';
-    
-    // Apply explored but not visible overlay (if using memory of explored areas)
-    if (this.fogOptions.rememberExplored) {
-      // Use a slightly higher opacity for explored areas to create better contrast
-      // between fully visible areas and just explored ones
-      const exploredOpacity = Math.min(0.65, this.fogOptions.exploredOpacity + 0.2);
-      this.lowResFogContext.fillStyle = `rgba(0, 0, 0, ${exploredOpacity})`;
-      this.lowResFogContext.globalCompositeOperation = 'source-atop';
-      this.lowResFogContext.fillRect(0, 0, this.lowResFogCanvas.width, this.lowResFogCanvas.height);
+      
+      // Reset composite operation
+      this.lowResFogContext.globalCompositeOperation = 'source-over';
+      
+      // Apply explored but not visible overlay (if using memory of explored areas)
+      if (this.fogOptions.rememberExplored) {
+        // Use a slightly higher opacity for explored areas to create better contrast
+        const exploredOpacity = Math.min(0.65, this.fogOptions.exploredOpacity + 0.2);
+        this.lowResFogContext.fillStyle = `rgba(0, 0, 0, ${exploredOpacity})`;
+        this.lowResFogContext.globalCompositeOperation = 'source-atop';
+        this.lowResFogContext.fillRect(0, 0, this.lowResFogCanvas.width, this.lowResFogCanvas.height);
+      }
     }
     
     // Upscale the low-res canvas back to the main fog canvas
@@ -942,7 +955,7 @@ class BaseScenario {
       0, 0, this.fogCanvas.width, this.fogCanvas.height
     );
     
-    // Update texture less frequently
+    // Update texture
     this.lastFogUpdate = Date.now();
     this.fogTexture.needsUpdate = true;
   }
@@ -1434,89 +1447,154 @@ class BaseScenario {
   toggleOptimizedFog(enabled = true) {
     if (enabled === this.fogOptions.enableAdvancedFog) {return;}
   
+    // Store previous state before changing
+    const previousMode = this.fogOptions.enableAdvancedFog;
     this.fogOptions.enableAdvancedFog = enabled;
-    // Store previous state to restore entity visibility
-    const wasOptimized = !enabled;
   
     if (enabled) {
       console.log('Using higher quality fog of war (may impact performance)');
-      this.fogOptions.updateFrequency = 0.1;
+      // Gradual transition to higher quality settings
+      this.fogOptions.updateFrequency = 0.15; // Not as aggressive as before
       this.fogOptions.useGradients = true;
+      
+      // Preserve visibility during transition to advanced mode
+      if (this.fogLayer && this.fogLayer.material) {
+        // Ensure fog layer is properly visible during transition
+        this.fogLayer.material.needsUpdate = true;
+      }
     } else {
       console.log('Using optimized fog of war for better performance');
+      // More conservative update frequency for better stability
       this.fogOptions.updateFrequency = 0.25;
       this.fogOptions.useGradients = false;
       
       // IMPORTANT: In optimized mode, we still want to see units in explored areas
-      // Force a full entity visibility update to restore proper visibility
+      // Queue a visibility refresh to happen on next frame
       this._forceVisibilityRefresh = true;
     }
+    
+    // Reset fog update timer to ensure next update happens properly
+    this.fogUpdateTimer = this.fogOptions.updateFrequency;
+    
+    // Update texture if using WebGL
+    if (this.fogDataTexture) {
+      this.fogDataTexture.needsUpdate = true;
+    }
+    
+    // Always update entity visibility immediately after a mode switch
+    this.updateEntityVisibility();
+    
+    return true;
   }
 
-  // Add this method to automatically adjust fog quality based on performance
-  autoAdjustFogQuality() {
-    // Track frame rate over time
-    if (!this._fpsHistory) {
-      this._fpsHistory = [];
-      this._lastFpsCheck = Date.now();
-      this._framesCount = 0;
-      return; // First call just initializes tracking
-    }
-  
-    // Count frames
-    this._framesCount++;
-  
-    // Check every second
-    const now = Date.now();
-    const elapsed = now - this._lastFpsCheck;
-  
-    if (elapsed >= 1000) {
-      const fps = Math.round(this._framesCount * 1000 / elapsed);
-      this._framesCount = 0;
-      this._lastFpsCheck = now;
-    
-      // Add to history (keep last 5 readings)
-      this._fpsHistory.push(fps);
-      if (this._fpsHistory.length > 5) {
-        this._fpsHistory.shift();
-      }
-    
-      // Get average FPS
-      const avgFps = this._fpsHistory.reduce((sum, val) => sum + val, 0) / this._fpsHistory.length;
-    
-      // Check if we need to force visibility refresh due to a mode switch
-      if (this._forceVisibilityRefresh) {
-        // Force update all entity visibility
-        this.updateEntityVisibility();
-        // Reset flag
-        this._forceVisibilityRefresh = false;
-      }
+  // // Add this method to automatically adjust fog quality based on performance
+  // autoAdjustFogQuality() {
+  //   // We'll use the game loop's frame count instead of tracking our own
+  //   // This provides a more accurate FPS measurement
+  //   if (!this._fpsHistory) {
+  //     this._fpsHistory = [];
+  //     this._lastFpsCheck = Date.now();
+  //     this._lastFrameCount = this.gameController ? 
+  //       (this.gameController.frameCount || 0) : 0;
+  //     this._skipNextCheck = false;
+  //     this._lastMode = this.fogOptions.enableAdvancedFog;
       
-      // Adjust fog quality based on FPS
-      if (avgFps < 30) {
-        // Poor performance - optimize fog
-        if (this.fogOptions.enableAdvancedFog) {
-          console.log(`Low FPS detected (${avgFps.toFixed(1)}), optimizing fog of war`);
-          this.toggleOptimizedFog(false);
+  //     // Force disable FPS-based automatic adjustment - it's causing more problems than it solves
+  //     this._disableAutoAdjust = true;
+      
+  //     // Set fog to optimized mode by default for more stable performance
+  //     if (this.fogOptions.enableAdvancedFog) {
+  //       console.log('Setting fog to optimized mode for stable performance');
+  //       this.toggleOptimizedFog(false);
+  //     }
+      
+  //     return;
+  //   }
+
+  //   // Check if auto-adjustment is disabled
+  //   if (this._disableAutoAdjust) {
+  //     // Still check if visibility refresh is needed
+  //     if (this._forceVisibilityRefresh) {
+  //       this.updateEntityVisibility();
+  //       this._forceVisibilityRefresh = false;
+  //     }
+  //     return;
+  //   }
+  
+  //   // Check every 3 seconds instead of every second to reduce fluctuations
+  //   const now = Date.now();
+  //   const elapsed = now - this._lastFpsCheck;
+  
+  //   if (elapsed >= 3000) { // 3 seconds for more stable readings
+  //     // Get current frame count from game controller if available
+  //     const currentFrameCount = this.gameController ? 
+  //       (this.gameController.frameCount || 0) : 0;
+      
+  //     // Calculate frames elapsed
+  //     const framesElapsed = Math.max(1, currentFrameCount - this._lastFrameCount);
+      
+  //     // Calculate frames per second
+  //     const fps = Math.round(framesElapsed * 1000 / elapsed);
+      
+  //     // Store values for next check
+  //     this._lastFrameCount = currentFrameCount;
+  //     this._lastFpsCheck = now;
+      
+  //     // Debug output
+  //     if (fps < 20) {
+  //       console.log(`FPS measurement: ${fps} (${framesElapsed} frames in ${elapsed}ms)`);
+  //     }
+    
+  //     // Skip this check if we recently changed modes (allow system to stabilize)
+  //     if (this._skipNextCheck) {
+  //       this._skipNextCheck = false;
+  //       return;
+  //     }
+    
+  //     // Update history with a minimum FPS of 5 to avoid extreme oscillation
+  //     this._fpsHistory.push(Math.min(60, Math.max(5, fps)));
+  //     if (this._fpsHistory.length > 3) {
+  //       this._fpsHistory.shift();
+  //     }
+    
+  //     // Get average FPS
+  //     const avgFps = this._fpsHistory.reduce((sum, val) => sum + val, 0) / this._fpsHistory.length;
+    
+  //     // Check if we need to force visibility refresh due to a mode switch
+  //     if (this._forceVisibilityRefresh) {
+  //       // Force update all entity visibility
+  //       this.updateEntityVisibility();
+  //       this._forceVisibilityRefresh = false;
+  //     }
+      
+  //     // Use much more conservative thresholds - we really only want to optimize
+  //     // if performance is truly terrible, not just for minor fluctuations
+  //     if (avgFps < 15) { // Very low FPS threshold
+  //       // Poor performance - optimize fog
+  //       if (this.fogOptions.enableAdvancedFog) {
+  //         console.log(`Performance optimization: FPS is ${avgFps.toFixed(1)}, switching to optimized fog of war`);
+  //         this.toggleOptimizedFog(false);
           
-          // Important: After switching to optimized mode, update entity visibility
-          // to make sure units still appear in explored areas
-          this.updateEntityVisibility();
-        }
-      
-        // If still bad, increase update interval
-        if (avgFps < 20 && this.fogOptions.updateFrequency < 0.4) {
-          this.fogOptions.updateFrequency += 0.1;
-          console.log(`Very low FPS, reducing fog update frequency to ${this.fogOptions.updateFrequency.toFixed(1)}s`);
-        }
-      }
-      // Optionally improve quality if FPS is very high
-      else if (avgFps > 55 && !this.fogOptions.enableAdvancedFog) {
-        console.log(`High FPS detected (${avgFps.toFixed(1)}), can enable advanced fog effects`);
-        this.toggleOptimizedFog(true);
-      }
-    }
-  }
+  //         // Force visibility update for all entities
+  //         this.updateEntityVisibility();
+          
+  //         // Skip the next check
+  //         this._skipNextCheck = true;
+  //         this._lastMode = false;
+  //       }
+  //     }
+  //     // Only improve quality if FPS is extremely good
+  //     else if (avgFps > 50 && !this.fogOptions.enableAdvancedFog && 
+  //              this._fpsHistory.length === 3 && this._fpsHistory.every(fps => fps > 45)) {
+  //       console.log(`Performance excellent: FPS is ${avgFps.toFixed(1)}, enabling advanced fog effects`);
+  //       this.toggleOptimizedFog(true);
+        
+  //       // Skip the next check
+  //       this._skipNextCheck = true;
+  //       this._lastMode = true;
+  //     }
+  //   }
+  // }
 }
   
 export default BaseScenario;

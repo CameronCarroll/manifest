@@ -86,7 +86,35 @@ class ExplorationScenario extends BaseScenario {
 
     // When the map is ready, enable fog of war
     if (this.fogOfWar) {
+      // Make sure to set this flag to false to allow proper fog functionality
+      this._forceOptimizedFog = false;
+      
+      // Enable fog of war with the specified options
       this.enableFogOfWar(this.fogOptions);
+      
+      // Force the initial full fog state
+      if (this.fogContext) {
+        // Fill the entire fog canvas with black
+        this.fogContext.fillStyle = 'black';
+        this.fogContext.fillRect(0, 0, this.fogCanvas.width, this.fogCanvas.height);
+        
+        // Make sure to update the texture
+        if (this.fogTexture) {
+          this.fogTexture.needsUpdate = true;
+        }
+        
+        // Initialize the explored grid to completely unexplored
+        if (this.exploredGrid) {
+          for (let i = 0; i < this.exploredGrid.length; i++) {
+            for (let j = 0; j < this.exploredGrid[i].length; j++) {
+              this.exploredGrid[i][j] = false;
+            }
+          }
+        }
+        
+        // Force a fog update immediately
+        this.fogUpdateTimer = this.fogOptions.updateFrequency;
+      }
       
       // Add specific message about the foggy, dangerous wasteland
       this.promptQueue.push({ 
@@ -543,7 +571,7 @@ class ExplorationScenario extends BaseScenario {
   }
   
   update(deltaTime) {
-    // Call base class update which will handle objective marker animations
+    // Call base class update which will handle fog of war updates and objective marker animations
     super.update(deltaTime);
     
     // Update objective progress
@@ -558,18 +586,57 @@ class ExplorationScenario extends BaseScenario {
         this.visibilityCheckTimer = 0;
         this.updateEntityVisibility();
       }
+      
+      // Special case for when we're in exploration scenario:
+      // Ensure that nearby units always have their visibility updated correctly
+      this.updateNearbyEntityVisibility();
+      
+      // Every 5 seconds, enforce a fog update to ensure it's working properly
+      if (!this._extraFogTimer) this._extraFogTimer = 0;
+      this._extraFogTimer += deltaTime;
+      
+      if (this._extraFogTimer >= 5.0) {
+        this._extraFogTimer = 0;
+        
+        // Force a fog update by using the regular method but with a minimum delay
+        if (this.fogOptions.enableAdvancedFog) {
+          // Try the WebGL method first
+          if (this.fogTextureData) {
+            this.updateWebGLFog(0.5);
+          } else {
+            this.updateFogOfWar(0.5);
+          }
+        } else {
+          // Directly use the optimized method
+          this.updateFogOfWar(0.5);
+        }
+      }
     }
     
     // Handle adaptive performance but with constraints on visibility
     if (this._performanceCheckTimer === undefined) {
       this._performanceCheckTimer = 0;
+      this._lastPerformanceMode = this.fogOptions.enableAdvancedFog;
+      
+      // Important: We want full fog functionality in Exploration Scenario
+      this._forceOptimizedFog = false;
     }
     
     this._performanceCheckTimer += deltaTime;
     // Check performance less often to prevent rapid switching
     if (this._performanceCheckTimer >= 3.0) {
       this._performanceCheckTimer = 0;
-      this.autoAdjustFogQuality();
+      
+      // Only use auto-adjustment if not forcing a specific mode
+      if (!this._forceOptimizedFog) {
+        // Only check performance if we haven't switched modes recently
+        if (this._lastPerformanceMode === this.fogOptions.enableAdvancedFog) {
+          //this.autoAdjustFogQuality();
+        } else {
+          // Update the last mode to the current one
+          this._lastPerformanceMode = this.fogOptions.enableAdvancedFog;
+        }
+      }
     }
   }
   
@@ -838,6 +905,127 @@ class ExplorationScenario extends BaseScenario {
       notification.style.opacity = '0';
     }, 5000);
   }
+  // Optimized method to only update visibility for nearby entities
+  // This helps maintain visual quality while preserving performance
+  updateNearbyEntityVisibility() {
+    if (!this.fogOfWar) {return;}
+    
+    // Find player units to determine "center of interest"
+    let centerX = 0;
+    let centerZ = 0;
+    let playerUnitCount = 0;
+    
+    this.entityManager.gameState.entities.forEach((entity, entityId) => {
+      if (this.isPlayerEntity(entityId) && 
+          this.entityManager.hasComponent(entityId, 'position')) {
+        const pos = this.entityManager.getComponent(entityId, 'position');
+        centerX += pos.x;
+        centerZ += pos.z;
+        playerUnitCount++;
+      }
+    });
+    
+    // If no player units found, return
+    if (playerUnitCount === 0) {return;}
+    
+    // Calculate average position (center of interest)
+    centerX /= playerUnitCount;
+    centerZ /= playerUnitCount;
+    
+    // Define radius of interest around player units
+    const interestRadius = 30; // Units within 30 units of player center
+    
+    // Update visibility only for entities near the player
+    this.entityManager.gameState.entities.forEach((entity, entityId) => {
+      // Skip player entities
+      if (this.isPlayerEntity(entityId)) {return;}
+      
+      // Skip entities without position or render components
+      if (!this.entityManager.hasComponent(entityId, 'position') ||
+          !this.entityManager.hasComponent(entityId, 'render')) {
+        return;
+      }
+      
+      const pos = this.entityManager.getComponent(entityId, 'position');
+      
+      // Calculate distance to center of interest
+      const dx = pos.x - centerX;
+      const dz = pos.z - centerZ;
+      const distance = Math.sqrt(dx*dx + dz*dz);
+      
+      // Only update entities within interest radius
+      if (distance <= interestRadius) {
+        const visibilityResult = this.getPositionVisibilityDetail(pos);
+        const render = this.entityManager.getComponent(entityId, 'render');
+        
+        // Update render visibility based on visibility type
+        if (visibilityResult.fullyVisible) {
+          render.visible = true;
+          
+          // Get mesh from render system and update visibility
+          const mesh = this.systems.render.meshes.get(entityId);
+          if (mesh) {
+            mesh.visible = true;
+            
+            // Reset materials to original appearance
+            if (Array.isArray(mesh.material)) {
+              mesh.material.forEach(mat => {
+                if (mat.originalColor) {
+                  mat.color.set(mat.originalColor);
+                }
+                if (mat.opacity !== undefined) {
+                  mat.opacity = 1.0;
+                }
+              });
+            } else if (mesh.material) {
+              if (mesh.material.originalColor) {
+                mesh.material.color.set(mesh.material.originalColor);
+              }
+              if (mesh.material.opacity !== undefined) {
+                mesh.material.opacity = 1.0;
+              }
+            }
+          }
+        } else if (visibilityResult.explored) {
+          render.visible = true;
+          
+          // Apply semi-visible effect for explored areas
+          const mesh = this.systems.render.meshes.get(entityId);
+          if (mesh) {
+            mesh.visible = true;
+            
+            // Apply darkening to materials
+            if (Array.isArray(mesh.material)) {
+              mesh.material.forEach(mat => {
+                if (!mat.originalColor) {
+                  mat.originalColor = mat.color.clone();
+                }
+                mat.color.set(0x001133);
+                mat.opacity = 0.7;
+                mat.transparent = true;
+              });
+            } else if (mesh.material) {
+              if (!mesh.material.originalColor) {
+                mesh.material.originalColor = mesh.material.color.clone();
+              }
+              mesh.material.color.set(0x001133);
+              mesh.material.opacity = 0.7;
+              mesh.material.transparent = true;
+            }
+          }
+        } else {
+          // Not visible at all
+          render.visible = false;
+          
+          const mesh = this.systems.render.meshes.get(entityId);
+          if (mesh) {
+            mesh.visible = false;
+          }
+        }
+      }
+    });
+  }
+
   // Add to ExplorationScenario.js
   revealMapFeature(position, radius = 30) {
     if (!this.fogOfWar || !this.fogContext) {return;}

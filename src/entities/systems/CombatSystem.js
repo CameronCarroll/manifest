@@ -2,7 +2,7 @@
 const ATTACK_RANGES = {
   DEFAULT: 5,
   MELEE: 1.5,
-  SNIPER: 15,
+  SNIPER: 25,
   ASSAULT: 7,
   SUPPORT: 10
 };
