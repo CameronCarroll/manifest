@@ -17,7 +17,6 @@
       left: 0;
       width: 100%;
       height: 100%;
-      /* Removed the background-color that was hiding the canvas */
     }
     #ui-overlay {
       position: absolute;
@@ -68,17 +67,46 @@
       pointer-events: auto;
     }
     .panel-content {
-      transition: max-height 0.3s ease;
-      max-height: 500px;
-    }
-    .collapsed .panel-content {
-      max-height: 0;
-    }
+  transition: all 0.3s ease;
+  max-height: 500px;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+}
+
+.collapsed .panel-content {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  visibility: hidden;
+}
+
+/* Also update the toggle button for better visibility */
+.panel-header .toggle-btn {
+  color: #e1e1e1;
+  font-size: 18px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: auto;
+  transition: transform 0.3s ease;
+}
+
+.collapsed .panel-header .toggle-btn {
+  transform: rotate(-90deg);
+}
     #controls-help {
       position: absolute;
       bottom: 10px;
       left: 10px;
-      width: 240px;
+      width: 280px;
       z-index: 10;
       pointer-events: auto;
     }
@@ -92,13 +120,6 @@
       color: #4CAF50;
       font-weight: 600;
       margin-right: 10px;
-    }
-    #wave-info {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      width: 220px;
-      z-index: 10;
     }
     #resource-display {
       position: absolute;
@@ -123,38 +144,11 @@
       margin-right: 6px;
       color: #4CAF50;
     }
-    #production-display {
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      width: 250px;
-      z-index: 10;
-    }
-    .production-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-    }
-    .progress-bar {
-      width: 100px;
-      height: 12px;
-      background-color: rgba(255, 255, 255, 0.2);
-      border-radius: 6px;
-      overflow: hidden;
-      margin: 0 10px;
-    }
-    .progress-fill {
-      height: 100%;
-      background-color: #4CAF50;
-      border-radius: 6px;
-      transition: width 0.2s ease;
-    }
     #objectives-display {
       position: absolute;
-      top: 85px;
+      top: 10px;
       right: 10px;
-      width: 220px;
+      width: 250px;
       z-index: 10;
       pointer-events: auto;
     }
@@ -245,12 +239,143 @@
     #pause-overlay button:hover {
       background-color: #3d8b40;
     }
+    
+    /* Updated Selection Info Panel */
     #selection-info {
+      max-width: 320px;
+      width: 100%;
       background-color: rgba(0, 0, 0, 0.6);
       border-radius: 8px;
-      padding: 10px;
+      padding: 12px;
       margin-top: 10px;
-      max-width: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .selection-header {
+      font-weight: bold;
+      color: #4CAF50;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+    .selected-unit {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+      padding: 8px;
+      background-color: rgba(0, 0, 0, 0.4);
+      border-radius: 6px;
+      border-left: 3px solid #4CAF50;
+    }
+    .unit-name {
+      font-weight: bold;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .health-bar {
+      width: 100%;
+      height: 6px;
+      background-color: rgba(255, 0, 0, 0.3);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .health-fill {
+      height: 100%;
+      background-color: #ff3333;
+      border-radius: 3px;
+    }
+    .unit-stats {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 12px;
+      color: #cccccc;
+    }
+    
+    /* New Ability Bar */
+    #ability-bar {
+      position: absolute;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+    .ability-slot {
+      width: 50px;
+      height: 50px;
+      background-color: rgba(0, 0, 0, 0.7);
+      border: 2px solid #444;
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    .ability-slot.empty {
+      opacity: 0.3;
+    }
+    .ability-slot.active {
+      border-color: #ff9933;
+      box-shadow: 0 0 10px rgba(255, 153, 51, 0.7);
+    }
+    .ability-slot.cooldown {
+      border-color: #777;
+    }
+    .ability-name {
+      font-size: 10px;
+      text-align: center;
+      margin-bottom: 2px;
+      color: white;
+    }
+    .ability-icon {
+      width: 32px;
+      height: 32px;
+      background-color: #333;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #4CAF50;
+    }
+    .ability-hotkey {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      font-size: 10px;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 2px 4px;
+      border-radius: 3px;
+      color: #fff;
+    }
+    .cooldown-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      border-radius: 0 0 4px 4px;
+      text-align: center;
+      font-size: 10px;
+      color: #ff6666;
+    }
+    
+    /* Responsive rules for smaller screens */
+    @media (max-width: 768px) {
+      #controls-help {
+        width: 200px;
+      }
+      #objectives-display {
+        width: 200px;
+      }
+      #selection-info {
+        max-width: 280px;
+      }
     }
   </style>
 </head>
@@ -258,7 +383,7 @@
   <div id="game-container"></div>
   
   <div id="ui-overlay">
-    <h2>Manifest - RTS Combat</h2>
+    <h2>Manifest - RTS Combat Vibes</h2>
     <div id="selection-info"></div>
   </div>
   
@@ -277,43 +402,33 @@
         <span class="action">Add to selection</span>
       </div>
       <div class="control-item">
-        <span class="key">Double Click</span>
-        <span class="action">Select all of same type</span>
-      </div>
-      <div class="control-item">
         <span class="key">Right Click</span>
         <span class="action">Move selected units</span>
       </div>
       <div class="control-item">
         <span class="key">Right Click on Enemy</span>
-        <span class="action">Attack</span>
+        <span class="action">Attack target</span>
+      </div>
+      <div class="control-item">
+        <span class="key">1-4</span>
+        <span class="action">Use abilities</span>
       </div>
       <div class="control-item">
         <span class="key">S</span>
         <span class="action">Stop selected units</span>
       </div>
       <div class="control-item">
-        <span class="key">Shift + A</span>
-        <span class="action">Select all player units</span>
+        <span class="key">Mouse Wheel Click & Drag, or Arrow Keys</span>
+        <span class="action">Move camera</span>
+      </div>
+      <div class="control-item">
+        <span class="key">Mouse Wheel</span>
+        <span class="action">Zoom camera</span>
       </div>
       <div class="control-item">
         <span class="key">ESC</span>
         <span class="action">Clear selection</span>
       </div>
-      <div class="control-item">
-        <span class="key">P</span>
-        <span class="action">Pause/Resume game</span>
-      </div>
-    </div>
-  </div>
-  
-  <div id="wave-info" class="panel">
-    <div class="panel-header">
-      <h3>Wave Information</h3>
-    </div>
-    <div class="panel-content">
-      <div id="current-wave">Current Wave: 1</div>
-      <div id="enemies-remaining">Enemies Remaining: 10</div>
     </div>
   </div>
   
@@ -326,10 +441,6 @@
     </div>
   </div>
   
-  <div id="production-display" class="panel">
-    <!-- Production items will be added dynamically -->
-  </div>
-  
   <div id="objectives-display" class="panel">
     <div class="panel-header">
       <h3>Objectives</h3>
@@ -340,13 +451,40 @@
         <div class="objective-item">
           <div class="objective-header">
             <div class="objective-icon">●</div>
-            <div class="objective-text">Survive All Waves</div>
+            <div class="objective-text">Find and secure the Ancient Beacon</div>
           </div>
           <div class="objective-progress">
             <div class="objective-progress-fill" style="width: 33%"></div>
           </div>
         </div>
+        <div class="objective-item">
+          <div class="objective-header">
+            <div class="objective-icon">●</div>
+            <div class="objective-text">Destroy Enemy Command Tower</div>
+          </div>
+          <div class="objective-progress">
+            <div class="objective-progress-fill" style="width: 15%"></div>
+          </div>
+        </div>
       </div>
+    </div>
+  </div>
+  
+  <div id="ability-bar">
+    <!-- Ability slots will be populated dynamically -->
+    <div class="ability-slot empty">
+      <div class="ability-hotkey">1</div>
+    </div>
+    <div class="ability-slot">
+      <div class="ability-name">Sniper Aim</div>
+      <div class="ability-icon"><i>🎯</i></div>
+      <div class="ability-hotkey">2</div>
+    </div>
+    <div class="ability-slot empty">
+      <div class="ability-hotkey">3</div>
+    </div>
+    <div class="ability-slot empty">
+      <div class="ability-hotkey">4</div>
     </div>
   </div>
   
@@ -414,153 +552,256 @@
     });
     
     function updateUI() {
-  // Return early if game object doesn't exist
-  if (!window.game || !window.game.gameController) return;
-  
-  const gameController = window.game.gameController;
-  const entityManager = gameController.entityManager;
-  
-  // Update selection info
-  updateSelectionInfo();
-  
-  // Update wave info
-  updateWaveInfo();
-  
-  // Update objectives display
-  updateObjectives();
-  
-  // Update production display
-  initializeProductionDisplay();
-  
-  // Helper function to update selection information
-  function updateSelectionInfo() {
-    const selectionInfo = document.getElementById('selection-info');
-    if (!selectionInfo) return;
-    
-    // Check if inputManager exists and has selected entities
-    const inputManager = gameController.inputManager;
-    if (!inputManager || !inputManager.selectedEntities) {
-      selectionInfo.style.display = 'none';
-      return;
-    }
-    
-    const selectedEntities = inputManager.selectedEntities;
-    
-    if (selectedEntities.size > 0 && entityManager) {
-      let unitTypes = {};
-      let totalHealth = 0;
-      let totalMaxHealth = 0;
+      // Return early if game object doesn't exist
+      if (!window.game || !window.game.gameController) return;
       
-      selectedEntities.forEach(entityId => {
-        if (entityManager.hasComponent(entityId, 'faction') && 
-            entityManager.hasComponent(entityId, 'health')) {
-          
-          const faction = entityManager.getComponent(entityId, 'faction');
-          const health = entityManager.getComponent(entityId, 'health');
-          
-          // Count unit types
-          const unitType = faction.unitType || 'unknown';
-          unitTypes[unitType] = (unitTypes[unitType] || 0) + 1;
-          
-          // Sum health
-          totalHealth += health.currentHealth;
-          totalMaxHealth += health.maxHealth;
+      const gameController = window.game.gameController;
+      const entityManager = gameController.entityManager;
+      
+      // Update selection info
+      updateSelectionInfo();
+      
+      // Update objectives display
+      updateObjectives();
+      
+      // Update ability bar
+      updateAbilityBar();
+      
+      // Helper function to update selection information
+      function updateSelectionInfo() {
+        const selectionInfo = document.getElementById('selection-info');
+        if (!selectionInfo) return;
+        
+        // Check if inputManager exists and has selected entities
+        const inputManager = gameController.inputManager;
+        if (!inputManager || !inputManager.selectedEntities || inputManager.selectedEntities.size === 0) {
+          selectionInfo.style.display = 'none';
+          return;
         }
-      });
-      
-      // Create selection info text
-      let infoText = `<p>Selected: ${selectedEntities.size} units</p>`;
-      infoText += `<p>Health: ${Math.floor(totalHealth)}/${totalMaxHealth}</p>`;
-      
-      // List unit types
-      infoText += '<p>Types: ';
-      for (const [type, count] of Object.entries(unitTypes)) {
-        infoText += `${type} (${count}) `;
-      }
-      infoText += '</p>';
-      
-      selectionInfo.innerHTML = infoText;
-      selectionInfo.style.display = 'block';
-    } else {
-      selectionInfo.style.display = 'none';
-    }
-  }
-  
-  // Helper function to update wave information
-  function updateWaveInfo() {
-    if (!gameController.systems || !gameController.systems.spawn) return;
-    
-    const waveInfo = gameController.systems.spawn.activeWaves;
-    const currentWave = document.getElementById('current-wave');
-    const enemiesRemaining = document.getElementById('enemies-remaining');
-    
-    if (!waveInfo || !currentWave || !enemiesRemaining) return;
-    
-    let activeWaveId = 0;
-    let remainingEnemies = 0;
-    
-    waveInfo.forEach((wave, waveId) => {
-      if (wave.active && !wave.completed) {
-        activeWaveId = Math.max(activeWaveId, waveId);
-        remainingEnemies += (wave.totalEnemies - wave.spawnedEnemies);
-      }
-    });
-    
-    currentWave.textContent = `Current Wave: ${activeWaveId}`;
-    enemiesRemaining.textContent = `Enemies Remaining: ${remainingEnemies}`;
-  }
-  
-  // Helper function to update objectives display
-  function updateObjectives() {
-    if (!gameController.systems || !gameController.systems.objectives) return;
-    
-    const objectivesSystem = gameController.systems.objectives;
-    const objectivesList = document.querySelector('#objectives-display .objective-list');
-    
-    if (!objectivesList || typeof objectivesSystem.getObjectivesStatus !== 'function') return;
-    
-    try {
-      const objectivesStatus = objectivesSystem.getObjectivesStatus();
-      
-      if (!objectivesStatus || !objectivesStatus.objectives) return;
-      
-      let objectivesHTML = '';
-      
-      objectivesStatus.objectives.forEach(objective => {
-        if (!objective) return;
         
-        const progressWidth = Math.floor((objective.progress || 0) * 100);
-        const checkmark = objective.completed ? '✓' : '●';
+        const selectedEntities = inputManager.selectedEntities;
         
-        objectivesHTML += `
-          <div class="objective-item">
-            <div class="objective-header">
-              <div class="objective-icon">${checkmark}</div>
-              <div class="objective-text">${objective.title || 'Unnamed Objective'}</div>
-            </div>
-            <div class="objective-progress">
-              <div class="objective-progress-fill" style="width: ${progressWidth}%"></div>
-            </div>
-          </div>
-        `;
-      });
+        if (selectedEntities.size > 0 && entityManager) {
+          let unitsHTML = '';
+          let unitCount = 0;
+          
+          // Create HTML for each selected unit
+          selectedEntities.forEach(entityId => {
+            if (entityManager.hasComponent(entityId, 'health') && 
+                entityManager.hasComponent(entityId, 'faction')) {
+              
+              // Get unit data
+              const health = entityManager.getComponent(entityId, 'health');
+              const faction = entityManager.getComponent(entityId, 'faction');
+              
+              // Get unit type - prefer unitType component, fallback to faction.unitType
+              let unitName = faction.unitType || 'Unknown';
+              if (entityManager.hasComponent(entityId, 'unitType')) {
+                const unitType = entityManager.getComponent(entityId, 'unitType');
+                if (unitType.type) {
+                  // Format the unit type name (e.g., "neon_assassin" -> "Neon Assassin")
+                  unitName = unitType.type
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+                }
+              }
+              
+              // Calculate health percentage
+              const healthPercent = Math.floor((health.currentHealth / health.maxHealth) * 100);
+              
+              // Define armor and other stats
+              const armorValue = health.armor || 0;
+              const shieldValue = health.shield || 0;
+              
+              // Add unit to HTML
+              unitsHTML += `
+                <div class="selected-unit">
+                  <div class="unit-name">
+                    <span>${unitName}</span>
+                    <span>${Math.floor(health.currentHealth)}/${health.maxHealth}</span>
+                  </div>
+                  <div class="health-bar">
+                    <div class="health-fill" style="width: ${healthPercent}%"></div>
+                  </div>
+                  <div class="unit-stats">
+                    <span>Armor: ${armorValue}</span>
+                    ${shieldValue > 0 ? `<span>Shield: ${shieldValue}</span>` : ''}
+                    <span>ID: ${entityId}</span>
+                  </div>
+                </div>
+              `;
+              unitCount++;
+            }
+          });
+          
+          // Update the selection info container
+          if (unitCount > 0) {
+            selectionInfo.innerHTML = `
+              <div class="selection-header">${unitCount} ${unitCount === 1 ? 'Unit' : 'Units'} Selected</div>
+              ${unitsHTML}
+            `;
+            selectionInfo.style.display = 'block';
+          } else {
+            selectionInfo.style.display = 'none';
+          }
+        } else {
+          selectionInfo.style.display = 'none';
+        }
+      }
       
-      objectivesList.innerHTML = objectivesHTML;
-    } catch (error) {
-      console.error("Error updating objectives:", error);
+      // Helper function to update objectives display
+      function updateObjectives() {
+        if (!gameController.systems || !gameController.systems.objectives) return;
+        
+        const objectivesSystem = gameController.systems.objectives;
+        const objectivesList = document.querySelector('#objectives-display .objective-list');
+        
+        if (!objectivesList || typeof objectivesSystem.getObjectivesStatus !== 'function') return;
+        
+        try {
+          const objectivesStatus = objectivesSystem.getObjectivesStatus();
+          
+          if (!objectivesStatus || !objectivesStatus.objectives) return;
+          
+          let objectivesHTML = '';
+          
+          objectivesStatus.objectives.forEach(objective => {
+            if (!objective) return;
+            
+            const progressWidth = Math.floor((objective.progress || 0) * 100);
+            const checkmark = objective.completed ? '✓' : '●';
+            
+            objectivesHTML += `
+              <div class="objective-item">
+                <div class="objective-header">
+                  <div class="objective-icon">${checkmark}</div>
+                  <div class="objective-text">${objective.title || 'Unnamed Objective'}</div>
+                </div>
+                <div class="objective-progress">
+                  <div class="objective-progress-fill" style="width: ${progressWidth}%"></div>
+                </div>
+              </div>
+            `;
+          });
+          
+          objectivesList.innerHTML = objectivesHTML;
+        } catch (error) {
+          console.error("Error updating objectives:", error);
+        }
+      }
+      
+      // Helper function to update ability bar
+      function updateAbilityBar() {
+        const abilityBar = document.getElementById('ability-bar');
+        if (!abilityBar) return;
+        
+        // Check if we have selected entities and ability system
+        const inputManager = gameController.inputManager;
+        if (!inputManager || !inputManager.selectedEntities || 
+            !gameController.systems || !gameController.systems.ability) {
+          abilityBar.style.display = 'none';
+          return;
+        }
+        
+        const selectedEntities = inputManager.selectedEntities;
+        const abilitySystem = gameController.systems.ability;
+        
+        // If no units selected, hide ability bar
+        if (selectedEntities.size === 0) {
+          abilityBar.style.display = 'none';
+          return;
+        }
+        
+        // Get first selected entity for abilities - in future could show common abilities for multiple
+        const entityId = Array.from(selectedEntities)[0];
+        
+        // Check if this entity has abilities
+        if (!entityManager.hasComponent(entityId, 'unitType')) {
+          abilityBar.style.display = 'none';
+          return;
+        }
+        
+        const unitType = entityManager.getComponent(entityId, 'unitType');
+        if (!unitType.abilities || unitType.abilities.length === 0) {
+          abilityBar.style.display = 'none';
+          return;
+        }
+        
+        // We have abilities, show ability bar
+        abilityBar.style.display = 'flex';
+        
+        // Clear existing abilities
+        abilityBar.innerHTML = '';
+        
+        // Create slot for each possible ability (4 slots)
+        for (let i = 1; i <= 4; i++) {
+          const abilityIndex = i - 1;
+          const ability = unitType.abilities[abilityIndex];
+          
+          // Create the slot
+          const slot = document.createElement('div');
+          slot.className = 'ability-slot';
+          
+          // Add hotkey
+          const hotkey = document.createElement('div');
+          hotkey.className = 'ability-hotkey';
+          hotkey.textContent = i;
+          slot.appendChild(hotkey);
+          
+          if (ability) {
+            // Format ability name for display
+            const abilityName = ability
+              .split('_')
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+            
+            // Create ability name
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'ability-name';
+            nameDiv.textContent = abilityName;
+            slot.appendChild(nameDiv);
+            
+            // Create ability icon
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'ability-icon';
+            
+            // Set icon based on ability type
+            if (ability === 'sniper_aim') {
+              iconDiv.innerHTML = '🎯';
+            } else {
+              iconDiv.textContent = '?';
+            }
+            slot.appendChild(iconDiv);
+            
+            // Check if ability is on cooldown
+            const cooldownKey = `${entityId}_${ability}`;
+            if (abilitySystem.abilityCooldowns && abilitySystem.abilityCooldowns.has(cooldownKey)) {
+              slot.classList.add('cooldown');
+              const cooldown = abilitySystem.abilityCooldowns.get(cooldownKey);
+              
+              // Add cooldown overlay
+              const cooldownOverlay = document.createElement('div');
+              cooldownOverlay.className = 'cooldown-overlay';
+              cooldownOverlay.textContent = cooldown.toFixed(1) + 's';
+              slot.appendChild(cooldownOverlay);
+            }
+            
+            // Check if ability is active
+            if (abilitySystem.activeAbilities && 
+                abilitySystem.activeAbilities.has(entityId) &&
+                abilitySystem.activeAbilities.get(entityId).type === ability) {
+              slot.classList.add('active');
+            }
+          } else {
+            // Empty slot
+            slot.classList.add('empty');
+          }
+          
+          abilityBar.appendChild(slot);
+        }
+      }
     }
-  }
-  
-  // Helper function to initialize production display panel if empty
-  function initializeProductionDisplay() {
-    const productionDisplay = document.getElementById('production-display');
-    if (!productionDisplay) return;
-    
-    if (productionDisplay.innerHTML.trim() === '') {
-      productionDisplay.innerHTML = '<div class="panel-header"><h3>Production</h3></div><div class="panel-content"></div>';
-    }
-  }
-}
   </script>
 </body>
 </html>

@@ -830,15 +830,15 @@ class ExplorationScenario extends BaseScenario {
   getUnitAbilities(unitType) {
     switch(unitType) {
     case 'solar_knight':
-      return ['shield_bash', 'solar_flare'];
+      return [];
     case 'neon_assassin':
       return ['sniper_aim'];
     case 'techno_shaman':
-      return ['heal', 'drone_swarm'];
+      return [];
     case 'biohacker':
-      return ['nanite_injection', 'area_denial'];
+      return [];
     case 'scrap_golem':
-      return ['ground_pound', 'debris_throw'];
+      return [];
     default:
       return [];
     }
