@@ -256,6 +256,19 @@ class ObjectiveSystem {
         : 0
     };
   }
+
+  reset() {
+    this.winConditions = [];
+    this.failConditions = [];
+    this.objectives = [];
+    this.status = {
+      gameWon: false,
+      gameLost: false,
+      objectivesCompleted: 0,
+      totalObjectives: 0
+    };
+    console.log('Objectives system reset');
+  }
 }
   
 export default ObjectiveSystem;

@@ -20,15 +20,20 @@ class ExplorationScenario extends BaseScenario {
     this.resourceDensity = 0.5;
     this.biomeType = 'crystal_wastes';
     
-    // Mission settings
-    this.startPosition = { x: -this.mapWidth/2 + 0, z: 0 };
-    this.beaconPosition = { x: this.mapWidth/2 - 20, z: 0 };
+    // In ExplorationScenario constructor - update the starting and beacon positions
+    this.startPosition = { x: -this.mapWidth/2 + 10, z: this.mapHeight/2 - 10 }; // Bottom left
+    this.beaconPosition = { x: this.mapWidth/2 - 10, z: -this.mapHeight/2 + 10 }; //
     
     // Enemy properties
     this.enemyBuildingCount = 3;
     this.enemyUnitCount = 5;
     this.mainEnemyBaseId = null;
     this.beaconId = null;
+
+    // Add these properties for the hold objective
+    this.beaconHoldTime = 0;        // Current time holding the beacon
+    this.requiredHoldTime = 45;     // 45 seconds required to win
+    this.isHoldingBeacon = false;   // Flag for if player is at the beacon
 
     // Enable fog of war by default in this scenario
     this.fogOfWar = true;
@@ -291,11 +296,8 @@ class ExplorationScenario extends BaseScenario {
     
     // Use the new unit types for a more diverse and interesting squad
     const squadComposition = [
-      { type: 'solar_knight', offset: { x: 0, z: -3 } },
-      { type: 'techno_shaman', offset: { x: -2, z: -1 } },
-      { type: 'neon_assassin', offset: { x: 2, z: -1 } },
-      { type: 'biohacker', offset: { x: -1, z: 1 } },
-      { type: 'scrap_golem', offset: { x: 1, z: 1 } }
+      { type: 'neon_assassin', offset: { x: 0, z: -2 } },
+      { type: 'scrap_golem', offset: { x: 0, z: 0 } }
     ];
     
     for (const unit of squadComposition) {
@@ -546,8 +548,8 @@ class ExplorationScenario extends BaseScenario {
     // Add objective to reach the beacon
     objectives.addObjective({
       id: 'reach_beacon',
-      title: 'Activate the Ancient Beacon',
-      description: 'Guide your expedition to the techno-arcane beacon at the far end of the wasteland'
+      title: 'Secure the Ancient Beacon',
+      description: 'Hold the techno-arcane beacon at the far end of the wasteland for 45 seconds'
     });
     
     // Add alternative objective to destroy enemy command tower
@@ -592,7 +594,7 @@ class ExplorationScenario extends BaseScenario {
       this.updateNearbyEntityVisibility();
       
       // Every 5 seconds, enforce a fog update to ensure it's working properly
-      if (!this._extraFogTimer) this._extraFogTimer = 0;
+      if (!this._extraFogTimer) {this._extraFogTimer = 0;}
       this._extraFogTimer += deltaTime;
       
       if (this._extraFogTimer >= 5.0) {
@@ -640,15 +642,16 @@ class ExplorationScenario extends BaseScenario {
     }
   }
   
-  updateObjectiveProgress() {
+  updateObjectiveProgress(deltaTime) {
     if (!this.gameController.systems.objectives) {return;}
     
-    // Update beacon objective progress based on closest unit's distance
+    // Update beacon objective progress based on hold time
     if (this.beaconId && this.entityManager.hasComponent(this.beaconId, 'position')) {
       const beaconPosition = this.entityManager.getComponent(this.beaconId, 'position');
+      let anyUnitAtBeacon = false;
       let closestDistance = Infinity;
       
-      // Find the closest player unit to the beacon
+      // Check if any player unit is at the beacon
       this.entityManager.gameState.entities.forEach((entity, entityId) => {
         if (this.isPlayerEntity(entityId) && this.entityManager.hasComponent(entityId, 'position')) {
           const unitPosition = this.entityManager.getComponent(entityId, 'position');
@@ -662,12 +665,19 @@ class ExplorationScenario extends BaseScenario {
             closestDistance = distance;
           }
           
-          // Check if unit has reached the beacon
+          // Check if unit is close enough to the beacon (within 5 units)
           if (distance < 5) {
+            anyUnitAtBeacon = true;
+            
+            // Reveal the beacon area on the map
+            if (this.fogOfWar) {
+              this.revealMapFeature(beaconPosition, 40);
+            }
+            
+            // Visual indicator if not already activated
             if (!this.beaconActivated) {
               this.beaconActivated = true;
-              this.gameController.systems.objectives.updateObjectiveProgress('reach_beacon', 1.0);
-              this.showNotification('Beacon Activated! Ancient knowledge flows through your expedition team.');
+              this.showNotification('Beacon found! Hold position for 45 seconds to complete the mission.');
               
               // Enhance the beam effect
               if (this.beaconBeam) {
@@ -685,60 +695,77 @@ class ExplorationScenario extends BaseScenario {
         }
       });
       
+      // Update hold timer based on whether any unit is at the beacon
+      if (anyUnitAtBeacon) {
+        if (!this.isHoldingBeacon) {
+          this.isHoldingBeacon = true;
+          this.showNotification('Holding beacon position: ' + Math.floor(this.beaconHoldTime) + '/' + this.requiredHoldTime + ' seconds');
+        }
+        
+        this.beaconHoldTime += deltaTime;
+        
+        // Show periodic updates about hold progress
+        if (Math.floor(this.beaconHoldTime) % 10 === 0 && Math.floor(this.beaconHoldTime) > 0) {
+          const now = Date.now();
+          const secondsLeft = this.requiredHoldTime - Math.floor(this.beaconHoldTime);
+          if (secondsLeft > 0 && (!this._lastNotificationTime || 
+              (now - this._lastNotificationTime > 5000))) {
+            this.showNotification('Holding beacon: ' + secondsLeft + ' seconds remaining!');
+            this._lastNotificationTime = now;
+          }
+        }
+        
+        // Update objective progress based on hold time
+        const progress = Math.min(1.0, this.beaconHoldTime / this.requiredHoldTime);
+        this.gameController.systems.objectives.updateObjectiveProgress('reach_beacon', progress);
+      } else {
+        // Reset timer if no units at beacon
+        if (this.isHoldingBeacon) {
+          this.isHoldingBeacon = false;
+          if (this.beaconHoldTime > 0) {
+            this.showNotification('Lost contact with beacon! Hold timer reset.');
+          }
+        }
+        
+        // Only reset timer if player has already found the beacon
+        if (this.beaconActivated) {
+          this.beaconHoldTime = 0;
+          this.gameController.systems.objectives.updateObjectiveProgress('reach_beacon', 0);
+        }
+      }
+      
       // Only update progress display if not yet activated
       if (!this.beaconActivated) {
         // Calculate progress based on distance (0-1 range)
         // But only show this if player is within detection range
         if (closestDistance < 30) {
-          const progress = Math.max(0, 1 - (closestDistance / 30));
+          const progress = Math.max(0, 1 - (closestDistance / 30)) * 0.2; // Only go up to 20% before reaching beacon
           this.gameController.systems.objectives.updateObjectiveProgress('reach_beacon', progress);
         }
       }
-    }
-    
-    // Update tower destruction objective progress
-    if (this.mainEnemyBaseId && this.entityManager.hasComponent(this.mainEnemyBaseId, 'health')) {
-      const health = this.entityManager.getComponent(this.mainEnemyBaseId, 'health');
-      if (health) {
-        const progress = 1 - (health.currentHealth / health.maxHealth);
-        this.gameController.systems.objectives.updateObjectiveProgress('destroy_tower', progress);
-      } else {
-        // Health component is gone, tower is destroyed
-        this.gameController.systems.objectives.updateObjectiveProgress('destroy_tower', 1.0);
+      
+      // Update tower destruction objective progress
+      if (this.mainEnemyBaseId && this.entityManager.hasComponent(this.mainEnemyBaseId, 'health')) {
+        const health = this.entityManager.getComponent(this.mainEnemyBaseId, 'health');
+        if (health) {
+          const progress = 1 - (health.currentHealth / health.maxHealth);
+          this.gameController.systems.objectives.updateObjectiveProgress('destroy_tower', progress);
+        } else {
+          // Health component is gone, tower is destroyed
+          this.gameController.systems.objectives.updateObjectiveProgress('destroy_tower', 1.0);
+        }
       }
     }
   }
   
   checkBeaconReached() {
-    // Check if any player unit has reached the beacon
+    // Check if any player unit has reached the beacon AND held it long enough
     if (!this.beaconId || !this.entityManager.hasComponent(this.beaconId, 'position')) {
       return false;
     }
     
-    const beaconPosition = this.entityManager.getComponent(this.beaconId, 'position');
-    let reached = false;
-    
-    this.entityManager.gameState.entities.forEach((entity, entityId) => {
-      if (this.isPlayerEntity(entityId) && this.entityManager.hasComponent(entityId, 'position')) {
-        const unitPosition = this.entityManager.getComponent(entityId, 'position');
-        
-        // Check if unit is close enough to the beacon
-        const dx = unitPosition.x - beaconPosition.x;
-        const dz = unitPosition.z - beaconPosition.z;
-        const distance = Math.sqrt(dx * dx + dz * dz);
-        
-        if (distance < 5) { // Within 5 units of the beacon
-          reached = true;
-          
-          // Reveal the beacon area on the map when reached
-          if (this.fogOfWar) {
-            this.revealMapFeature(beaconPosition, 40);
-          }
-        }
-      }
-    });
-    
-    return reached;
+    // Return true only if the beacon is activated AND the hold time is sufficient
+    return this.beaconActivated && this.beaconHoldTime >= this.requiredHoldTime;
   }
   
   checkMainBaseDestroyed() {
