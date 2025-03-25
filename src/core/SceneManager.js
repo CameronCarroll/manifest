@@ -8,8 +8,8 @@ class SceneManager {
     this.camera = null;
     
     // Camera zoom parameters
-    this.minZoom = 20; // Closest zoom
-    this.maxZoom = 100; // Furthest zoom
+    this.minZoom = 10; // Closest zoom
+    this.maxZoom = 50; // Furthest zoom
     this.zoomSpeed = 1.1; // Zoom sensitivity
     
     // Camera control properties
@@ -58,12 +58,11 @@ class SceneManager {
     if (!this.camera) {
       return;
     }
-
+  
     // Prevent default scroll behavior
     event.preventDefault();
-
+  
     // Zoom based on wheel delta
-    // Different browsers handle wheel events differently
     const delta = event.deltaY > 0 ? 1 : -1;
     
     // Calculate new camera height
@@ -73,12 +72,20 @@ class SceneManager {
       Math.max(currentHeight * zoomFactor, this.minZoom), 
       this.maxZoom
     );
-
-    // Update camera position while maintaining proportional distance from ground
-    const heightRatio = newHeight / currentHeight;
+  
+    // For an RTS camera, we want to move back (increased Z) as we zoom out
+    // Calculate how much the Z position should change based on height change
+    const heightDifference = newHeight - currentHeight;
+    
+    // Adjust Z more than X to create the typical RTS camera angle
+    // These ratios control the camera angle - adjust as needed
+    const zRatio = 1.0;  // How much to move in Z direction (back and forth)
+    const xRatio = 0.0;  // How much to move in X direction (side to side)
+    
+    // Update camera position
     this.camera.position.y = newHeight;
-    this.camera.position.x *= heightRatio;
-    this.camera.position.z *= heightRatio;
+    this.camera.position.z += heightDifference * zRatio;
+    this.camera.position.x += heightDifference * xRatio;
   }
 
   onWindowResize() {
